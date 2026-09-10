@@ -6,7 +6,7 @@ st.set_page_config(page_title="Soni AI", page_icon="🤖")
 st.title("🤖 Soni AI")
 st.write("Aapka personal AI Assistant!")
 
-# Groq Setup
+# Groq Client Setup
 client = Groq(api_key="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")
 
 if "messages" not in st.session_state:
@@ -30,7 +30,7 @@ if user_input:
                 {"role": "system", "content": "Aap Soni AI hain, ek helpful aur smart AI assistant. Hinglish aur Hindi/English mein natural jawab dein."},
                 *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
             ],
-            model="llama3-8b-8192",
+            model="openai/gpt-oss-20b",
         )
         bot_reply = chat_completion.choices[0].message.content
     except Exception as e:
