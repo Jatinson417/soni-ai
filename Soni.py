@@ -1,56 +1,41 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+from groq import Groq
 
-# Page settings
-st.set_page_config(page_title="Soni AI Bot", page_icon="🤖")
-st.title("🤖 Soni AI Assistant")
+st.set_page_config(page_title="Soni AI", page_icon="🤖")
 
-# Aapki API Key
-API_KEY = "AQ.Ab8RN6LGDLUanT_w1dMluRKpOQowKKsIae9b3dQATmaAst6_Kw"
+st.title("🤖 Soni AI")
+st.write("Aapka personal AI Assistant!")
 
-# Gemini client initialize
-client = genai.Client(api_key=API_KEY)
+# Groq Setup
+client = Groq(api_key="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")
 
-# Custom Creator Instructions
-system_instruction = (
-    "Aapka naam Soni AI hai. "
-    "Jab bhi koi aapse pooche ki aapko kisne banaya hai, aapka creator ya developer kaun hai, "
-    "toh hamesha batana ki aapko Jatin Soni ne banaya hai, jinki age 16 years hai, aur wo "
-    "Sirsa district ke Rori village me rehte hain. "
-    "Zaroori Niyam: User jis bhasha me sawal pooche (Hindi, English, Hinglish, Punjabi, etc.), "
-    "aapko ye creator details usi bhasha me translate karke natural tareeqe se batani hai. "
-    "Baaki sabhi sawalon ke jawab hamesha helpful aur friendly tone me dena."
-)
-
-# Chat history memory
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Screen par purani chat show karna
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# Previous messages display
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# User ka input box
-if prompt := st.chat_input("Poochiye apna sawal..."):
-    # User message screen par show karein
-    st.session_state.messages.append({"role": "user", "content": prompt})
+user_input = st.chat_input("Apna sawal yahan likhein...")
+
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(user_input)
 
-    # AI se jawab mangna
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "Aap Soni AI hain, ek helpful aur smart AI assistant. Hinglish aur Hindi/English mein natural jawab dein."},
+                *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+            ],
+            model="llama-3.3-70b-versatile",
+        )
+        bot_reply = chat_completion.choices[0].message.content
+    except Exception as e:
+        bot_reply = f"Error aaya hai: {e}"
+
+    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction
-                )
-            )
-            reply = response.text
-            st.markdown(reply)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-        except Exception as e:
-            st.error(f"Error aaya hai: {e}")
+        st.markdown(bot_reply)
