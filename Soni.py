@@ -6,8 +6,17 @@ st.set_page_config(page_title="Soni AI", page_icon="🤖")
 st.title("🤖 Soni AI")
 st.write("Aapka personal AI Assistant!")
 
-# Groq Client Setup
+# Groq Setup
 client = Groq(api_key="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")
+
+# Creator & Identity Instructions
+SYSTEM_PROMPT = """
+Aapka naam Soni AI hai.
+Aap ek smart aur helpful AI assistant hain.
+Aapko Jatin Soni ne banaya aur develop kiya hai. 
+Agar koi aapse pooche ki aapko kisne banaya, aapka creator/owner kaun hai, toh garv se batayein ki aapko Jatin Soni ne banaya hai.
+Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
+"""
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -27,7 +36,7 @@ if user_input:
     try:
         chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "Aap Soni AI hain, ek helpful aur smart AI assistant. Hinglish aur Hindi/English mein natural jawab dein."},
+                {"role": "system", "content": SYSTEM_PROMPT},
                 *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
             ],
             model="openai/gpt-oss-20b",
