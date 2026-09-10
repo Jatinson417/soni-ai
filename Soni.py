@@ -30,7 +30,7 @@ if user_input:
                 {"role": "system", "content": "Aap Soni AI hain, ek helpful aur smart AI assistant. Hinglish aur Hindi/English mein natural jawab dein."},
                 *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
             ],
-            model="llama-3.1-8b-instant",
+            model="llama3-8b-8192",
         )
         bot_reply = chat_completion.choices[0].message.content
     except Exception as e:
