@@ -203,7 +203,7 @@ st.markdown(
     }}
     </style>
 
-    <!-- RIGHT SIDE BAR: Founder -> Donate -> Shop (Fixed in exact vertical line) -->
+    <!-- RIGHT SIDE BAR: Founder -> Donate -> Shop -->
     <div class="top-right-stack">
         <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
            target="_blank" 
@@ -234,7 +234,6 @@ if st.button("🔒", key="admin_secret_toggle", help="Owner Panel"):
 st.markdown('</div>', unsafe_allow_html=True)
 
 st.title("🤖 Soni AI")
-st.write("Aapka personal AI Assistant!")
 
 client = Groq(api_key="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")
 
@@ -282,117 +281,123 @@ if st.session_state.show_admin:
 
 # --- 2. SHOPPING STORE WINDOW ---
 if st.session_state.show_shop:
-    with st.expander("🛍️ Soni Store - Buy Products", expanded=True):
-        st.markdown("### 🛒 Hamare Products")
-        
-        products = [
-            {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
-            {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
-            {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
-        ]
+    st.markdown("## 🛍️ Soni Store")
+    if st.button("⬅️ Back to Chat", key="btn_back_to_chat"):
+        st.session_state.show_shop = False
+        st.rerun()
 
-        col1, col2, col3 = st.columns(3)
-        cols = [col1, col2, col3]
-
-        for i, prod in enumerate(products):
-            with cols[i % 3]:
-                st.image(prod["img"], use_container_width=True)
-                st.markdown(f"**{prod['name']}**")
-                st.markdown(f"Price: **₹{prod['price']}**")
-                if st.button(f"Buy Now", key=f"buy_btn_{prod['id']}"):
-                    st.session_state.selected_product = prod
-                    st.rerun()
-
-        # Checkout Form
-        if "selected_product" in st.session_state and st.session_state.selected_product:
-            item = st.session_state.selected_product
-            st.markdown("---")
-            st.markdown(f"### 📦 Checkout: {item['name']} (₹{item['price']})")
-            
-            with st.form("order_checkout_form"):
-                cust_name = st.text_input("Aapka Naam*", placeholder="Apna pura naam likhein")
-                cust_phone = st.text_input("Mobile Number*", placeholder="10-digit mobile number")
-                cust_address = st.text_area("Delivery Address*", placeholder="House no, Gali/Ward, Gaon/City, District, Pincode")
-                payment_mode = st.radio("Payment Mode*", ["Cash on Delivery (COD)", "Pay Online (UPI / QR)"])
-                
-                submit_order = st.form_submit_button("Confirm Order 🚀")
-
-                if submit_order:
-                    if not cust_name.strip() or not cust_phone.strip() or not cust_address.strip():
-                        st.error("Kripya saari details (Naam, Mobile, Address) bharein!")
-                    else:
-                        order_data = {
-                            "item": item["name"],
-                            "price": item["price"],
-                            "name": cust_name.strip(),
-                            "phone": cust_phone.strip(),
-                            "address": cust_address.strip(),
-                            "payment": payment_mode
-                        }
-                        
-                        save_order_to_file(order_data)
-                        
-                        msg = (
-                            f"🛒 *NEW ORDER - SONI STORE*\n\n"
-                            f"📦 *Product:* {item['name']}\n"
-                            f"💰 *Price:* ₹{item['price']}\n"
-                            f"👤 *Customer:* {cust_name}\n"
-                            f"📞 *Mobile:* {cust_phone}\n"
-                            f"🏠 *Address:* {cust_address}\n"
-                            f"💳 *Payment Mode:* {payment_mode}\n"
-                        )
-                        wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(msg)}"
-                        
-                        st.success("Order Confirm ho gaya hai! 🎉")
-                        
-                        if payment_mode == "Pay Online (UPI / QR)":
-                            st.image(UPI_QR_URL, caption=f"Scan & Pay ₹{item['price']}", width=180)
-                        
-                        st.markdown(f'''
-                            <a href="{wa_url}" target="_blank" style="display:inline-block; padding:12px 24px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">
-                                📲 WhatsApp par Order Send Karein
-                            </a>
-                        ''', unsafe_allow_html=True)
-                        st.session_state.selected_product = None
-
-# Chat messages display
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-user_input = st.chat_input("Ask Soni AI anything...")
-
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    input_lower = user_input.lower()
-    creator_triggers = [
-        "kisne banaya", "who made you", "developer", "creator", 
-        "owner", "kaun banaya", "maker", "who created", "who is your developer"
+    st.markdown("---")
+    
+    products = [
+        {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
+        {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
+        {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
     ]
 
-    if any(trigger in input_lower for trigger in creator_triggers):
-        bot_reply = CREATOR_REPLY
-    else:
-        try:
-            conversation_payload = [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages[-10:]
-            ]
-            payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
+    col1, col2, col3 = st.columns(3)
+    cols = [col1, col2, col3]
 
-            chat_completion = client.chat.completions.create(
-                messages=payload,
-                model="openai/gpt-oss-20b",
-            )
-            bot_reply = chat_completion.choices[0].message.content
-        except Exception as e:
-            bot_reply = f"Error aaya: {e}"
+    for i, prod in enumerate(products):
+        with cols[i % 3]:
+            st.image(prod["img"], use_container_width=True)
+            st.markdown(f"**{prod['name']}**")
+            st.markdown(f"Price: **₹{prod['price']}**")
+            if st.button(f"Buy Now", key=f"buy_btn_{prod['id']}"):
+                st.session_state.selected_product = prod
+                st.rerun()
 
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-    with st.chat_message("assistant"):
-        st.markdown(bot_reply)
+    # Checkout Form
+    if "selected_product" in st.session_state and st.session_state.selected_product:
+        item = st.session_state.selected_product
+        st.markdown("---")
+        st.markdown(f"### 📦 Checkout: {item['name']} (₹{item['price']})")
+        
+        with st.form("order_checkout_form"):
+            cust_name = st.text_input("Aapka Naam*", placeholder="Apna pura naam likhein")
+            cust_phone = st.text_input("Mobile Number*", placeholder="10-digit mobile number")
+            cust_address = st.text_area("Delivery Address*", placeholder="House no, Gali/Ward, Gaon/City, District, Pincode")
+            payment_mode = st.radio("Payment Mode*", ["Cash on Delivery (COD)", "Pay Online (UPI / QR)"])
+            
+            submit_order = st.form_submit_button("Confirm Order 🚀")
 
-    st.rerun()
+            if submit_order:
+                if not cust_name.strip() or not cust_phone.strip() or not cust_address.strip():
+                    st.error("Kripya saari details (Naam, Mobile, Address) bharein!")
+                else:
+                    order_data = {
+                        "item": item["name"],
+                        "price": item["price"],
+                        "name": cust_name.strip(),
+                        "phone": cust_phone.strip(),
+                        "address": cust_address.strip(),
+                        "payment": payment_mode
+                    }
+                    
+                    save_order_to_file(order_data)
+                    
+                    msg = (
+                        f"🛒 *NEW ORDER - SONI STORE*\n\n"
+                        f"📦 *Product:* {item['name']}\n"
+                        f"💰 *Price:* ₹{item['price']}\n"
+                        f"👤 *Customer:* {cust_name}\n"
+                        f"📞 *Mobile:* {cust_phone}\n"
+                        f"🏠 *Address:* {cust_address}\n"
+                        f"💳 *Payment Mode:* {payment_mode}\n"
+                    )
+                    wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(msg)}"
+                    
+                    st.success("Order Confirm ho gaya hai! 🎉")
+                    
+                    if payment_mode == "Pay Online (UPI / QR)":
+                        st.image(UPI_QR_URL, caption=f"Scan & Pay ₹{item['price']}", width=180)
+                    
+                    st.markdown(f'''
+                        <a href="{wa_url}" target="_blank" style="display:inline-block; padding:12px 24px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">
+                            📲 WhatsApp par Order Send Karein
+                        </a>
+                    ''', unsafe_allow_html=True)
+                    st.session_state.selected_product = None
+
+# --- 3. CHAT AREA (Only renders when Shop is CLOSED) ---
+else:
+    st.write("Aapka personal AI Assistant!")
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    user_input = st.chat_input("Ask Soni AI anything...")
+
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        input_lower = user_input.lower()
+        creator_triggers = [
+            "kisne banaya", "who made you", "developer", "creator", 
+            "owner", "kaun banaya", "maker", "who created", "who is your developer"
+        ]
+
+        if any(trigger in input_lower for trigger in creator_triggers):
+            bot_reply = CREATOR_REPLY
+        else:
+            try:
+                conversation_payload = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages[-10:]
+                ]
+                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
+
+                chat_completion = client.chat.completions.create(
+                    messages=payload,
+                    model="openai/gpt-oss-20b",
+                )
+                bot_reply = chat_completion.choices[0].message.content
+            except Exception as e:
+                bot_reply = f"Error aaya: {e}"
+
+        st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+        with st.chat_message("assistant"):
+            st.markdown(bot_reply)
+
+        st.rerun()
