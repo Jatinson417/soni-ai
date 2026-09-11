@@ -34,7 +34,6 @@ if "show_shop" not in st.session_state:
 if "show_admin" not in st.session_state:
     st.session_state.show_admin = False
 
-# Query parameter trigger for shop toggle
 query_params = st.query_params
 if "action" in query_params:
     if query_params["action"] == "toggle_shop":
@@ -66,7 +65,7 @@ st.markdown(
         box-shadow: none !important;
     }}
 
-    /* RIGHT SIDE VERTICAL STACK (Founder -> Donate -> Shop) */
+    /* Top-Right Stack */
     .top-right-stack {{
         position: fixed;
         top: 25px;
@@ -152,7 +151,7 @@ st.markdown(
         transform: scale(1.05);
     }}
 
-    /* LEFT CORNER ADMIN LOCK */
+    /* Top-Left Admin Button */
     .admin-secret-box {{
         position: fixed;
         top: 25px;
@@ -180,7 +179,7 @@ st.markdown(
     }}
 
     .main .block-container {{
-        max-width: 760px !important;
+        max-width: 820px !important;
         padding-top: 50px !important;
         padding-bottom: 140px !important;
     }}
@@ -195,6 +194,58 @@ st.markdown(
         color: #111111 !important;
     }}
 
+    /* Global Fix for all Normal Buttons (White issue fix) */
+    div[data-testid="stButton"] > button {{
+        background: linear-gradient(135deg, #1e1e2f, #2c2d4a) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        padding: 8px 18px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        transition: all 0.2s ease-in-out !important;
+    }}
+    div[data-testid="stButton"] > button p {{
+        color: #ffffff !important;
+    }}
+    div[data-testid="stButton"] > button:hover {{
+        background: linear-gradient(135deg, #2b2b40, #3d3e65) !important;
+        border-color: #00e5ff !important;
+        color: #00e5ff !important;
+        transform: translateY(-2px);
+    }}
+    div[data-testid="stButton"] > button:hover p {{
+        color: #00e5ff !important;
+    }}
+
+    /* Product Card Style */
+    .shop-product-card {{
+        background: rgba(0, 0, 0, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 18px;
+        padding: 14px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }}
+    .shop-product-card img {{
+        border-radius: 12px;
+        margin-bottom: 10px;
+    }}
+    .shop-product-title {{
+        font-size: 15px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 6px;
+    }}
+    .shop-product-price {{
+        font-size: 16px;
+        font-weight: 800;
+        color: #00e5ff;
+        margin-bottom: 12px;
+    }}
+
     [data-testid="stChatInput"] {{
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
@@ -203,7 +254,7 @@ st.markdown(
     }}
     </style>
 
-    <!-- RIGHT SIDE BAR: Founder -> Donate -> Shop -->
+    <!-- Top Right Stack -->
     <div class="top-right-stack">
         <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
            target="_blank" 
@@ -226,7 +277,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Top Left Discreet Admin Toggle
+# Admin Trigger (Top Left)
 st.markdown('<div class="admin-secret-box">', unsafe_allow_html=True)
 if st.button("🔒", key="admin_secret_toggle", help="Owner Panel"):
     st.session_state.show_admin = not st.session_state.show_admin
@@ -256,7 +307,7 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
-# --- 1. ADMIN PANEL (PIN: 2009) ---
+# --- 1. ADMIN PANEL ---
 if st.session_state.show_admin:
     with st.expander("🔐 Owner Control Panel (Private)", expanded=True):
         admin_pass = st.text_input("Enter Secret PIN:", type="password", placeholder="PIN...")
@@ -279,12 +330,15 @@ if st.session_state.show_admin:
         elif admin_pass:
             st.error("Galat PIN! Access Denied.")
 
-# --- 2. SHOPPING STORE WINDOW ---
+# --- 2. SHOP STORE SECTION ---
 if st.session_state.show_shop:
-    st.markdown("## 🛍️ Soni Store")
-    if st.button("⬅️ Back to Chat", key="btn_back_to_chat"):
-        st.session_state.show_shop = False
-        st.rerun()
+    col_head, col_back = st.columns([7, 3])
+    with col_head:
+        st.markdown("## 🛍️ Soni Store")
+    with col_back:
+        if st.button("⬅️ Back to Chat", key="btn_back_to_chat"):
+            st.session_state.show_shop = False
+            st.rerun()
 
     st.markdown("---")
     
@@ -299,10 +353,15 @@ if st.session_state.show_shop:
 
     for i, prod in enumerate(products):
         with cols[i % 3]:
-            st.image(prod["img"], use_container_width=True)
-            st.markdown(f"**{prod['name']}**")
-            st.markdown(f"Price: **₹{prod['price']}**")
-            if st.button(f"Buy Now", key=f"buy_btn_{prod['id']}"):
+            st.markdown(f"""
+            <div class="shop-product-card">
+                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
+                <div class="shop-product-title">{prod['name']}</div>
+                <div class="shop-product-price">₹{prod['price']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button(f"🛒 Buy Now", key=f"buy_btn_{prod['id']}", use_container_width=True):
                 st.session_state.selected_product = prod
                 st.rerun()
 
@@ -318,7 +377,7 @@ if st.session_state.show_shop:
             cust_address = st.text_area("Delivery Address*", placeholder="House no, Gali/Ward, Gaon/City, District, Pincode")
             payment_mode = st.radio("Payment Mode*", ["Cash on Delivery (COD)", "Pay Online (UPI / QR)"])
             
-            submit_order = st.form_submit_button("Confirm Order 🚀")
+            submit_order = st.form_submit_button("Confirm Order 🚀", use_container_width=True)
 
             if submit_order:
                 if not cust_name.strip() or not cust_phone.strip() or not cust_address.strip():
@@ -352,13 +411,13 @@ if st.session_state.show_shop:
                         st.image(UPI_QR_URL, caption=f"Scan & Pay ₹{item['price']}", width=180)
                     
                     st.markdown(f'''
-                        <a href="{wa_url}" target="_blank" style="display:inline-block; padding:12px 24px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">
+                        <a href="{wa_url}" target="_blank" style="display:block; text-align:center; padding:12px 24px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">
                             📲 WhatsApp par Order Send Karein
                         </a>
                     ''', unsafe_allow_html=True)
                     st.session_state.selected_product = None
 
-# --- 3. CHAT AREA (Only renders when Shop is CLOSED) ---
+# --- 3. CHAT AREA ---
 else:
     st.write("Aapka personal AI Assistant!")
     for message in st.session_state.messages:
