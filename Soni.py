@@ -57,18 +57,13 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Action buttons above chatbar */
     div.stButton > button {{
-        background-color: rgba(255, 255, 255, 0.8) !important;
+        background-color: rgba(255, 255, 255, 0.85) !important;
         border: 1px solid rgba(0,0,0,0.1) !important;
         border-radius: 25px !important;
-        font-size: 16px !important;
+        font-size: 15px !important;
         padding: 4px 14px !important;
         color: #111111 !important;
-    }}
-    div.stButton > button:hover {{
-        background-color: #ffffff !important;
-        transform: scale(1.03);
     }}
     </style>
 
@@ -105,7 +100,6 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
-# State Management
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_img_box" not in st.session_state:
@@ -115,12 +109,12 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Purane messages screen par render karna
+# Purane messages dikhana
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- Action Bar (➕ Attach / 🎙️ Voice) ---
+# Action Buttons
 col1, col2, _ = st.columns([1.3, 1.3, 6])
 with col1:
     if st.button("➕ Photo"):
@@ -134,21 +128,19 @@ with col2:
         st.session_state.show_img_box = False
         st.rerun()
 
-# Photo Box (Gemini Preview style)
+# Photo Uploader
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo chuniye", type=["png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("Photo select karein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Selected Image ready for questions", width=180)
+        st.image(uploaded_file, caption="Photo attached ready to ask", width=180)
 
-# Mic Box
 voice_audio = None
 if st.session_state.show_mic_box:
-    voice_audio = st.audio_input("Apni voice record karein")
+    voice_audio = st.audio_input("Record Voice")
 
-# Chat Input Box
-text_input = st.chat_input("Apna sawal yahan likhein (ya image ke baare mein puchein)...")
+text_input = st.chat_input("Apna sawal yahan likhein (photo ke baare mein bhi)...")
 user_input = None
 
 if voice_audio:
@@ -159,21 +151,14 @@ if voice_audio:
         )
         user_input = transcription.text
     except Exception as e:
-        st.error(f"Voice detect error: {e}")
+        st.error(f"Voice error: {e}")
 elif text_input:
     user_input = text_input
 
-# Agar user ne photo upload ki hai aur direct submit kiya bina likhe
-if st.session_state.current_image_b64 and not user_input and st.session_state.show_img_box:
-    # Wait for user input
-    pass
-
 if user_input:
-    # Screen aur history update
-    display_text = user_input
-    st.session_state.messages.append({"role": "user", "content": display_text})
+    st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
-        st.markdown(display_text)
+        st.markdown(user_input)
 
     input_lower = user_input.lower()
     creator_triggers = [
@@ -184,27 +169,37 @@ if user_input:
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
-        try:
-            # Check: Agar photo selected hai toh Vision API call hogi
-            if st.session_state.current_image_b64:
-                chat_completion = client.chat.completions.create(
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nUser Question: {user_input}"},
-                                {"type": "image_url", "image_url": {"url": st.session_state.current_image_b64}}
-                            ]
-                        }
-                    ],
-                    model="llama-3.2-11b-vision-preview",
-                )
-                bot_reply = chat_completion.choices[0].message.content
-                # Process hone ke baad image buffer reset
-                st.session_state.current_image_b64 = None
-                st.session_state.show_img_box = False
-            else:
-                # Normal Text / Voice chat with memory
+        # Vision Request Handling
+        if st.session_state.current_image_b64:
+            vision_models = ["meta-llama/llama-4-scout-17b-preview", "llama-3.2-90b-vision-preview"]
+            bot_reply = None
+            for model_name in vision_models:
+                try:
+                    chat_completion = client.chat.completions.create(
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nQuestion: {user_input}"},
+                                    {"type": "image_url", "image_url": {"url": st.session_state.current_image_b64}}
+                                ]
+                            }
+                        ],
+                        model=model_name,
+                    )
+                    bot_reply = chat_completion.choices[0].message.content
+                    break
+                except Exception:
+                    continue
+            
+            if not bot_reply:
+                bot_reply = "Photo scan karne mein issue aaya. Kripya doosri photo try karein."
+
+            st.session_state.current_image_b64 = None
+            st.session_state.show_img_box = False
+        else:
+            # Regular Text / Contextual Memory Request
+            try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages[-10:]
@@ -216,8 +211,8 @@ if user_input:
                     model="openai/gpt-oss-20b",
                 )
                 bot_reply = chat_completion.choices[0].message.content
-        except Exception as e:
-            bot_reply = f"Error aaya: {e}"
+            except Exception as e:
+                bot_reply = f"Error aaya: {e}"
 
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
