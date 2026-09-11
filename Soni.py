@@ -53,8 +53,8 @@ if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
 if "admin_authenticated" not in st.session_state:
     st.session_state.admin_authenticated = False
-if "zoomed_image" not in st.session_state:
-    st.session_state.zoomed_image = None
+if "lightbox_img" not in st.session_state:
+    st.session_state.lightbox_img = None
 
 query_params = st.query_params
 if query_params.get("action") == "toggle_shop":
@@ -226,7 +226,7 @@ st.markdown(
         font-size: 15px;
         font-weight: 700;
         color: #ffffff;
-        margin-top: 8px;
+        margin-top: 10px;
         margin-bottom: 6px;
     }}
     .shop-product-price {{
@@ -234,6 +234,28 @@ st.markdown(
         font-weight: 800;
         color: #00e5ff;
         margin-bottom: 12px;
+    }}
+
+    /* Lightbox Modal Overlay */
+    .lightbox-overlay {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        backdrop-filter: blur(8px);
+    }}
+    .lightbox-content {{
+        max-width: 90%;
+        max-height: 90vh;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        border: 2px solid rgba(255,255,255,0.2);
     }}
 
     .admin-card-box {{
@@ -296,6 +318,21 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 "{CREATOR_REPLY}"
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
+
+# --- FULLSCREEN LIGHTBOX MODAL (If image clicked) ---
+if st.session_state.lightbox_img:
+    img_url = st.session_state.lightbox_img
+    st.markdown(f"""
+        <div class="lightbox-overlay" onclick="window.location.reload();">
+            <div style="text-align: center;">
+                <img src="{img_url}" class="lightbox-content"><br>
+                <p style="color: #fff; margin-top: 10px; font-size: 14px;">(Band karne ke liye photo ya bahar kahin bhi click karein)</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    if st.button("✕ Close Zoom View", key="close_lightbox_btn", use_container_width=True):
+        st.session_state.lightbox_img = None
+        st.rerun()
 
 # --- 1. OWNER CONTROL PANEL ---
 if st.session_state.admin_authenticated:
@@ -387,20 +424,10 @@ if st.session_state.show_shop:
     with col_back:
         if st.button("⬅️ Back to Chat", key="btn_back_to_chat"):
             st.session_state.show_shop = False
-            st.session_state.zoomed_image = None
+            st.session_state.lightbox_img = None
             st.rerun()
 
     st.markdown("---")
-
-    # Image Zoom View Modal/Popup
-    if st.session_state.zoomed_image:
-        z_img, z_title = st.session_state.zoomed_image
-        st.markdown(f"### 🔍 Zoomed View: {z_title}")
-        st.image(z_img, use_container_width=True)
-        if st.button("❌ Close Zoom", key="btn_close_zoom"):
-            st.session_state.zoomed_image = None
-            st.rerun()
-        st.markdown("---")
     
     products = load_products()
 
@@ -412,27 +439,22 @@ if st.session_state.show_shop:
 
         for i, prod in enumerate(products):
             with cols[i % 3]:
-                # Image button to trigger direct zoom on photo click
-                if st.button("", key=f"img_click_{prod['id']}", help="Click to Zoom Image"):
-                    st.session_state.zoomed_image = (prod["img"], prod["name"])
+                # Transparent button overlaying the image to capture direct click for zoom
+                if st.button(f"🔍 Click to Zoom", key=f"zoom_click_{prod['id']}", use_container_width=True):
+                    st.session_state.lightbox_img = prod["img"]
                     st.rerun()
-                
-                # Render product card with direct image button overlay effect
+
                 st.markdown(f"""
-                <div class="shop-product-card">
+                <div class="shop-product-card" style="margin-top:-10px;">
                     <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px; cursor:pointer;">
                     <div class="shop-product-title">{prod['name']}</div>
                     <div class="shop-product-price">₹{prod['price']}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
-                if st.button(f"🔍 Zoom Photo", key=f"zoom_btn_{prod['id']}", use_container_width=True):
-                    st.session_state.zoomed_image = (prod["img"], prod["name"])
-                    st.rerun()
-
                 if st.button(f"🛒 Buy Now", key=f"buy_btn_{prod['id']}", use_container_width=True):
                     st.session_state.selected_product = prod
-                    st.session_state.zoomed_image = None
+                    st.session_state.lightbox_img = None
                     st.rerun()
 
     # Checkout Form
