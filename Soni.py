@@ -27,35 +27,58 @@ def save_order_to_file(order_dict):
     with open(ORDERS_FILE, "w") as f:
         json.dump(orders, f, indent=4)
 
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "show_shop" not in st.session_state:
+    st.session_state.show_shop = False
+if "show_admin" not in st.session_state:
+    st.session_state.show_admin = False
+
+# Query parameter trigger for shop toggle
+query_params = st.query_params
+if "action" in query_params:
+    if query_params["action"] == "toggle_shop":
+        st.session_state.show_shop = not st.session_state.show_shop
+        st.query_params.clear()
+        st.rerun()
+
 st.markdown(
-    """
+    f"""
     <style>
     /* Full Page Background */
-    html, body, [data-testid="stAppViewContainer"], .stApp {
-        background: url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe") no-repeat center center fixed !important;
+    html, body, [data-testid="stAppViewContainer"], .stApp {{
+        background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
         height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow-x: hidden !important;
-    }
+    }}
 
-    [data-testid="stSidebar"] {
+    [data-testid="stSidebar"] {{
         display: none !important;
-    }
+    }}
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {
+    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
         background: transparent !important;
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
-    }
+    }}
 
-    /* 1. Founder Badge */
-    .founder-badge {
+    /* RIGHT SIDE VERTICAL STACK (Founder -> Donate -> Shop) */
+    .top-right-stack {{
         position: fixed;
-        top: 30px;
-        right: 25px;
+        top: 25px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        z-index: 99999;
+    }}
+
+    .founder-badge {{
         background: rgba(0, 0, 0, 0.75);
         color: #00e5ff !important;
         padding: 6px 14px;
@@ -65,18 +88,13 @@ st.markdown(
         text-decoration: none !important;
         border: 1px solid rgba(0, 229, 255, 0.4);
         backdrop-filter: blur(8px);
-        z-index: 9999;
-        display: block;
-    }
+        display: inline-block;
+    }}
 
-    /* 2. Donate Box (Below Founder) */
-    .donate-box {
-        position: fixed;
-        top: 72px;
-        right: 25px;
-        z-index: 9999;
-    }
-    .donate-btn {
+    .donate-box {{
+        position: relative;
+    }}
+    .donate-btn {{
         background: rgba(0, 0, 0, 0.75);
         color: #ff69b4 !important;
         padding: 6px 14px;
@@ -88,8 +106,8 @@ st.markdown(
         cursor: pointer;
         display: inline-block;
         text-align: center;
-    }
-    .donate-content {
+    }}
+    .donate-content {{
         display: none;
         position: absolute;
         right: 0;
@@ -102,132 +120,116 @@ st.markdown(
         box-shadow: 0 8px 32px rgba(0,0,0,0.6);
         width: 210px;
         backdrop-filter: blur(12px);
-    }
-    .donate-box:hover .donate-content {
+    }}
+    .donate-box:hover .donate-content {{
         display: block;
-    }
-    .donate-content img {
+    }}
+    .donate-content img {{
         width: 180px;
         border-radius: 10px;
         margin-bottom: 8px;
-    }
-    .donate-content p {
+    }}
+    .donate-content p {{
         font-size: 11px !important;
         color: #e0e0e0 !important;
         margin: 0 !important;
         line-height: 1.3;
-    }
+    }}
 
-    /* 3. Shop Box (Directly below Donate) */
-    .shop-box {
-        position: fixed;
-        top: 114px;
-        right: 25px;
-        z-index: 9999;
-    }
-    .shop-box button {
-        background: rgba(0, 0, 0, 0.75) !important;
+    .shop-btn-link {{
+        background: rgba(0, 0, 0, 0.75);
         color: #ffd700 !important;
-        padding: 6px 14px !important;
-        border-radius: 20px !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        border: 1px solid rgba(255, 215, 0, 0.5) !important;
-        backdrop-filter: blur(8px) !important;
-        cursor: pointer !important;
-        line-height: 1.2 !important;
-    }
-    .shop-box button:hover {
-        transform: scale(1.05) !important;
-    }
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none !important;
+        border: 1px solid rgba(255, 215, 0, 0.5);
+        backdrop-filter: blur(8px);
+        display: inline-block;
+    }}
+    .shop-btn-link:hover {{
+        transform: scale(1.05);
+    }}
 
-    /* 4. Admin Secret Button (Top Left Corner) */
-    .admin-secret-box {
+    /* LEFT CORNER ADMIN LOCK */
+    .admin-secret-box {{
         position: fixed;
-        top: 30px;
-        left: 25px;
-        z-index: 9999;
-    }
-    .admin-secret-box button {
-        background: rgba(0, 0, 0, 0.3) !important;
-        color: rgba(255, 255, 255, 0.5) !important;
+        top: 25px;
+        left: 20px;
+        z-index: 99999;
+    }}
+    .admin-secret-box button {{
+        background: rgba(0, 0, 0, 0.35) !important;
+        color: rgba(255, 255, 255, 0.6) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
         border-radius: 50% !important;
         width: 32px !important;
         height: 32px !important;
         min-width: 32px !important;
         padding: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
         font-size: 13px !important;
-    }
-    .admin-secret-box button:hover {
+    }}
+    .admin-secret-box button:hover {{
         background: rgba(0, 0, 0, 0.8) !important;
         color: #ffffff !important;
-    }
+    }}
 
-    h1, h2, h3, p {
+    h1, h2, h3, p {{
         color: #ffffff;
-    }
+    }}
 
-    /* Chat Messages scrolling container */
-    .main .block-container {
+    .main .block-container {{
         max-width: 760px !important;
         padding-top: 50px !important;
         padding-bottom: 140px !important;
-    }
+    }}
 
-    [data-testid="stChatMessage"] {
+    [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
         margin-bottom: 12px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-    }
-    [data-testid="stChatMessage"] p {
+    }}
+    [data-testid="stChatMessage"] p {{
         color: #111111 !important;
-    }
+    }}
 
-    /* Bottom Input Bar */
-    [data-testid="stChatInput"] {
+    [data-testid="stChatInput"] {{
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
         border: 1px solid rgba(0,0,0,0.06) !important;
-    }
+    }}
     </style>
 
-    <!-- Top Left: Discreet Secret Lock -->
-    <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
-       target="_blank" 
-       class="founder-badge">
-        ⚡ Founder: Jatin Soni
-    </a>
-
-    <!-- Top Right: Donate Dropdown -->
-    <div class="donate-box">
-        <div class="donate-btn">💖 Donate / Support</div>
-        <div class="donate-content">
-            <img src="{UPI_QR_URL}" alt="Paytm Scanner">
-            <p><b>Scan with Paytm/PhonePe/GPay</b></p>
-            <p style="color:#00e5ff !important; margin-top:4px;">UPI: 8307940340@ptyes</p>
+    <!-- RIGHT SIDE BAR: Founder -> Donate -> Shop (Fixed in exact vertical line) -->
+    <div class="top-right-stack">
+        <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
+           target="_blank" 
+           class="founder-badge">
+            ⚡ Founder: Jatin Soni
+        </a>
+        <div class="donate-box">
+            <div class="donate-btn">💖 Donate / Support</div>
+            <div class="donate-content">
+                <img src="{UPI_QR_URL}" alt="Paytm Scanner">
+                <p><b>Scan with Paytm/PhonePe/GPay</b></p>
+                <p style="color:#00e5ff !important; margin-top:4px;">UPI: 8307940340@ptyes</p>
+            </div>
         </div>
+        <a href="/?action=toggle_shop" target="_self" class="shop-btn-link">
+            🛍️ Soni Shop
+        </a>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# Top Left: Admin Trigger
+# Top Left Discreet Admin Toggle
 st.markdown('<div class="admin-secret-box">', unsafe_allow_html=True)
 if st.button("🔒", key="admin_secret_toggle", help="Owner Panel"):
-    st.session_state.show_admin = not st.session_state.get("show_admin", False)
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Top Right: Shop Trigger (Directly beneath Donate)
-st.markdown('<div class="shop-box">', unsafe_allow_html=True)
-if st.button("🛍️ Soni Shop", key="btn_shop_open"):
-    st.session_state.show_shop = not st.session_state.get("show_shop", False)
+    st.session_state.show_admin = not st.session_state.show_admin
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -255,17 +257,10 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "show_shop" not in st.session_state:
-    st.session_state.show_shop = False
-if "show_admin" not in st.session_state:
-    st.session_state.show_admin = False
-
-# --- 1. ADMIN PANEL (PIN 2009) ---
+# --- 1. ADMIN PANEL (PIN: 2009) ---
 if st.session_state.show_admin:
     with st.expander("🔐 Owner Control Panel (Private)", expanded=True):
-        admin_pass = st.text_input("Enter 4-Digit Secret PIN:", type="password", placeholder="PIN likhein...")
+        admin_pass = st.text_input("Enter Secret PIN:", type="password", placeholder="PIN...")
         if admin_pass == ADMIN_PIN:
             all_orders = load_orders()
             if not all_orders:
@@ -277,7 +272,7 @@ if st.session_state.show_admin:
                     ---
                     **Order #{len(all_orders) - idx}**
                     * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
-                    * **Customer Name:** **{ord_data['name']}**
+                    * **Customer:** **{ord_data['name']}**
                     * **Phone:** `{ord_data['phone']}`
                     * **Address:** {ord_data['address']}
                     * **Payment Mode:** `{ord_data['payment']}`
@@ -285,7 +280,7 @@ if st.session_state.show_admin:
         elif admin_pass:
             st.error("Galat PIN! Access Denied.")
 
-# --- 2. SHOP STORE SECTION ---
+# --- 2. SHOPPING STORE WINDOW ---
 if st.session_state.show_shop:
     with st.expander("🛍️ Soni Store - Buy Products", expanded=True):
         st.markdown("### 🛒 Hamare Products")
