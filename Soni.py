@@ -14,7 +14,6 @@ ADMIN_PIN = "2009"
 ORDERS_FILE = "orders_database.json"
 PRODUCTS_FILE = "products_database.json"
 
-# --- Storage Helper Functions ---
 def load_orders():
     if os.path.exists(ORDERS_FILE):
         try:
@@ -35,7 +34,6 @@ def load_products():
                 return json.load(f)
         except:
             pass
-    # Default products
     default_items = [
         {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
         {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
@@ -312,7 +310,6 @@ if st.session_state.admin_authenticated:
 
     tab_orders, tab_add_prod, tab_manage_prod = st.tabs(["📦 Manage Orders", "➕ List New Item", "🏷️ Current Store Items"])
 
-    # TAB A: Manage Orders (View & Delete Orders)
     with tab_orders:
         all_orders = load_orders()
         if not all_orders:
@@ -341,7 +338,6 @@ if st.session_state.admin_authenticated:
                     save_all_orders(all_orders)
                     st.rerun()
 
-    # TAB B: List New Product in Shop
     with tab_add_prod:
         st.markdown("### 🛒 Naya Item Shop Mein Add Karein")
         with st.form("form_add_new_product"):
@@ -367,14 +363,14 @@ if st.session_state.admin_authenticated:
                     st.success(f"'{p_name}' successfully shop mein list ho gaya! 🎉")
                     st.rerun()
 
-    # TAB C: Manage / Delete Store Products
     with tab_manage_prod:
         st.markdown("### 🗑️ Store ke Items Hataein")
         cur_prods = load_products()
         for idx, item in enumerate(cur_prods):
             col_img, col_info, col_del = st.columns([2, 5, 3], vertical_alignment="center")
             with col_img:
-                st.image(item["img"], width=70)
+                # Fixed using HTML image tag to prevent MediaFileStorageError crash
+                st.markdown(f'<img src="{item["img"]}" width="60" style="border-radius:8px; object-fit:cover; height:60px;">', unsafe_allow_html=True)
             with col_info:
                 st.markdown(f"**{item['name']}**\n\n₹{item['price']}")
             with col_del:
@@ -485,7 +481,6 @@ else:
     if user_input:
         clean_input = user_input.strip()
 
-        # Secret Admin Command Check
         if clean_input == f"/admin {ADMIN_PIN}":
             st.session_state.admin_authenticated = True
             st.rerun()
