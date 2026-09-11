@@ -18,7 +18,7 @@ st.markdown(
         background-attachment: fixed;
     }}
 
-    /* Header aur bottom input bar background transparent */
+    /* Header aur bottom input bar transparent */
     header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
         background: transparent !important;
         background-color: transparent !important;
@@ -54,7 +54,7 @@ st.markdown(
         color: #ffffff;
     }}
 
-    /* Chat bubble design */
+    /* Chat bubbles styling */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.92) !important;
         border-radius: 12px;
@@ -97,13 +97,14 @@ Jatin Soni ke baare mein details:
 - Location: Rori village, District Sirsa, Haryana
 Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya developer kaun hai, toh hamesha yahi batayein:
 "{CREATOR_REPLY}"
-Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
+Hamesha pichli conversation ka context yaad rakhein aur friendly Hinglish/Hindi/English mein jawab dein.
 """
 
+# Chat memory initialize
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Purane messages screen par dikhayein
+# Screen par purane messages show karna
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -111,6 +112,7 @@ for message in st.session_state.messages:
 user_input = st.chat_input("Apna sawal yahan likhein...")
 
 if user_input:
+    # User message history mein save aur show karna
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -121,22 +123,28 @@ if user_input:
         "owner", "kaun banaya", "maker", "who created", "who is your developer"
     ]
 
-    # Creator prompt interceptor
+    # Creator related sawal ka direct reply
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
         try:
+            # Memory Context: Pichle conversation ke messages bhejna taaki purani baat yaad rahe
+            conversation_history = [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages[-10:]
+            ]
+
+            payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
+
             chat_completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
-                ],
+                messages=payload,
                 model="openai/gpt-oss-20b",
             )
             bot_reply = chat_completion.choices[0].message.content
         except Exception as e:
             bot_reply = f"Error aaya hai: {e}"
 
+    # Bot ka reply history mein save aur show karna
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
         st.markdown(bot_reply)
