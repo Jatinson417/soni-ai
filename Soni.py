@@ -9,7 +9,7 @@ BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 st.markdown(
     f"""
     <style>
-    /* Pura page aur Streamlit container cover */
+    /* Full background image */
     .stApp {{
         background-image: url("{BG_IMAGE_URL}");
         background-size: cover;
@@ -18,20 +18,20 @@ st.markdown(
         background-attachment: fixed;
     }}
 
-    /* Neeche chat input wale container ka white background hatane ke liye */
+    /* Header aur bottom input bar background transparent */
     header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
         background: transparent !important;
         background-color: transparent !important;
     }}
 
-    /* Founder Clickable Badge (Direct Gmail Compose Link) */
+    /* Top Right Founder Badge */
     .founder-badge {{
         position: fixed;
         top: 60px;
         right: 25px;
         background: rgba(0, 0, 0, 0.75);
         color: #00e5ff !important;
-        padding: 8px 16px;
+        padding: 8px 18px;
         border-radius: 20px;
         font-size: 14px;
         font-weight: 600;
@@ -46,16 +46,17 @@ st.markdown(
         background: rgba(0, 229, 255, 0.25);
         color: #ffffff !important;
         border-color: #00e5ff;
-        transform: scale(1.04);
+        transform: scale(1.05);
     }}
 
-    /* Text & Chat Bubbles */
+    /* Titles & Subtitles */
     h1, h2, h3, p {{
         color: #ffffff;
     }}
-    
+
+    /* Chat bubble design */
     [data-testid="stChatMessage"] {{
-        background-color: rgba(255, 255, 255, 0.9) !important;
+        background-color: rgba(255, 255, 255, 0.92) !important;
         border-radius: 12px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     }}
@@ -64,12 +65,10 @@ st.markdown(
     }}
     </style>
 
-    <!-- Direct Web Gmail Compose Link with Title Hover -->
     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
        target="_blank" 
-       class="founder-badge" 
-       title="Email: sonijatin177@gmail.com">
-        ⚡ Founder: Jatin Soni (sonijatin177@gmail.com)
+       class="founder-badge">
+        ⚡ Founder: Jatin Soni
     </a>
     """,
     unsafe_allow_html=True
@@ -122,7 +121,7 @@ if user_input:
         "owner", "kaun banaya", "maker", "who created", "who is your developer"
     ]
 
-    # Agar creator ke baare mein sawaal ho toh direct reply
+    # Creator prompt interceptor
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
