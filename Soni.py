@@ -4,7 +4,7 @@ import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
-# --- BACKGROUND & BADGE CSS ---
+# --- BACKGROUND & BADGES CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 
 st.markdown(
@@ -27,15 +27,16 @@ st.markdown(
         background-color: transparent !important;
     }}
 
+    /* Founder Badge (Top Right) */
     .founder-badge {{
         position: fixed;
-        top: 55px;
+        top: 50px;
         right: 25px;
         background: rgba(0, 0, 0, 0.75);
         color: #00e5ff !important;
-        padding: 8px 18px;
+        padding: 7px 16px;
         border-radius: 20px;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
         text-decoration: none !important;
         border: 1px solid rgba(0, 229, 255, 0.4);
@@ -43,10 +44,19 @@ st.markdown(
         z-index: 9999;
     }}
 
+    /* Donate Button Container (Right Below Founder Badge) */
+    .donate-container {{
+        position: fixed;
+        top: 95px;
+        right: 25px;
+        z-index: 9999;
+    }}
+
     h1, h2, h3, p {{
         color: #ffffff;
     }}
 
+    /* Chat bubble design */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
@@ -67,6 +77,7 @@ st.markdown(
     }}
     </style>
 
+    <!-- Top Right Badges -->
     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
        target="_blank" 
        class="founder-badge">
@@ -79,6 +90,7 @@ st.markdown(
 st.title("🤖 Soni AI")
 st.write("Aapka personal AI Assistant!")
 
+# Groq Setup
 client = Groq(api_key="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")
 
 CREATOR_REPLY = (
@@ -100,6 +112,7 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
+# State Management
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_img_box" not in st.session_state:
@@ -109,12 +122,24 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# History display
+# --- TOP BAR: DONATE POPUP MODAL ---
+# Direct generated scanner for UPI ID: 8307940340@ptyes
+UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
+
+top_col1, top_col2 = st.columns([7, 3])
+with top_col2:
+    with st.popover("💖 Donate / Support"):
+        st.markdown("### Support Developer (Jatin Soni)")
+        st.image(UPI_QR_URL, caption="Scan using GPay / PhonePe / Paytm", width=220)
+        st.markdown("**UPI ID:** `8307940340@ptyes`")
+        st.info("Aapka chhota sa support bhi Soni AI ko aur behtar banane mein madad karega! 🙏")
+
+# Chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Top buttons
+# Action buttons for Photo & Mic
 col1, col2, _ = st.columns([1.3, 1.3, 6])
 with col1:
     if st.button("➕ Photo"):
@@ -128,13 +153,12 @@ with col2:
         st.session_state.show_img_box = False
         st.rerun()
 
-# Image file selection
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("Photo select karein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo Ready! Ab neeche sawal likhein.", width=180)
+        st.image(uploaded_file, caption="Photo Ready! Ab sawal likhein.", width=180)
 
 voice_audio = None
 if st.session_state.show_mic_box:
@@ -169,9 +193,8 @@ if user_input:
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
-        # Agar photo attached hai:
+        # Photo Scan Request
         if st.session_state.current_image_b64:
-            # Active Vision Models on Groq
             models_to_try = [
                 "qwen/qwen3.6-27b",
                 "llama-3.2-11b-vision-preview",
@@ -187,7 +210,7 @@ if user_input:
                             {
                                 "role": "user",
                                 "content": [
-                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nUser Question: {user_input}"},
+                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nQuestion: {user_input}"},
                                     {"type": "image_url", "image_url": {"url": st.session_state.current_image_b64}}
                                 ]
                             }
@@ -202,11 +225,10 @@ if user_input:
             if not bot_reply:
                 bot_reply = f"Photo scan error: {last_err}"
 
-            # Clear photo after response
             st.session_state.current_image_b64 = None
             st.session_state.show_img_box = False
         else:
-            # Normal Chat with memory
+            # Memory Context Normal Chat
             try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
