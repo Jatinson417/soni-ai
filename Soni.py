@@ -10,13 +10,14 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     f"""
     <style>
-    /* Full Viewport Background */
+    /* 1. Full Screen Background without edges */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
-        min-height: 100vh !important;
+        height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
+        overflow-x: hidden !important;
     }}
 
     [data-testid="stSidebar"] {{
@@ -27,7 +28,7 @@ st.markdown(
         background: transparent !important;
     }}
 
-    /* Founder Badge */
+    /* Founder Badge (Top Right) */
     .founder-badge {{
         position: fixed;
         top: 40px;
@@ -98,7 +99,6 @@ st.markdown(
         color: #ffffff;
     }}
 
-    /* Chat Messages scrolling container (Bottom space so input bar doesn't overlap) */
     .main .block-container {{
         max-width: 760px !important;
         padding-top: 40px !important;
@@ -115,52 +115,64 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Bottom Input styling */
+    /* --- GEMINI ROUND CAPSULE BAR --- */
     [data-testid="stBottom"] {{
         background: transparent !important;
+        padding-bottom: 25px !important;
     }}
     [data-testid="stBottom"] > div {{
         background: transparent !important;
     }}
+
+    /* Main Chat Bar Pill: Left aur Right mein padding icons ke liye */
     [data-testid="stChatInput"] {{
         background: rgba(255, 255, 255, 0.96) !important;
-        border-radius: 30px !important;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.2) !important;
+        border-radius: 35px !important;
+        padding-left: 48px !important;
+        padding-right: 48px !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+        border: 1px solid rgba(0,0,0,0.06) !important;
     }}
 
-    /* Left & Right buttons pinned directly beside chat input */
-    .dock-btn-wrapper {{
-        position: fixed;
-        bottom: 25px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 100%;
-        max-width: 760px;
-        pointer-events: none;
-        z-index: 10001;
-        display: flex;
-        justify-content: space-between;
-        padding: 0 5px;
+    /* Inside Left Button (+) */
+    .inside-dock-left {{
+        position: fixed !important;
+        bottom: 38px !important;
+        left: calc(50% - 365px) !important;
+        z-index: 10005 !important;
     }}
-    .dock-btn-wrapper > div {{
-        pointer-events: auto;
+
+    /* Inside Right Button (Mic) - Placed beside Send arrow */
+    .inside-dock-right {{
+        position: fixed !important;
+        bottom: 38px !important;
+        right: calc(50% - 325px) !important;
+        z-index: 10005 !important;
     }}
-    .dock-btn-wrapper button {{
-        border-radius: 50% !important;
-        width: 42px !important;
-        height: 42px !important;
+
+    @media (max-width: 820px) {{
+        .inside-dock-left {{ left: 22px !important; }}
+        .inside-dock-right {{ right: 58px !important; }}
+    }}
+
+    /* Transparent buttons inside the input bar */
+    .inside-pill-btn button {{
+        background: transparent !important;
+        border: none !important;
+        font-size: 20px !important;
+        color: #444444 !important;
         padding: 0 !important;
-        font-size: 19px !important;
-        background: rgba(255, 255, 255, 0.95) !important;
-        border: 1px solid rgba(0,0,0,0.12) !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+        height: 28px !important;
+        width: 28px !important;
+        box-shadow: none !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }}
-    .dock-btn-wrapper button:hover {{
-        transform: scale(1.08) !important;
-        background: #ffffff !important;
+    .inside-pill-btn button:hover {{
+        background: transparent !important;
+        color: #000000 !important;
+        transform: scale(1.15) !important;
     }}
     </style>
 
@@ -215,38 +227,39 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Messages list (Screen scrollable area)
+# Messages list
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Temporary Image/Mic popups
+# Temporary Upload trays
 if st.session_state.show_img_box:
     uploaded_file = st.file_uploader("Photo choose karein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo Attached! Neeche sawal likhein.", width=160)
+        st.image(uploaded_file, caption="Photo Ready! Sawal puchein.", width=160)
 
 voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# Side Buttons above/beside input bar
-btn_left, _, btn_right = st.columns([1, 8, 1])
-with btn_left:
-    if st.button("➕", key="btn_plus_input", help="Photo Attach"):
-        st.session_state.show_img_box = not st.session_state.show_img_box
-        st.session_state.show_mic_box = False
-        st.rerun()
+# --- ICONS EMBEDDED INSIDE CHAT BAR ---
+st.markdown('<div class="inside-dock-left inside-pill-btn">', unsafe_allow_html=True)
+if st.button("➕", key="btn_gemini_plus", help="Attach Photo"):
+    st.session_state.show_img_box = not st.session_state.show_img_box
+    st.session_state.show_mic_box = False
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
-with btn_right:
-    if st.button("🎙️", key="btn_mic_input", help="Voice Input"):
-        st.session_state.show_mic_box = not st.session_state.show_mic_box
-        st.session_state.show_img_box = False
-        st.rerun()
+st.markdown('<div class="inside-dock-right inside-pill-btn">', unsafe_allow_html=True)
+if st.button("🎙️", key="btn_gemini_mic", help="Voice Input"):
+    st.session_state.show_mic_box = not st.session_state.show_mic_box
+    st.session_state.show_img_box = False
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
-# Native Root-Level Chat Input (Yeh hamesha bottom par visible aur lock rehta hai)
+# Native Chat Input
 text_input = st.chat_input("Ask Soni AI anything...")
 user_input = None
 
