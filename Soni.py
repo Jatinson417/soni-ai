@@ -2,7 +2,7 @@ import streamlit as st
 from groq import Groq
 import base64
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
@@ -10,7 +10,7 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     f"""
     <style>
-    /* Full Viewport Background without white space or cuts */
+    /* Full Viewport Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
@@ -27,7 +27,7 @@ st.markdown(
         background: transparent !important;
     }}
 
-    /* Founder Badge (Top-Right) */
+    /* Founder Badge */
     .founder-badge {{
         position: fixed;
         top: 40px;
@@ -44,7 +44,7 @@ st.markdown(
         z-index: 9999;
     }}
 
-    /* Donate Dropdown directly below Founder */
+    /* Donate Dropdown */
     .donate-box {{
         position: fixed;
         top: 80px;
@@ -93,16 +93,14 @@ st.markdown(
         line-height: 1.3;
     }}
 
-    /* Typography */
     h1, h2, h3, p {{
         color: #ffffff;
     }}
+
     .main .block-container {{
-        max-width: 800px;
-        padding-bottom: 130px !important;
+        padding-bottom: 140px !important;
     }}
 
-    /* Chat bubble styling */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
@@ -113,29 +111,33 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* --- GEMINI BOTTOM CAPSULE WRAPPER --- */
+    /* Bottom Input Container Clean Styling */
     [data-testid="stBottom"] {{
         background: transparent !important;
-        padding-bottom: 20px !important;
+        padding-bottom: 25px !important;
     }}
     [data-testid="stBottom"] > div {{
         background: transparent !important;
     }}
 
-    /* Gemini Capsule Shell */
-    .gemini-capsule {{
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 35px;
-        padding: 4px 8px;
-        display: flex;
-        align-items: center;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-        max-width: 760px;
-        margin: 0 auto;
+    /* Small circular icon buttons right next to the chat bar */
+    div[data-testid="stBottom"] button {{
+        border-radius: 50% !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 19px !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid rgba(0,0,0,0.12) !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
     }}
-
-    div[data-testid="stChatInput"] {{
-        border-radius: 30px !important;
+    div[data-testid="stBottom"] button:hover {{
+        background: #ffffff !important;
+        transform: scale(1.08);
     }}
     </style>
 
@@ -190,39 +192,43 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Messages list (Upper scrollable area)
+# Chat History Area
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Toggled photo box
+# Image / Mic temporary uploaders
 if st.session_state.show_img_box:
     uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo Ready! Neeche sawal likhein.", width=170)
+        st.image(uploaded_file, caption="Photo Attached! Neeche sawal likhein.", width=160)
 
-# Toggled mic box
 voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# Bottom Action Controls (Directly attached above the chat input bar)
-col_plus, col_mic, _ = st.columns([0.8, 0.8, 8.4])
-with col_plus:
-    if st.button("➕", help="Photo Attach"):
-        st.session_state.show_img_box = not st.session_state.show_img_box
-        st.session_state.show_mic_box = False
-        st.rerun()
+# --- BOTTOM BAR: (➕ chhota button) + (Chat Bar) + (🎙️ chhota button) ---
+bottom_container = st.container()
+with bottom_container:
+    col_plus, col_chat, col_mic = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
 
-with col_mic:
-    if st.button("🎙️", help="Voice Input"):
-        st.session_state.show_mic_box = not st.session_state.show_mic_box
-        st.session_state.show_img_box = False
-        st.rerun()
+    with col_plus:
+        if st.button("➕", help="Photo Attach"):
+            st.session_state.show_img_box = not st.session_state.show_img_box
+            st.session_state.show_mic_box = False
+            st.rerun()
 
-text_input = st.chat_input("Ask Soni AI anything...")
+    with col_mic:
+        if st.button("🎙️", help="Voice Input"):
+            st.session_state.show_mic_box = not st.session_state.show_mic_box
+            st.session_state.show_img_box = False
+            st.rerun()
+
+    with col_chat:
+        text_input = st.chat_input("Ask Soni AI anything...")
+
 user_input = None
 
 if voice_audio:
@@ -251,7 +257,6 @@ if user_input:
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
-        # Vision Request
         if st.session_state.current_image_b64:
             models_to_try = [
                 "qwen/qwen3.6-27b",
@@ -268,7 +273,7 @@ if user_input:
                             {
                                 "role": "user",
                                 "content": [
-                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nUser Question: {user_input}"},
+                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nQuestion: {user_input}"},
                                     {"type": "image_url", "image_url": {"url": st.session_state.current_image_b64}}
                                 ]
                             }
@@ -286,7 +291,6 @@ if user_input:
             st.session_state.current_image_b64 = None
             st.session_state.show_img_box = False
         else:
-            # Memory Context Normal Chat
             try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
