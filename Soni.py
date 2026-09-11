@@ -10,11 +10,11 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     f"""
     <style>
-    /* Full Viewport Background */
+    /* 1. Full screen background fix */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
-        min-height: 100vh !important;
+        height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
     }}
@@ -97,8 +97,11 @@ st.markdown(
         color: #ffffff;
     }}
 
+    /* Chat Messages scrolling container (Bottom se 150px space taaki chat box ke piche na jaye) */
     .main .block-container {{
-        padding-bottom: 150px !important;
+        max-width: 760px !important;
+        padding-top: 40px !important;
+        padding-bottom: 160px !important;
     }}
 
     [data-testid="stChatMessage"] {{
@@ -111,41 +114,40 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Bottom Dock Bar Permanently Pinned at Screen Bottom */
-    .dock-container {{
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 100%;
-        max-width: 760px;
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 35px;
-        padding: 6px 14px;
-        display: flex;
-        align-items: center;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-        z-index: 10000;
-        backdrop-filter: blur(10px);
+    /* --- PERMANENT BOTTOM DOCK CONTAINER --- */
+    [data-testid="stBottom"] {{
+        background: transparent !important;
+        padding-bottom: 18px !important;
+    }}
+    [data-testid="stBottom"] > div {{
+        background: transparent !important;
     }}
 
-    /* Buttons styling in dock */
-    div.dock-btn > button {{
+    /* Dock Button round layout */
+    div[data-testid="stBottom"] div[data-testid="column"] button {{
         border-radius: 50% !important;
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px !important;
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
         padding: 0 !important;
         font-size: 18px !important;
-        background: #f1f3f4 !important;
-        border: 1px solid rgba(0,0,0,0.08) !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid rgba(0, 0, 0, 0.12) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.18) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }}
-    div.dock-btn > button:hover {{
-        background: #e2e4e7 !important;
-        transform: scale(1.05);
+    div[data-testid="stBottom"] div[data-testid="column"] button:hover {{
+        background: #ffffff !important;
+        transform: scale(1.08) !important;
+    }}
+
+    /* Chat input pill style */
+    [data-testid="stChatInput"] {{
+        background: rgba(255, 255, 255, 0.96) !important;
+        border-radius: 30px !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18) !important;
     }}
     </style>
 
@@ -200,12 +202,12 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Chat History Area
+# --- SCROLLABLE CHAT SECTION ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Image / Mic temporary uploaders
+# Temporary Image / Audio Upload Popups
 if st.session_state.show_img_box:
     uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
@@ -217,27 +219,24 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# --- GEMINI DOCK ROW: [➕]  [ Ask Soni AI anything... ]  [🎙️] ---
-col_plus, col_chat, col_mic = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
+# --- PERMANENTLY LOCKED BOTTOM DOCK ---
+with st.bottom():
+    col_plus, col_chat, col_mic = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
 
-with col_plus:
-    st.markdown('<div class="dock-btn">', unsafe_allow_html=True)
-    if st.button("➕", help="Photo Attach"):
-        st.session_state.show_img_box = not st.session_state.show_img_box
-        st.session_state.show_mic_box = False
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    with col_plus:
+        if st.button("➕", key="lock_plus_btn", help="Photo Attach"):
+            st.session_state.show_img_box = not st.session_state.show_img_box
+            st.session_state.show_mic_box = False
+            st.rerun()
 
-with col_mic:
-    st.markdown('<div class="dock-btn">', unsafe_allow_html=True)
-    if st.button("🎙️", help="Voice Input"):
-        st.session_state.show_mic_box = not st.session_state.show_mic_box
-        st.session_state.show_img_box = False
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    with col_mic:
+        if st.button("🎙️", key="lock_mic_btn", help="Voice Input"):
+            st.session_state.show_mic_box = not st.session_state.show_mic_box
+            st.session_state.show_img_box = False
+            st.rerun()
 
-with col_chat:
-    text_input = st.chat_input("Ask Soni AI anything...")
+    with col_chat:
+        text_input = st.chat_input("Ask Soni AI anything...")
 
 user_input = None
 
