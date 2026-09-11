@@ -31,13 +31,10 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
+if "admin_authenticated" not in st.session_state:
+    st.session_state.admin_authenticated = False
 
-# Secret Admin verification through URL parameter (?admin=2009)
 query_params = st.query_params
-is_owner = False
-if query_params.get("admin") == ADMIN_PIN:
-    is_owner = True
-
 if query_params.get("action") == "toggle_shop":
     st.session_state.show_shop = not st.session_state.show_shop
     st.query_params.clear()
@@ -232,7 +229,7 @@ st.markdown(
     }}
     </style>
 
-    <!-- Top Right Stack (Public) -->
+    <!-- Top Right Stack (Public View) -->
     <div class="top-right-stack">
         <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
            target="_blank" 
@@ -278,24 +275,32 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
-# --- 1. HIDDEN OWNER ORDERS DASHBOARD (Only opens if ?admin=2009 is in URL) ---
-if is_owner:
-    with st.expander("👑 Secret Owner Dashboard (Received Orders)", expanded=True):
-        all_orders = load_orders()
-        if not all_orders:
-            st.info("Abhi tak koi order nahi aaya hai.")
-        else:
-            st.success(f"Total Orders: {len(all_orders)}")
-            for idx, ord_data in enumerate(reversed(all_orders)):
-                st.markdown(f"""
-                ---
-                **Order #{len(all_orders) - idx}**
-                * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
-                * **Customer:** **{ord_data['name']}**
-                * **Phone:** `{ord_data['phone']}`
-                * **Address:** {ord_data['address']}
-                * **Payment Mode:** `{ord_data['payment']}`
-                """)
+# --- 1. OWNER DASHBOARD (Opens when secret command is entered) ---
+if st.session_state.admin_authenticated:
+    col_adm_title, col_adm_close = st.columns([7, 3])
+    with col_adm_title:
+        st.markdown("### 👑 Secret Owner Dashboard")
+    with col_adm_close:
+        if st.button("❌ Close Admin", key="btn_close_admin"):
+            st.session_state.admin_authenticated = False
+            st.rerun()
+
+    all_orders = load_orders()
+    if not all_orders:
+        st.info("Abhi tak koi naya order nahi aaya hai.")
+    else:
+        st.success(f"Kul {len(all_orders)} orders mile hain:")
+        for idx, ord_data in enumerate(reversed(all_orders)):
+            st.markdown(f"""
+            ---
+            **Order #{len(all_orders) - idx}**
+            * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
+            * **Customer Name:** **{ord_data['name']}**
+            * **Phone:** `{ord_data['phone']}`
+            * **Address:** {ord_data['address']}
+            * **Payment Mode:** `{ord_data['payment']}`
+            """)
+    st.markdown("---")
 
 # --- 2. SHOPPING STORE WINDOW ---
 if st.session_state.show_shop:
@@ -394,11 +399,18 @@ else:
     user_input = st.chat_input("Ask Soni AI anything...")
 
     if user_input:
+        clean_input = user_input.strip()
+
+        # Secret Admin Command Check
+        if clean_input == f"/admin {ADMIN_PIN}":
+            st.session_state.admin_authenticated = True
+            st.rerun()
+
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        input_lower = user_input.lower()
+        input_lower = clean_input.lower()
         creator_triggers = [
             "kisne banaya", "who made you", "developer", "creator", 
             "owner", "kaun banaya", "maker", "who created", "who is your developer"
@@ -426,4 +438,4 @@ else:
         with st.chat_message("assistant"):
             st.markdown(bot_reply)
 
-    st.rerun()
+        st.rerun()
