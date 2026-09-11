@@ -1,12 +1,8 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from groq import Groq
 import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
-
-BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
-UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
 
 st.markdown(
     """
@@ -25,10 +21,8 @@ st.markdown(
         display: none !important;
     }
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"] {
+    header, [data-testid="stHeader"], footer {
         background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
     }
 
     /* Founder Badge */
@@ -85,7 +79,7 @@ st.markdown(
     }
     .donate-box:hover .donate-content {
         display: block;
-    }}
+    }
     .donate-content img {
         width: 180px;
         border-radius: 10px;
@@ -106,7 +100,7 @@ st.markdown(
     .main .block-container {
         max-width: 760px !important;
         padding-top: 40px !important;
-        padding-bottom: 150px !important;
+        padding-bottom: 140px !important;
     }
 
     [data-testid="stChatMessage"] {
@@ -117,6 +111,67 @@ st.markdown(
     }
     [data-testid="stChatMessage"] p {
         color: #111111 !important;
+    }
+
+    /* Bottom Input Container */
+    [data-testid="stBottom"] {
+        background: transparent !important;
+        padding-bottom: 20px !important;
+    }
+    [data-testid="stBottom"] > div {
+        background: transparent !important;
+    }
+
+    /* Gemini Pill Bar */
+    [data-testid="stChatInput"] {
+        background: rgba(255, 255, 255, 0.96) !important;
+        border-radius: 35px !important;
+        padding-left: 52px !important;
+        padding-right: 52px !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+        border: 1px solid rgba(0,0,0,0.06) !important;
+    }
+
+    /* Left ➕ Icon embedded inside bar */
+    .dock-pill-left {
+        position: fixed !important;
+        bottom: 30px !important;
+        left: calc(50% - 360px) !important;
+        z-index: 10001 !important;
+    }
+
+    /* Right 🎙️ Icon embedded inside bar (beside send arrow) */
+    .dock-pill-right {
+        position: fixed !important;
+        bottom: 30px !important;
+        right: calc(50% - 315px) !important;
+        z-index: 10001 !important;
+    }
+
+    @media (max-width: 820px) {
+        .dock-pill-left { left: 24px !important; }
+        .dock-pill-right { right: 65px !important; }
+    }
+
+    .pill-icon-btn div[data-testid="stButton"] button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        font-size: 20px !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #444444 !important;
+        cursor: pointer !important;
+    }
+    .pill-icon-btn div[data-testid="stButton"] button:hover {
+        background: rgba(0, 0, 0, 0.06) !important;
+        border-radius: 50% !important;
+        transform: scale(1.15) !important;
     }
     </style>
 
@@ -171,44 +226,43 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Messages list (Page ke saath scroll hoga)
+# Messages list
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Temporary Image / Voice inputs when triggered
+# Image / Voice Upload Trays
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("Photo choose karein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo attached! Sawal likhein.", width=160)
+        st.image(uploaded_file, caption="Photo attached. Sawal likhein.", width=160)
 
 voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# --- GEMINI PILL BOTTOM CONTAINER ---
-# Yeh container screen ke bilkul bottom par fixed rahega bina kisi jump ke
-with st.bottom():
-    col1, col2, col3 = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
-    
-    with col1:
-        if st.button("➕", key="gemini_plus", help="Photo Attach"):
-            st.session_state.show_img_box = not st.session_state.show_img_box
-            st.session_state.show_mic_box = False
-            st.rerun()
+# Left ➕ Icon
+st.markdown('<div class="dock-pill-left pill-icon-btn">', unsafe_allow_html=True)
+if st.button("➕", key="btn_gemini_plus", help="Attach Photo"):
+    st.session_state.show_img_box = not st.session_state.show_img_box
+    st.session_state.show_mic_box = False
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
-    with col3:
-        if st.button("🎙️", key="gemini_mic", help="Voice Input"):
-            st.session_state.show_mic_box = not st.session_state.show_mic_box
-            st.session_state.show_img_box = False
-            st.rerun()
+# Right 🎙️ Icon
+st.markdown('<div class="dock-pill-right pill-icon-btn">', unsafe_allow_html=True)
+if st.button("🎙️", key="btn_gemini_mic", help="Voice Input"):
+    st.session_state.show_mic_box = not st.session_state.show_mic_box
+    st.session_state.show_img_box = False
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
-    with col2:
-        text_input = st.chat_input("Ask Soni AI anything...")
-
+# Root-level native chat input (Ab yeh kabhi gayab nahi hoga)
+text_input = st.chat_input("Ask Soni AI anything...")
 user_input = None
+
 if voice_audio:
     try:
         transcription = client.audio.transcriptions.create(
