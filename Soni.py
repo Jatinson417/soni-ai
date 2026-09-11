@@ -4,6 +4,9 @@ import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
+BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
+UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
+
 st.markdown(
     """
     <style>
@@ -96,11 +99,11 @@ st.markdown(
         color: #ffffff;
     }
 
-    /* Chat Messages scrolling container (Bottom space so input bar doesn't cover text) */
+    /* Messages container */
     .main .block-container {
         max-width: 760px !important;
         padding-top: 40px !important;
-        padding-bottom: 160px !important;
+        padding-bottom: 140px !important;
     }
 
     [data-testid="stChatMessage"] {
@@ -113,61 +116,67 @@ st.markdown(
         color: #111111 !important;
     }
 
-    /* --- PERMANENT BOTTOM DOCK LOCK --- */
+    /* --- GEMINI PILL BAR & IN-LINE BUTTONS --- */
     [data-testid="stBottom"] {
         background: transparent !important;
-        padding-bottom: 24px !important;
+        padding-bottom: 15px !important;
     }
     [data-testid="stBottom"] > div {
         background: transparent !important;
     }
 
-    /* Bottom Input Bar capsule styling */
+    /* Chat Input Pill */
     [data-testid="stChatInput"] {
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
         border: 1px solid rgba(0,0,0,0.06) !important;
+        padding-left: 46px !important;
+        padding-right: 48px !important;
     }
 
-    /* HARD LOCK: Buttons pinned permanently at screen bottom */
-    .lock-bottom-dock {
+    /* Drop (+) Button directly inside the chat bar */
+    .pill-inside-plus {
         position: fixed !important;
-        bottom: 28px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        width: 100% !important;
-        max-width: 760px !important;
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        pointer-events: none !important;
-        z-index: 99999 !important;
-        padding: 0 10px !important;
+        bottom: 23px !important;
+        left: calc(50% - 365px) !important;
+        z-index: 10005 !important;
     }
 
-    .lock-bottom-dock > div {
-        pointer-events: auto !important;
+    /* Drop (Mic) Button directly inside the chat bar beside send arrow */
+    .pill-inside-mic {
+        position: fixed !important;
+        bottom: 23px !important;
+        right: calc(50% - 325px) !important;
+        z-index: 10005 !important;
     }
 
-    /* Round Transparent Icons */
-    .dock-circle-btn button {
-        background: rgba(255, 255, 255, 0.95) !important;
-        border: 1px solid rgba(0,0,0,0.1) !important;
-        border-radius: 50% !important;
-        width: 44px !important;
-        height: 44px !important;
-        min-width: 44px !important;
-        font-size: 20px !important;
+    @media (max-width: 820px) {
+        .pill-inside-plus { left: 16px !important; }
+        .pill-inside-mic { right: 54px !important; }
+    }
+
+    /* Invisible button base with clean visible icon */
+    .pill-inside-plus div[data-testid="stButton"] > button,
+    .pill-inside-mic div[data-testid="stButton"] > button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        font-size: 19px !important;
+        color: #333333 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.2) !important;
-        padding: 0 !important;
     }
-    .dock-circle-btn button:hover {
-        background: #ffffff !important;
-        transform: scale(1.1) !important;
+    .pill-inside-plus div[data-testid="stButton"] > button:hover,
+    .pill-inside-mic div[data-testid="stButton"] > button:hover {
+        transform: scale(1.15) !important;
+        background: rgba(0,0,0,0.05) !important;
+        border-radius: 50% !important;
     }
     </style>
 
@@ -222,12 +231,12 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Messages list (Yeh normal body mein scroll hoga)
+# Messages list
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Temporary popups when + or Mic clicked
+# Temporary Upload Trays
 if st.session_state.show_img_box:
     uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
@@ -239,28 +248,23 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# --- FIXED DOCK AT THE ABSOLUTE BOTTOM ---
-st.markdown('<div class="lock-bottom-dock">', unsafe_allow_html=True)
-col_left_btn, _, col_right_btn = st.columns([1, 8, 1])
-
-with col_left_btn:
-    st.markdown('<div class="dock-circle-btn">', unsafe_allow_html=True)
-    if st.button("➕", key="btn_locked_plus", help="Attach Photo"):
-        st.session_state.show_img_box = not st.session_state.show_img_box
-        st.session_state.show_mic_box = False
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with col_right_btn:
-    st.markdown('<div class="dock-circle-btn">', unsafe_allow_html=True)
-    if st.button("🎙️", key="btn_locked_mic", help="Voice Input"):
-        st.session_state.show_mic_box = not st.session_state.show_mic_box
-        st.session_state.show_img_box = False
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+# Left Inside (+) Button
+st.markdown('<div class="pill-inside-plus">', unsafe_allow_html=True)
+if st.button("➕", key="btn_gemini_plus", help="Attach Photo"):
+    st.session_state.show_img_box = not st.session_state.show_img_box
+    st.session_state.show_mic_box = False
+    st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Native Chat Input permanently locked at the bottom
+# Right Inside (🎙️) Button
+st.markdown('<div class="pill-inside-mic">', unsafe_allow_html=True)
+if st.button("🎙️", key="btn_gemini_mic", help="Voice Input"):
+    st.session_state.show_mic_box = not st.session_state.show_mic_box
+    st.session_state.show_img_box = False
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Main Chat Input (Positioned at bottom permanently)
 text_input = st.chat_input("Ask Soni AI anything...")
 user_input = None
 
