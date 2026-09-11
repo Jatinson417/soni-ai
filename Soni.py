@@ -10,25 +10,21 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     f"""
     <style>
-    /* Full Page Background */
+    /* Full Viewport Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
-        height: 100vh !important;
+        min-height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
-        overflow-x: hidden !important;
     }}
 
     [data-testid="stSidebar"] {{
         display: none !important;
     }}
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
+    header, [data-testid="stHeader"], footer {{
         background: transparent !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-        border: none !important;
     }}
 
     /* Founder Badge */
@@ -46,10 +42,9 @@ st.markdown(
         border: 1px solid rgba(0, 229, 255, 0.4);
         backdrop-filter: blur(8px);
         z-index: 9999;
-        display: block;
     }}
 
-    /* Donate Box */
+    /* Donate Dropdown */
     .donate-box {{
         position: fixed;
         top: 80px;
@@ -102,11 +97,8 @@ st.markdown(
         color: #ffffff;
     }}
 
-    /* Message Padding taaki chat input ke piche na jaye */
     .main .block-container {{
-        max-width: 750px !important;
-        padding-top: 50px !important;
-        padding-bottom: 140px !important;
+        padding-bottom: 150px !important;
     }}
 
     [data-testid="stChatMessage"] {{
@@ -119,50 +111,41 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Chat Input Pill */
-    [data-testid="stChatInput"] {{
-        background: rgba(255, 255, 255, 0.96) !important;
-        border-radius: 35px !important;
-        padding-left: 15px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+    /* Bottom Dock Bar Permanently Pinned at Screen Bottom */
+    .dock-container {{
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 760px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 35px;
+        padding: 6px 14px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        z-index: 10000;
+        backdrop-filter: blur(10px);
     }}
 
-    /* Permanent Fixed Bottom Icon Buttons */
-    .fixed-dock-left {{
-        position: fixed !important;
-        bottom: 27px !important;
-        left: calc(50% - 395px) !important;
-        z-index: 10002 !important;
-    }}
-
-    .fixed-dock-right {{
-        position: fixed !important;
-        bottom: 27px !important;
-        right: calc(50% - 395px) !important;
-        z-index: 10002 !important;
-    }}
-
-    @media (max-width: 820px) {{
-        .fixed-dock-left {{ left: 10px !important; }}
-        .fixed-dock-right {{ right: 10px !important; }}
-    }}
-
-    .dock-circle-btn button {{
-        width: 42px !important;
-        height: 42px !important;
+    /* Buttons styling in dock */
+    div.dock-btn > button {{
         border-radius: 50% !important;
-        border: 1px solid rgba(0,0,0,0.12) !important;
-        background: #ffffff !important;
-        font-size: 19px !important;
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        padding: 0 !important;
+        font-size: 18px !important;
+        background: #f1f3f4 !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
-        padding: 0 !important;
     }}
-    .dock-circle-btn button:hover {{
-        transform: scale(1.08) !important;
-        background: #f8f9fa !important;
+    div.dock-btn > button:hover {{
+        background: #e2e4e7 !important;
+        transform: scale(1.05);
     }}
     </style>
 
@@ -217,40 +200,45 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Messages list
+# Chat History Area
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Toggled popups (Sirf click karne par dikhenge)
+# Image / Mic temporary uploaders
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo choose karein", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo attached. Sawal puchein.", width=150)
+        st.image(uploaded_file, caption="Photo Attached! Neeche sawal likhein.", width=160)
 
 voice_audio = None
 if st.session_state.show_mic_box:
-    voice_audio = st.audio_input("Record Voice", label_visibility="collapsed")
+    voice_audio = st.audio_input("Record Voice")
 
-# --- PERMANENT BOTTOM BUTTONS (Left mein ➕, Right mein 🎙️) ---
-st.markdown('<div class="fixed-dock-left dock-circle-btn">', unsafe_allow_html=True)
-if st.button("➕", key="fixed_plus_btn", help="Photo Attach"):
-    st.session_state.show_img_box = not st.session_state.show_img_box
-    st.session_state.show_mic_box = False
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+# --- GEMINI DOCK ROW: [➕]  [ Ask Soni AI anything... ]  [🎙️] ---
+col_plus, col_chat, col_mic = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
 
-st.markdown('<div class="fixed-dock-right dock-circle-btn">', unsafe_allow_html=True)
-if st.button("🎙️", key="fixed_mic_btn", help="Voice Input"):
-    st.session_state.show_mic_box = not st.session_state.show_mic_box
-    st.session_state.show_img_box = False
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+with col_plus:
+    st.markdown('<div class="dock-btn">', unsafe_allow_html=True)
+    if st.button("➕", help="Photo Attach"):
+        st.session_state.show_img_box = not st.session_state.show_img_box
+        st.session_state.show_mic_box = False
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Fixed Bottom Input Bar
-text_input = st.chat_input("Ask Soni AI anything...")
+with col_mic:
+    st.markdown('<div class="dock-btn">', unsafe_allow_html=True)
+    if st.button("🎙️", help="Voice Input"):
+        st.session_state.show_mic_box = not st.session_state.show_mic_box
+        st.session_state.show_img_box = False
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col_chat:
+    text_input = st.chat_input("Ask Soni AI anything...")
+
 user_input = None
 
 if voice_audio:
@@ -279,7 +267,6 @@ if user_input:
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
-        # Vision Scan
         if st.session_state.current_image_b64:
             models_to_try = [
                 "qwen/qwen3.6-27b",
@@ -314,7 +301,6 @@ if user_input:
             st.session_state.current_image_b64 = None
             st.session_state.show_img_box = False
         else:
-            # Text Chat
             try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
