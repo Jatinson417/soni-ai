@@ -31,15 +31,17 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
-if "show_admin" not in st.session_state:
-    st.session_state.show_admin = False
 
+# Secret Admin verification through URL parameter (?admin=2009)
 query_params = st.query_params
-if "action" in query_params:
-    if query_params["action"] == "toggle_shop":
-        st.session_state.show_shop = not st.session_state.show_shop
-        st.query_params.clear()
-        st.rerun()
+is_owner = False
+if query_params.get("admin") == ADMIN_PIN:
+    is_owner = True
+
+if query_params.get("action") == "toggle_shop":
+    st.session_state.show_shop = not st.session_state.show_shop
+    st.query_params.clear()
+    st.rerun()
 
 st.markdown(
     f"""
@@ -65,7 +67,7 @@ st.markdown(
         box-shadow: none !important;
     }}
 
-    /* Top-Right Stack */
+    /* Top-Right Stack (Founder -> Donate -> Shop) */
     .top-right-stack {{
         position: fixed;
         top: 25px;
@@ -151,29 +153,6 @@ st.markdown(
         transform: scale(1.05);
     }}
 
-    /* Top-Left Admin Button */
-    .admin-secret-box {{
-        position: fixed;
-        top: 25px;
-        left: 20px;
-        z-index: 99999;
-    }}
-    .admin-secret-box button {{
-        background: rgba(0, 0, 0, 0.35) !important;
-        color: rgba(255, 255, 255, 0.6) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 50% !important;
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        padding: 0 !important;
-        font-size: 13px !important;
-    }}
-    .admin-secret-box button:hover {{
-        background: rgba(0, 0, 0, 0.8) !important;
-        color: #ffffff !important;
-    }}
-
     h1, h2, h3, p {{
         color: #ffffff;
     }}
@@ -194,7 +173,7 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Global Fix for all Normal Buttons (White issue fix) */
+    /* Global Button Styling */
     div[data-testid="stButton"] > button {{
         background: linear-gradient(135deg, #1e1e2f, #2c2d4a) !important;
         color: #ffffff !important;
@@ -203,7 +182,6 @@ st.markdown(
         font-weight: 600 !important;
         padding: 8px 18px !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-        transition: all 0.2s ease-in-out !important;
     }}
     div[data-testid="stButton"] > button p {{
         color: #ffffff !important;
@@ -218,7 +196,7 @@ st.markdown(
         color: #00e5ff !important;
     }}
 
-    /* Product Card Style */
+    /* Product Card */
     .shop-product-card {{
         background: rgba(0, 0, 0, 0.55);
         border: 1px solid rgba(255, 255, 255, 0.15);
@@ -254,7 +232,7 @@ st.markdown(
     }}
     </style>
 
-    <!-- Top Right Stack -->
+    <!-- Top Right Stack (Public) -->
     <div class="top-right-stack">
         <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
            target="_blank" 
@@ -276,13 +254,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-# Admin Trigger (Top Left)
-st.markdown('<div class="admin-secret-box">', unsafe_allow_html=True)
-if st.button("🔒", key="admin_secret_toggle", help="Owner Panel"):
-    st.session_state.show_admin = not st.session_state.show_admin
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
 
 st.title("🤖 Soni AI")
 
@@ -307,30 +278,26 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
-# --- 1. ADMIN PANEL ---
-if st.session_state.show_admin:
-    with st.expander("🔐 Owner Control Panel (Private)", expanded=True):
-        admin_pass = st.text_input("Enter Secret PIN:", type="password", placeholder="PIN...")
-        if admin_pass == ADMIN_PIN:
-            all_orders = load_orders()
-            if not all_orders:
-                st.info("Abhi tak koi order nahi aaya hai.")
-            else:
-                st.success(f"Total Orders: {len(all_orders)}")
-                for idx, ord_data in enumerate(reversed(all_orders)):
-                    st.markdown(f"""
-                    ---
-                    **Order #{len(all_orders) - idx}**
-                    * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
-                    * **Customer:** **{ord_data['name']}**
-                    * **Phone:** `{ord_data['phone']}`
-                    * **Address:** {ord_data['address']}
-                    * **Payment Mode:** `{ord_data['payment']}`
-                    """)
-        elif admin_pass:
-            st.error("Galat PIN! Access Denied.")
+# --- 1. HIDDEN OWNER ORDERS DASHBOARD (Only opens if ?admin=2009 is in URL) ---
+if is_owner:
+    with st.expander("👑 Secret Owner Dashboard (Received Orders)", expanded=True):
+        all_orders = load_orders()
+        if not all_orders:
+            st.info("Abhi tak koi order nahi aaya hai.")
+        else:
+            st.success(f"Total Orders: {len(all_orders)}")
+            for idx, ord_data in enumerate(reversed(all_orders)):
+                st.markdown(f"""
+                ---
+                **Order #{len(all_orders) - idx}**
+                * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
+                * **Customer:** **{ord_data['name']}**
+                * **Phone:** `{ord_data['phone']}`
+                * **Address:** {ord_data['address']}
+                * **Payment Mode:** `{ord_data['payment']}`
+                """)
 
-# --- 2. SHOP STORE SECTION ---
+# --- 2. SHOPPING STORE WINDOW ---
 if st.session_state.show_shop:
     col_head, col_back = st.columns([7, 3])
     with col_head:
@@ -459,4 +426,4 @@ else:
         with st.chat_message("assistant"):
             st.markdown(bot_reply)
 
-        st.rerun()
+    st.rerun()
