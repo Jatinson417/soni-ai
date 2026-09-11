@@ -4,7 +4,7 @@ import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
-# --- BACKGROUND & GEMINI UI CSS ---
+# --- BACKGROUND & BADGE CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 
 st.markdown(
@@ -109,12 +109,12 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Purane messages dikhana
+# History display
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Action Buttons
+# Top buttons
 col1, col2, _ = st.columns([1.3, 1.3, 6])
 with col1:
     if st.button("➕ Photo"):
@@ -128,19 +128,19 @@ with col2:
         st.session_state.show_img_box = False
         st.rerun()
 
-# Photo Uploader
+# Image file selection
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo select karein", type=["png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo attached ready to ask", width=180)
+        st.image(uploaded_file, caption="Photo Ready! Ab neeche sawal likhein.", width=180)
 
 voice_audio = None
 if st.session_state.show_mic_box:
-    voice_audio = st.audio_input("Record Voice")
+    voice_audio = st.audio_input("Bol kar record karein")
 
-text_input = st.chat_input("Apna sawal yahan likhein (photo ke baare mein bhi)...")
+text_input = st.chat_input("Apna sawal yahan likhein...")
 user_input = None
 
 if voice_audio:
@@ -169,36 +169,44 @@ if user_input:
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
-        # Vision Request Handling
+        # Agar photo attached hai:
         if st.session_state.current_image_b64:
-            vision_models = ["meta-llama/llama-4-scout-17b-preview", "llama-3.2-90b-vision-preview"]
+            # Active Vision Models on Groq
+            models_to_try = [
+                "qwen/qwen3.6-27b",
+                "llama-3.2-11b-vision-preview",
+                "llama-3.2-90b-vision-preview"
+            ]
             bot_reply = None
-            for model_name in vision_models:
+            last_err = ""
+            for m in models_to_try:
                 try:
-                    chat_completion = client.chat.completions.create(
+                    completion = client.chat.completions.create(
+                        model=m,
                         messages=[
                             {
                                 "role": "user",
                                 "content": [
-                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nQuestion: {user_input}"},
+                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nUser Question: {user_input}"},
                                     {"type": "image_url", "image_url": {"url": st.session_state.current_image_b64}}
                                 ]
                             }
                         ],
-                        model=model_name,
                     )
-                    bot_reply = chat_completion.choices[0].message.content
+                    bot_reply = completion.choices[0].message.content
                     break
-                except Exception:
+                except Exception as e:
+                    last_err = str(e)
                     continue
-            
-            if not bot_reply:
-                bot_reply = "Photo scan karne mein issue aaya. Kripya doosri photo try karein."
 
+            if not bot_reply:
+                bot_reply = f"Photo scan error: {last_err}"
+
+            # Clear photo after response
             st.session_state.current_image_b64 = None
             st.session_state.show_img_box = False
         else:
-            # Regular Text / Contextual Memory Request
+            # Normal Chat with memory
             try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
