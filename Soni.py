@@ -10,13 +10,14 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     f"""
     <style>
-    /* Full Viewport Background */
+    /* 1. Full Screen Background without cutoff */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
-        min-height: 100vh !important;
+        height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
+        overflow-x: hidden !important;
     }}
 
     [data-testid="stSidebar"] {{
@@ -97,8 +98,11 @@ st.markdown(
         color: #ffffff;
     }}
 
+    /* 2. Scrollable Messages Area (Box ke peeche nahi chhupega) */
     .main .block-container {{
-        padding-bottom: 140px !important;
+        max-width: 780px !important;
+        padding-top: 50px !important;
+        padding-bottom: 160px !important;
     }}
 
     [data-testid="stChatMessage"] {{
@@ -111,33 +115,33 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Bottom Input Container Clean Styling */
+    /* 3. Search Bar Pin to Bottom */
     [data-testid="stBottom"] {{
         background: transparent !important;
-        padding-bottom: 25px !important;
+        padding-bottom: 20px !important;
     }}
     [data-testid="stBottom"] > div {{
         background: transparent !important;
     }}
 
-    /* Small circular icon buttons right next to the chat bar */
-    div[data-testid="stBottom"] button {{
+    /* Pill Buttons right next to input */
+    div[data-testid="column"] button {{
         border-radius: 50% !important;
-        width: 44px !important;
-        height: 44px !important;
-        min-width: 44px !important;
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
         padding: 0 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-size: 19px !important;
+        font-size: 18px !important;
         background: rgba(255, 255, 255, 0.95) !important;
-        border: 1px solid rgba(0,0,0,0.12) !important;
+        border: 1px solid rgba(0,0,0,0.1) !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
     }}
-    div[data-testid="stBottom"] button:hover {{
+    div[data-testid="column"] button:hover {{
         background: #ffffff !important;
-        transform: scale(1.08);
+        transform: scale(1.06);
     }}
     </style>
 
@@ -192,43 +196,38 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Chat History Area
+# Messages list
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Image / Mic temporary uploaders
+# Temporary Image/Mic trays
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("Photo select karein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo Attached! Neeche sawal likhein.", width=160)
+        st.image(uploaded_file, caption="Photo Ready! Sawal likhein.", width=150)
 
 voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# --- BOTTOM BAR: (➕ chhota button) + (Chat Bar) + (🎙️ chhota button) ---
-bottom_container = st.container()
-with bottom_container:
-    col_plus, col_chat, col_mic = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
+# Bottom Controls pinned cleanly
+btn_col1, btn_col2, _ = st.columns([0.7, 0.7, 8.6])
+with btn_col1:
+    if st.button("➕", help="Photo Attach"):
+        st.session_state.show_img_box = not st.session_state.show_img_box
+        st.session_state.show_mic_box = False
+        st.rerun()
 
-    with col_plus:
-        if st.button("➕", help="Photo Attach"):
-            st.session_state.show_img_box = not st.session_state.show_img_box
-            st.session_state.show_mic_box = False
-            st.rerun()
+with btn_col2:
+    if st.button("🎙️", help="Voice Input"):
+        st.session_state.show_mic_box = not st.session_state.show_mic_box
+        st.session_state.show_img_box = False
+        st.rerun()
 
-    with col_mic:
-        if st.button("🎙️", help="Voice Input"):
-            st.session_state.show_mic_box = not st.session_state.show_mic_box
-            st.session_state.show_img_box = False
-            st.rerun()
-
-    with col_chat:
-        text_input = st.chat_input("Ask Soni AI anything...")
-
+text_input = st.chat_input("Ask Soni AI anything...")
 user_input = None
 
 if voice_audio:
