@@ -85,7 +85,7 @@ st.markdown(
         box-shadow: none !important;
     }}
 
-    /* SHIFTED DOWN: Top-Right Stack (Founder -> Donate -> Shop) */
+    /* Top-Right Stack */
     .top-right-stack {{
         position: fixed;
         top: 75px;
@@ -110,6 +110,7 @@ st.markdown(
         display: inline-block;
     }}
 
+    /* Donate Dropdown shifted to open towards the LEFT */
     .donate-box {{
         position: relative;
     }}
@@ -129,8 +130,8 @@ st.markdown(
     .donate-content {{
         display: none;
         position: absolute;
-        right: 0;
-        top: 36px;
+        right: 115% !important; /* Forces popup to open on the LEFT side */
+        top: 0;
         background: rgba(18, 18, 24, 0.96);
         border: 1px solid rgba(255, 105, 180, 0.4);
         border-radius: 16px;
@@ -237,7 +238,6 @@ st.markdown(
         margin-bottom: 12px;
     }}
 
-    /* Lightbox Modal Overlay */
     .lightbox-overlay {{
         position: fixed;
         top: 0;
@@ -548,7 +548,7 @@ else:
                     messages=payload,
                     model="openai/gpt-oss-20b",
                 )
-                bot_reply = chat_completion.choices[0].message.content
+                bot_reply = completion.choices[0].message.content
             except Exception as e:
                 bot_reply = f"Error aaya: {e}"
 
