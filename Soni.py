@@ -2,7 +2,7 @@ import streamlit as st
 from groq import Groq
 import base64
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="wide")
 
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
@@ -10,11 +10,11 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     f"""
     <style>
-    /* Full Viewport Background */
+    /* Full Viewport Background without white space or cuts */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
-        height: 100vh !important;
+        min-height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
     }}
@@ -23,11 +23,8 @@ st.markdown(
         display: none !important;
     }}
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
+    header, [data-testid="stHeader"], footer {{
         background: transparent !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-        border: none !important;
     }}
 
     /* Founder Badge (Top-Right) */
@@ -45,10 +42,9 @@ st.markdown(
         border: 1px solid rgba(0, 229, 255, 0.4);
         backdrop-filter: blur(8px);
         z-index: 9999;
-        display: block;
     }}
 
-    /* Donate Dropdown */
+    /* Donate Dropdown directly below Founder */
     .donate-box {{
         position: fixed;
         top: 80px;
@@ -97,13 +93,16 @@ st.markdown(
         line-height: 1.3;
     }}
 
+    /* Typography */
     h1, h2, h3, p {{
         color: #ffffff;
     }}
     .main .block-container {{
-        padding-bottom: 140px !important;
+        max-width: 800px;
+        padding-bottom: 130px !important;
     }}
 
+    /* Chat bubble styling */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
@@ -114,54 +113,32 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* --- GEMINI ROUND CAPSULE BAR --- */
-    [data-testid="stChatInput"] {{
-        background: rgba(255, 255, 255, 0.96) !important;
-        border-radius: 35px !important;
-        padding-left: 56px !important;
-        padding-right: 56px !important;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important;
-        border: 1px solid rgba(0,0,0,0.06) !important;
-    }}
-
-    /* Left (+) Button inside Input Bar */
-    .pill-left-icon {{
-        position: fixed;
-        bottom: 27px;
-        left: calc(50% - 340px);
-        z-index: 10001;
-    }}
-
-    /* Right (Mic) Button inside Input Bar */
-    .pill-right-icon {{
-        position: fixed;
-        bottom: 27px;
-        right: calc(50% - 295px);
-        z-index: 10001;
-    }}
-
-    @media (max-width: 768px) {{
-        .pill-left-icon {{ left: 24px; }}
-        .pill-right-icon {{ right: 65px; }}
-    }}
-
-    .dock-icon-btn button {{
+    /* --- GEMINI BOTTOM CAPSULE WRAPPER --- */
+    [data-testid="stBottom"] {{
         background: transparent !important;
-        border: none !important;
-        font-size: 21px !important;
-        color: #333333 !important;
-        padding: 4px 6px !important;
-        box-shadow: none !important;
-        transition: transform 0.2s ease;
+        padding-bottom: 20px !important;
     }}
-    .dock-icon-btn button:hover {{
+    [data-testid="stBottom"] > div {{
         background: transparent !important;
-        color: #000000 !important;
-        transform: scale(1.18);
+    }}
+
+    /* Gemini Capsule Shell */
+    .gemini-capsule {{
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 35px;
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        max-width: 760px;
+        margin: 0 auto;
+    }}
+
+    div[data-testid="stChatInput"] {{
+        border-radius: 30px !important;
     }}
     </style>
 
-    <!-- Header Badges -->
     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
        target="_blank" 
        class="founder-badge">
@@ -213,41 +190,38 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Chat History
+# Messages list (Upper scrollable area)
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # Toggled photo box
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo Ready! Sawal puchein.", width=160)
+        st.image(uploaded_file, caption="Photo Ready! Neeche sawal likhein.", width=170)
 
 # Toggled mic box
 voice_audio = None
 if st.session_state.show_mic_box:
-    voice_audio = st.audio_input("Record Voice", label_visibility="collapsed")
+    voice_audio = st.audio_input("Record Voice")
 
-# 1. Left (+) Button embedded inside capsule
-st.markdown('<div class="pill-left-icon dock-icon-btn">', unsafe_allow_html=True)
-if st.button("➕", key="btn_gemini_plus", help="Attach Image"):
-    st.session_state.show_img_box = not st.session_state.show_img_box
-    st.session_state.show_mic_box = False
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+# Bottom Action Controls (Directly attached above the chat input bar)
+col_plus, col_mic, _ = st.columns([0.8, 0.8, 8.4])
+with col_plus:
+    if st.button("➕", help="Photo Attach"):
+        st.session_state.show_img_box = not st.session_state.show_img_box
+        st.session_state.show_mic_box = False
+        st.rerun()
 
-# 2. Right (Mic) Button embedded inside capsule
-st.markdown('<div class="pill-right-icon dock-icon-btn">', unsafe_allow_html=True)
-if st.button("🎙️", key="btn_gemini_mic", help="Voice Input"):
-    st.session_state.show_mic_box = not st.session_state.show_mic_box
-    st.session_state.show_img_box = False
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+with col_mic:
+    if st.button("🎙️", help="Voice Input"):
+        st.session_state.show_mic_box = not st.session_state.show_mic_box
+        st.session_state.show_img_box = False
+        st.rerun()
 
-# 3. Main Capsule Chat Bar
 text_input = st.chat_input("Ask Soni AI anything...")
 user_input = None
 
@@ -312,7 +286,7 @@ if user_input:
             st.session_state.current_image_b64 = None
             st.session_state.show_img_box = False
         else:
-            # Memory Text Chat
+            # Memory Context Normal Chat
             try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
