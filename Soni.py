@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from groq import Groq
 import base64
 
@@ -10,7 +11,7 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     """
     <style>
-    /* 1. Full Screen Background */
+    /* Full Page Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {
         background: url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe") no-repeat center center fixed !important;
         background-size: cover !important;
@@ -24,11 +25,13 @@ st.markdown(
         display: none !important;
     }
 
-    header, [data-testid="stHeader"], footer {
+    header, [data-testid="stHeader"], footer, [data-testid="stBottom"] {
         background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 
-    /* Founder Badge (Top Right) */
+    /* Founder Badge */
     .founder-badge {
         position: fixed;
         top: 40px;
@@ -82,7 +85,7 @@ st.markdown(
     }
     .donate-box:hover .donate-content {
         display: block;
-    }
+    }}
     .donate-content img {
         width: 180px;
         border-radius: 10px;
@@ -99,11 +102,11 @@ st.markdown(
         color: #ffffff;
     }
 
-    /* Scrollable chat messages area */
+    /* Chat Messages scrolling container */
     .main .block-container {
         max-width: 760px !important;
         padding-top: 40px !important;
-        padding-bottom: 140px !important;
+        padding-bottom: 150px !important;
     }
 
     [data-testid="stChatMessage"] {
@@ -114,63 +117,6 @@ st.markdown(
     }
     [data-testid="stChatMessage"] p {
         color: #111111 !important;
-    }
-
-    /* --- PERMANENT BOTTOM CAPSULE FORM (GEMINI DOCK) --- */
-    div[data-testid="stForm"] {
-        position: fixed !important;
-        bottom: 20px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        width: calc(100% - 40px) !important;
-        max-width: 760px !important;
-        background: rgba(255, 255, 255, 0.98) !important;
-        border-radius: 35px !important;
-        padding: 4px 12px !important;
-        border: 1px solid rgba(0,0,0,0.08) !important;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.25) !important;
-        z-index: 99999 !important;
-    }
-
-    /* Flatten internal column elements inside form */
-    div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {
-        align-items: center !important;
-        gap: 6px !important;
-    }
-
-    /* Transparent borderless input box */
-    div[data-testid="stForm"] input[type="text"] {
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        font-size: 15px !important;
-        padding: 8px 4px !important;
-        color: #111111 !important;
-    }
-    div[data-testid="stForm"] input[type="text"]:focus {
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
-    /* Transparent Round Buttons */
-    div[data-testid="stForm"] button {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        font-size: 19px !important;
-        padding: 0 !important;
-        width: 38px !important;
-        height: 38px !important;
-        min-width: 38px !important;
-        border-radius: 50% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        color: #333333 !important;
-    }
-    div[data-testid="stForm"] button:hover {
-        background: rgba(0,0,0,0.06) !important;
-        transform: scale(1.1);
     }
     </style>
 
@@ -225,49 +171,42 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Messages list
+# Messages list (Page ke saath scroll hoga)
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Temporary Upload Trays
+# Temporary Image / Voice inputs when triggered
 if st.session_state.show_img_box:
     uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo attached. Sawal likhein.", width=160)
+        st.image(uploaded_file, caption="Photo attached! Sawal likhein.", width=160)
 
 voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# --- UNIFIED CAPSULE DOCK (ALL IN ONE PILL) ---
-with st.form("gemini_dock_form", clear_on_submit=True):
-    col_plus, col_text, col_mic, col_send = st.columns([0.8, 8.0, 0.8, 0.8], vertical_alignment="center")
+# --- GEMINI PILL BOTTOM CONTAINER ---
+# Yeh container screen ke bilkul bottom par fixed rahega bina kisi jump ke
+with st.bottom():
+    col1, col2, col3 = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
     
-    with col_plus:
-        plus_clicked = st.form_submit_button("➕", help="Attach Photo")
-        
-    with col_text:
-        text_entered = st.text_input("input_text", placeholder="Ask Soni AI anything...", label_visibility="collapsed")
-        
-    with col_mic:
-        mic_clicked = st.form_submit_button("🎙️", help="Voice Input")
-        
-    with col_send:
-        send_clicked = st.form_submit_button("↑", help="Send")
+    with col1:
+        if st.button("➕", key="gemini_plus", help="Photo Attach"):
+            st.session_state.show_img_box = not st.session_state.show_img_box
+            st.session_state.show_mic_box = False
+            st.rerun()
 
-# Handle Actions
-if plus_clicked:
-    st.session_state.show_img_box = not st.session_state.show_img_box
-    st.session_state.show_mic_box = False
-    st.rerun()
+    with col3:
+        if st.button("🎙️", key="gemini_mic", help="Voice Input"):
+            st.session_state.show_mic_box = not st.session_state.show_mic_box
+            st.session_state.show_img_box = False
+            st.rerun()
 
-if mic_clicked:
-    st.session_state.show_mic_box = not st.session_state.show_mic_box
-    st.session_state.show_img_box = False
-    st.rerun()
+    with col2:
+        text_input = st.chat_input("Ask Soni AI anything...")
 
 user_input = None
 if voice_audio:
@@ -279,8 +218,8 @@ if voice_audio:
         user_input = transcription.text
     except Exception as e:
         st.error(f"Voice error: {e}")
-elif send_clicked and text_entered.strip():
-    user_input = text_entered.strip()
+elif text_input:
+    user_input = text_input
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
