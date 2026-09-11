@@ -85,14 +85,15 @@ st.markdown(
         box-shadow: none !important;
     }}
 
+    /* SHIFTED DOWN: Top-Right Stack (Founder -> Donate -> Shop) */
     .top-right-stack {{
         position: fixed;
-        top: 25px;
-        right: 20px;
+        top: 75px;
+        right: 25px;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        gap: 8px;
+        gap: 10px;
         z-index: 99999;
     }}
 
@@ -243,16 +244,16 @@ st.markdown(
         left: 0;
         width: 100vw;
         height: 100vh;
-        background: rgba(0, 0, 0, 0.85);
+        background: rgba(0, 0, 0, 0.88);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 999999;
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(10px);
     }}
     .lightbox-content {{
         max-width: 90%;
-        max-height: 90vh;
+        max-height: 85vh;
         border-radius: 16px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         border: 2px solid rgba(255,255,255,0.2);
@@ -319,20 +320,17 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
-# --- FULLSCREEN LIGHTBOX MODAL (If image clicked) ---
+# --- FULLSCREEN LIGHTBOX MODAL ---
 if st.session_state.lightbox_img:
     img_url = st.session_state.lightbox_img
     st.markdown(f"""
         <div class="lightbox-overlay" onclick="window.location.reload();">
-            <div style="text-align: center;">
+            <div style="text-align: center; position: relative;">
                 <img src="{img_url}" class="lightbox-content"><br>
-                <p style="color: #fff; margin-top: 10px; font-size: 14px;">(Band karne ke liye photo ya bahar kahin bhi click karein)</p>
+                <span style="color: #bbb; font-size: 13px; display: block; margin-top: 12px;">(Band karne ke liye photo ya screen par kahin bhi click karein)</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
-    if st.button("✕ Close Zoom View", key="close_lightbox_btn", use_container_width=True):
-        st.session_state.lightbox_img = None
-        st.rerun()
 
 # --- 1. OWNER CONTROL PANEL ---
 if st.session_state.admin_authenticated:
@@ -439,8 +437,7 @@ if st.session_state.show_shop:
 
         for i, prod in enumerate(products):
             with cols[i % 3]:
-                # Transparent button overlaying the image to capture direct click for zoom
-                if st.button(f"🔍 Click to Zoom", key=f"zoom_click_{prod['id']}", use_container_width=True):
+                if st.button("", key=f"zoom_click_{prod['id']}", use_container_width=True, help="Click image to zoom"):
                     st.session_state.lightbox_img = prod["img"]
                     st.rerun()
 
