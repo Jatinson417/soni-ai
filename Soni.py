@@ -98,31 +98,24 @@ Hamesha pichli conversation ka context yaad rakhein aur friendly Hinglish/Hindi/
 # --- SIDEBAR: MIC & IMAGE INPUTS ---
 with st.sidebar:
     st.header("🎙️ Voice & 📷 Image")
-    
-    # 1. Voice Input (Mic)
     audio_file = st.audio_input("Bol kar sawaal puchein")
-    
-    # 2. Image Input
     uploaded_image = st.file_uploader("Photo upload karein", type=["png", "jpg", "jpeg"])
     if uploaded_image:
-        st.image(uploaded_image, caption="Uploaded Image", use_container_width=True)
+        st.image(uploaded_image, caption="Uploaded Photo", use_container_width=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Purane messages display karna
+# Screen par purane messages render karna
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Text box se input ya Mic se aayi aawaz detect karna
 text_input = st.chat_input("Apna sawal yahan likhein...")
 user_input = None
 
-if text_input:
-    user_input = text_input
-elif audio_file:
-    # Whisper API se voice ko text mein convert karna
+# Audio input detect karna
+if audio_file and "last_audio" not in st.session_state:
     try:
         transcription = client.audio.transcriptions.create(
             file=(audio_file.name, audio_file.read()),
@@ -130,7 +123,14 @@ elif audio_file:
         )
         user_input = transcription.text
     except Exception as e:
-        st.error(f"Voice detect karne mein issue aaya: {e}")
+        st.error(f"Voice detect error: {e}")
+elif text_input:
+    user_input = text_input
+
+# Agar user ne image upload ki ho bina text likhe
+if uploaded_image and not user_input and "img_processed" not in st.session_state:
+    user_input = "Describe this image in detail and tell me what is in it."
+    st.session_state.img_processed = True
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -147,18 +147,38 @@ if user_input:
         bot_reply = CREATOR_REPLY
     else:
         try:
-            conversation_history = [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages[-10:]
-            ]
+            # Agar image upload ki hai toh Vision Model use hoga
+            if uploaded_image:
+                base64_image = base64.b64encode(uploaded_image.getvalue()).decode('utf-8')
+                image_url = f"data:{uploaded_image.type};base64,{base64_image}"
 
-            payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": user_input},
+                                {"type": "image_url", "image_url": {"url": image_url}}
+                            ]
+                        }
+                    ],
+                    model="llama-3.2-11b-vision-preview",
+                )
+                bot_reply = chat_completion.choices[0].message.content
+            else:
+                # Text/Voice ke liye standard fast model with memory
+                conversation_history = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages[-10:]
+                ]
+                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
 
-            chat_completion = client.chat.completions.create(
-                messages=payload,
-                model="openai/gpt-oss-20b",
-            )
-            bot_reply = chat_completion.choices[0].message.content
+                chat_completion = client.chat.completions.create(
+                    messages=payload,
+                    model="openai/gpt-oss-20b",
+                )
+                bot_reply = chat_completion.choices[0].message.content
         except Exception as e:
             bot_reply = f"Error aaya hai: {e}"
 
