@@ -28,6 +28,15 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
+# Active models list (Jo bhi pehla chalega usse response le lega)
+CANDIDATE_MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "llama-3.2-3b-preview",
+    "llama-3.2-1b-preview",
+    "mixtral-8x7b-32768"
+]
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -49,21 +58,31 @@ if user_input:
         "owner", "kaun banaya", "maker", "who created", "who is your developer"
     ]
 
-    # Agar creator ke baare mein sawaal ho toh direct reply
+    # Agar creator ke baare mein sawaal ho toh direct 100% accurate reply
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
-        try:
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
-                ],
-                model="gemma2-9b-it",
-            )
-            bot_reply = chat_completion.choices[0].message.content
-        except Exception as e:
-            bot_reply = f"Error aaya hai: {e}"
+        bot_reply = None
+        last_error = ""
+
+        # Models mein loop chalega jo active hoga usse turant reply aayega
+        for model_id in CANDIDATE_MODELS:
+            try:
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+                    ],
+                    model=model_id,
+                )
+                bot_reply = chat_completion.choices[0].message.content
+                break  # Kaam ho gaya toh loop band
+            except Exception as err:
+                last_error = str(err)
+                continue
+
+        if not bot_reply:
+            bot_reply = f"Error aaya hai: {last_error}"
 
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
