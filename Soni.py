@@ -2,9 +2,9 @@ import streamlit as st
 from groq import Groq
 import base64
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Soni AI", page_icon="🤖", initial_sidebar_state="collapsed")
 
-# --- BACKGROUND & FOUNDER WATERMARK CSS ---
+# --- BACKGROUND & BADGE CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 
 st.markdown(
@@ -18,11 +18,17 @@ st.markdown(
         background-attachment: fixed;
     }}
 
+    /* Sidebar hide karna */
+    [data-testid="stSidebar"] {{
+        display: none;
+    }}
+
     header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
         background: transparent !important;
         background-color: transparent !important;
     }}
 
+    /* Founder Badge */
     .founder-badge {{
         position: fixed;
         top: 60px;
@@ -51,10 +57,11 @@ st.markdown(
         color: #ffffff;
     }}
 
+    /* Chat bubble design */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.92) !important;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        border-radius: 14px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
     }}
     [data-testid="stChatMessage"] p {{
         color: #111111 !important;
@@ -95,30 +102,44 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha pichli conversation ka context yaad rakhein aur friendly Hinglish/Hindi/English mein jawab dein.
 """
 
-# --- SIDEBAR: MIC & IMAGE INPUTS ---
-with st.sidebar:
-    st.header("🎙️ Voice & 📷 Image")
-    audio_file = st.audio_input("Bol kar sawaal puchein")
-    uploaded_image = st.file_uploader("Photo upload karein", type=["png", "jpg", "jpeg"])
-    if uploaded_image:
-        st.image(uploaded_image, caption="Uploaded Photo", use_container_width=True)
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "show_uploader" not in st.session_state:
+    st.session_state.show_uploader = False
+if "show_mic" not in st.session_state:
+    st.session_state.show_mic = False
 
-# Screen par purane messages render karna
+# Chat History Display
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# --- GEMINI STYLE COMPACT ACTION BUTTONS (Above input bar) ---
+btn_col1, btn_col2, _ = st.columns([1, 1, 6])
+with btn_col1:
+    if st.button("➕ Photo"):
+        st.session_state.show_uploader = not st.session_state.show_uploader
+with btn_col2:
+    if st.button("🎙️ Mic"):
+        st.session_state.show_mic = not st.session_state.show_mic
+
+uploaded_image = None
+if st.session_state.show_uploader:
+    uploaded_image = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+    if uploaded_image:
+        st.image(uploaded_image, width=220)
+
+voice_audio = None
+if st.session_state.show_mic:
+    voice_audio = st.audio_input("Bol kar puchein", label_visibility="collapsed")
+
 text_input = st.chat_input("Apna sawal yahan likhein...")
 user_input = None
 
-# Audio input detect karna
-if audio_file and "last_audio" not in st.session_state:
+if voice_audio:
     try:
         transcription = client.audio.transcriptions.create(
-            file=(audio_file.name, audio_file.read()),
+            file=(voice_audio.name, voice_audio.read()),
             model="whisper-large-v3"
         )
         user_input = transcription.text
@@ -127,10 +148,8 @@ if audio_file and "last_audio" not in st.session_state:
 elif text_input:
     user_input = text_input
 
-# Agar user ne image upload ki ho bina text likhe
-if uploaded_image and not user_input and "img_processed" not in st.session_state:
+if uploaded_image and not user_input:
     user_input = "Describe this image in detail and tell me what is in it."
-    st.session_state.img_processed = True
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -147,7 +166,6 @@ if user_input:
         bot_reply = CREATOR_REPLY
     else:
         try:
-            # Agar image upload ki hai toh Vision Model use hoga
             if uploaded_image:
                 base64_image = base64.b64encode(uploaded_image.getvalue()).decode('utf-8')
                 image_url = f"data:{uploaded_image.type};base64,{base64_image}"
@@ -167,7 +185,6 @@ if user_input:
                 )
                 bot_reply = chat_completion.choices[0].message.content
             else:
-                # Text/Voice ke liye standard fast model with memory
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages[-10:]
