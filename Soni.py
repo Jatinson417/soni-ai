@@ -412,15 +412,21 @@ if st.session_state.show_shop:
 
         for i, prod in enumerate(products):
             with cols[i % 3]:
+                # Image button to trigger direct zoom on photo click
+                if st.button("", key=f"img_click_{prod['id']}", help="Click to Zoom Image"):
+                    st.session_state.zoomed_image = (prod["img"], prod["name"])
+                    st.rerun()
+                
+                # Render product card with direct image button overlay effect
                 st.markdown(f"""
                 <div class="shop-product-card">
+                    <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px; cursor:pointer;">
                     <div class="shop-product-title">{prod['name']}</div>
                     <div class="shop-product-price">₹{prod['price']}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # Clickable image to zoom
-                if st.button(f"🔍 Badi Photo Dekhein", key=f"zoom_btn_{prod['id']}", use_container_width=True):
+
+                if st.button(f"🔍 Zoom Photo", key=f"zoom_btn_{prod['id']}", use_container_width=True):
                     st.session_state.zoomed_image = (prod["img"], prod["name"])
                     st.rerun()
 
