@@ -9,10 +9,9 @@ st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
 MY_WHATSAPP_NUMBER = "918307940340"
-ADMIN_PIN = "1770"  # Aapka secret password orders dekhne ke liye
+ADMIN_PIN = "2009"
 ORDERS_FILE = "orders_database.json"
 
-# Permanent File Storage for Orders
 def load_orders():
     if os.path.exists(ORDERS_FILE):
         try:
@@ -31,6 +30,7 @@ def save_order_to_file(order_dict):
 st.markdown(
     """
     <style>
+    /* Full Page Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {
         background: url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe") no-repeat center center fixed !important;
         background-size: cover !important;
@@ -46,13 +46,15 @@ st.markdown(
 
     header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {
         background: transparent !important;
+        background-color: transparent !important;
         border: none !important;
+        box-shadow: none !important;
     }
 
-    /* Founder Badge */
+    /* 1. Founder Badge */
     .founder-badge {
         position: fixed;
-        top: 40px;
+        top: 30px;
         right: 25px;
         background: rgba(0, 0, 0, 0.75);
         color: #00e5ff !important;
@@ -67,10 +69,10 @@ st.markdown(
         display: block;
     }
 
-    /* Donate Dropdown */
+    /* 2. Donate Box (Below Founder) */
     .donate-box {
         position: fixed;
-        top: 80px;
+        top: 72px;
         right: 25px;
         z-index: 9999;
     }
@@ -116,47 +118,63 @@ st.markdown(
         line-height: 1.3;
     }
 
-    /* Shop Button */
-    .shop-trigger-box {
+    /* 3. Shop Box (Directly below Donate) */
+    .shop-box {
         position: fixed;
-        top: 120px;
+        top: 114px;
         right: 25px;
         z-index: 9999;
     }
-    .shop-trigger-btn button {
+    .shop-box button {
         background: rgba(0, 0, 0, 0.75) !important;
         color: #ffd700 !important;
-        border: 1px solid rgba(255, 215, 0, 0.5) !important;
+        padding: 6px 14px !important;
         border-radius: 20px !important;
         font-size: 13px !important;
         font-weight: 600 !important;
-        padding: 6px 14px !important;
+        border: 1px solid rgba(255, 215, 0, 0.5) !important;
         backdrop-filter: blur(8px) !important;
+        cursor: pointer !important;
+        line-height: 1.2 !important;
+    }
+    .shop-box button:hover {
+        transform: scale(1.05) !important;
     }
 
-    /* Secret Orders View Button (Top-Left) */
-    .admin-badge-box {
+    /* 4. Admin Secret Button (Top Left Corner) */
+    .admin-secret-box {
         position: fixed;
-        top: 40px;
-        left: 20px;
+        top: 30px;
+        left: 25px;
         z-index: 9999;
     }
-    .admin-badge-box button {
-        background: rgba(0, 0, 0, 0.6) !important;
+    .admin-secret-box button {
+        background: rgba(0, 0, 0, 0.3) !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 50% !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 13px !important;
+    }
+    .admin-secret-box button:hover {
+        background: rgba(0, 0, 0, 0.8) !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 20px !important;
-        font-size: 12px !important;
-        padding: 4px 12px !important;
     }
 
     h1, h2, h3, p {
         color: #ffffff;
     }
 
+    /* Chat Messages scrolling container */
     .main .block-container {
         max-width: 760px !important;
-        padding-top: 40px !important;
+        padding-top: 50px !important;
         padding-bottom: 140px !important;
     }
 
@@ -170,6 +188,7 @@ st.markdown(
         color: #111111 !important;
     }
 
+    /* Bottom Input Bar */
     [data-testid="stChatInput"] {
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
@@ -178,12 +197,14 @@ st.markdown(
     }
     </style>
 
+    <!-- Top Left: Discreet Secret Lock -->
     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
        target="_blank" 
        class="founder-badge">
         ⚡ Founder: Jatin Soni
     </a>
 
+    <!-- Top Right: Donate Dropdown -->
     <div class="donate-box">
         <div class="donate-btn">💖 Donate / Support</div>
         <div class="donate-content">
@@ -196,16 +217,16 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Admin Trigger (Top Left)
-st.markdown('<div class="admin-badge-box">', unsafe_allow_html=True)
-if st.button("🔒 Admin Orders", key="btn_admin_toggle"):
+# Top Left: Admin Trigger
+st.markdown('<div class="admin-secret-box">', unsafe_allow_html=True)
+if st.button("🔒", key="admin_secret_toggle", help="Owner Panel"):
     st.session_state.show_admin = not st.session_state.get("show_admin", False)
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Shop Trigger (Top Right)
-st.markdown('<div class="shop-trigger-box shop-trigger-btn">', unsafe_allow_html=True)
-if st.button("🛍️ Soni Shop", key="btn_open_shop"):
+# Top Right: Shop Trigger (Directly beneath Donate)
+st.markdown('<div class="shop-box">', unsafe_allow_html=True)
+if st.button("🛍️ Soni Shop", key="btn_shop_open"):
     st.session_state.show_shop = not st.session_state.get("show_shop", False)
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
@@ -241,30 +262,30 @@ if "show_shop" not in st.session_state:
 if "show_admin" not in st.session_state:
     st.session_state.show_admin = False
 
-# --- 1. ADMIN ORDERS DASHBOARD (Sirf aapke dekhne ke liye) ---
+# --- 1. ADMIN PANEL (PIN 2009) ---
 if st.session_state.show_admin:
-    with st.expander("🔒 Owner Dashboard - Received Orders", expanded=True):
-        admin_pass = st.text_input("Enter Secret PIN to view orders:", type="password", placeholder="PIN likhein...")
+    with st.expander("🔐 Owner Control Panel (Private)", expanded=True):
+        admin_pass = st.text_input("Enter 4-Digit Secret PIN:", type="password", placeholder="PIN likhein...")
         if admin_pass == ADMIN_PIN:
             all_orders = load_orders()
             if not all_orders:
-                st.info("Abhi tak koi naya order nahi aaya hai.")
+                st.info("Abhi tak koi order nahi aaya hai.")
             else:
-                st.success(f"Kul {len(all_orders)} orders mile hain:")
+                st.success(f"Total Orders: {len(all_orders)}")
                 for idx, ord_data in enumerate(reversed(all_orders)):
                     st.markdown(f"""
                     ---
                     **Order #{len(all_orders) - idx}**
                     * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
-                    * **Customer:** **{ord_data['name']}**
-                    * **Mobile:** `{ord_data['phone']}`
-                    * **Delivery Address:** {ord_data['address']}
-                    * **Payment Method:** `{ord_data['payment']}`
+                    * **Customer Name:** **{ord_data['name']}**
+                    * **Phone:** `{ord_data['phone']}`
+                    * **Address:** {ord_data['address']}
+                    * **Payment Mode:** `{ord_data['payment']}`
                     """)
         elif admin_pass:
-            st.error("Galat PIN! Access denied.")
+            st.error("Galat PIN! Access Denied.")
 
-# --- 2. USER SHOPPING WINDOW ---
+# --- 2. SHOP STORE SECTION ---
 if st.session_state.show_shop:
     with st.expander("🛍️ Soni Store - Buy Products", expanded=True):
         st.markdown("### 🛒 Hamare Products")
@@ -314,10 +335,8 @@ if st.session_state.show_shop:
                             "payment": payment_mode
                         }
                         
-                        # File mein permanent save
                         save_order_to_file(order_data)
                         
-                        # WhatsApp URL ready
                         msg = (
                             f"🛒 *NEW ORDER - SONI STORE*\n\n"
                             f"📦 *Product:* {item['name']}\n"
@@ -363,11 +382,11 @@ if user_input:
         bot_reply = CREATOR_REPLY
     else:
         try:
-            conversation_history = [
+            conversation_payload = [
                 {"role": m["role"], "content": m["content"]}
                 for m in st.session_state.messages[-10:]
             ]
-            payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
+            payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
             chat_completion = client.chat.completions.create(
                 messages=payload,
