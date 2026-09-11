@@ -4,10 +4,6 @@ import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
-BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
-UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
-
-# CSS without f-string brackets clash
 st.markdown(
     """
     <style>
@@ -100,11 +96,11 @@ st.markdown(
         color: #ffffff;
     }
 
-    /* Chat Messages scrolling container */
+    /* Chat Messages scrolling container (Bottom space so input bar doesn't cover text) */
     .main .block-container {
         max-width: 760px !important;
         padding-top: 40px !important;
-        padding-bottom: 140px !important;
+        padding-bottom: 160px !important;
     }
 
     [data-testid="stChatMessage"] {
@@ -117,65 +113,61 @@ st.markdown(
         color: #111111 !important;
     }
 
-    /* Bottom Input Container Clean Styling */
+    /* --- PERMANENT BOTTOM DOCK LOCK --- */
     [data-testid="stBottom"] {
         background: transparent !important;
-        padding-bottom: 22px !important;
+        padding-bottom: 24px !important;
     }
     [data-testid="stBottom"] > div {
         background: transparent !important;
     }
 
-    /* Native chat input pill design */
+    /* Bottom Input Bar capsule styling */
     [data-testid="stChatInput"] {
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
-        padding-left: 45px !important;
-        padding-right: 45px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
         border: 1px solid rgba(0,0,0,0.06) !important;
     }
 
-    /* Left ➕ Button Inside Pill */
-    .gemini-btn-left {
+    /* HARD LOCK: Buttons pinned permanently at screen bottom */
+    .lock-bottom-dock {
         position: fixed !important;
-        bottom: 35px !important;
-        left: calc(50% - 365px) !important;
-        z-index: 10005 !important;
+        bottom: 28px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 100% !important;
+        max-width: 760px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        pointer-events: none !important;
+        z-index: 99999 !important;
+        padding: 0 10px !important;
     }
 
-    /* Right 🎙️ Button Inside Pill */
-    .gemini-btn-right {
-        position: fixed !important;
-        bottom: 35px !important;
-        right: calc(50% - 325px) !important;
-        z-index: 10005 !important;
+    .lock-bottom-dock > div {
+        pointer-events: auto !important;
     }
 
-    @media (max-width: 820px) {
-        .gemini-btn-left { left: 20px !important; }
-        .gemini-btn-right { right: 60px !important; }
-    }
-
-    .gemini-action-btn button {
-        background: transparent !important;
-        border: none !important;
-        font-size: 21px !important;
-        color: #333333 !important;
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        padding: 0 !important;
+    /* Round Transparent Icons */
+    .dock-circle-btn button {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid rgba(0,0,0,0.1) !important;
+        border-radius: 50% !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        font-size: 20px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: none !important;
-        cursor: pointer !important;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.2) !important;
+        padding: 0 !important;
     }
-    .gemini-action-btn button:hover {
-        background: rgba(0, 0, 0, 0.05) !important;
-        border-radius: 50% !important;
-        transform: scale(1.1);
+    .dock-circle-btn button:hover {
+        background: #ffffff !important;
+        transform: scale(1.1) !important;
     }
     </style>
 
@@ -230,12 +222,12 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Messages list
+# Messages list (Yeh normal body mein scroll hoga)
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Image / Voice Upload Box (Click hone par dikhega)
+# Temporary popups when + or Mic clicked
 if st.session_state.show_img_box:
     uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
@@ -247,23 +239,28 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# Left ➕ Button
-st.markdown('<div class="gemini-btn-left gemini-action-btn">', unsafe_allow_html=True)
-if st.button("➕", key="pill_btn_plus", help="Attach Photo"):
-    st.session_state.show_img_box = not st.session_state.show_img_box
-    st.session_state.show_mic_box = False
-    st.rerun()
+# --- FIXED DOCK AT THE ABSOLUTE BOTTOM ---
+st.markdown('<div class="lock-bottom-dock">', unsafe_allow_html=True)
+col_left_btn, _, col_right_btn = st.columns([1, 8, 1])
+
+with col_left_btn:
+    st.markdown('<div class="dock-circle-btn">', unsafe_allow_html=True)
+    if st.button("➕", key="btn_locked_plus", help="Attach Photo"):
+        st.session_state.show_img_box = not st.session_state.show_img_box
+        st.session_state.show_mic_box = False
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col_right_btn:
+    st.markdown('<div class="dock-circle-btn">', unsafe_allow_html=True)
+    if st.button("🎙️", key="btn_locked_mic", help="Voice Input"):
+        st.session_state.show_mic_box = not st.session_state.show_mic_box
+        st.session_state.show_img_box = False
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Right 🎙️ Button
-st.markdown('<div class="gemini-btn-right gemini-action-btn">', unsafe_allow_html=True)
-if st.button("🎙️", key="pill_btn_mic", help="Voice Input"):
-    st.session_state.show_mic_box = not st.session_state.show_mic_box
-    st.session_state.show_img_box = False
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Native Chat Input
+# Native Chat Input permanently locked at the bottom
 text_input = st.chat_input("Ask Soni AI anything...")
 user_input = None
 
