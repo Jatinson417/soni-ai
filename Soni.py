@@ -1,17 +1,36 @@
 import streamlit as st
 from groq import Groq
 import urllib.parse
+import json
+import os
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
-MY_WHATSAPP_NUMBER = "918307940340"  # Aapka WhatsApp number jahan order aayega
+MY_WHATSAPP_NUMBER = "918307940340"
+ADMIN_PIN = "1770"  # Aapka secret password orders dekhne ke liye
+ORDERS_FILE = "orders_database.json"
+
+# Permanent File Storage for Orders
+def load_orders():
+    if os.path.exists(ORDERS_FILE):
+        try:
+            with open(ORDERS_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_order_to_file(order_dict):
+    orders = load_orders()
+    orders.append(order_dict)
+    with open(ORDERS_FILE, "w") as f:
+        json.dump(orders, f, indent=4)
 
 st.markdown(
     """
     <style>
-    /* Full Page Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {
         background: url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe") no-repeat center center fixed !important;
         background-size: cover !important;
@@ -27,12 +46,10 @@ st.markdown(
 
     header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {
         background: transparent !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
         border: none !important;
     }
 
-    /* Founder Badge (Top Right) */
+    /* Founder Badge */
     .founder-badge {
         position: fixed;
         top: 40px;
@@ -99,7 +116,7 @@ st.markdown(
         line-height: 1.3;
     }
 
-    /* Shop Trigger Button below Donate */
+    /* Shop Button */
     .shop-trigger-box {
         position: fixed;
         top: 120px;
@@ -117,11 +134,26 @@ st.markdown(
         backdrop-filter: blur(8px) !important;
     }
 
+    /* Secret Orders View Button (Top-Left) */
+    .admin-badge-box {
+        position: fixed;
+        top: 40px;
+        left: 20px;
+        z-index: 9999;
+    }
+    .admin-badge-box button {
+        background: rgba(0, 0, 0, 0.6) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 20px !important;
+        font-size: 12px !important;
+        padding: 4px 12px !important;
+    }
+
     h1, h2, h3, p {
         color: #ffffff;
     }
 
-    /* Scrollable Chat Area */
     .main .block-container {
         max-width: 760px !important;
         padding-top: 40px !important;
@@ -138,22 +170,11 @@ st.markdown(
         color: #111111 !important;
     }
 
-    /* Clean Pill Search Bar */
     [data-testid="stChatInput"] {
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
         border: 1px solid rgba(0,0,0,0.06) !important;
-    }
-
-    /* Shop Modal Window */
-    .shop-card {
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 16px;
-        padding: 16px;
-        color: #111;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
     </style>
 
@@ -175,7 +196,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# 🛍️ Shop Button (Directly below Donate)
+# Admin Trigger (Top Left)
+st.markdown('<div class="admin-badge-box">', unsafe_allow_html=True)
+if st.button("🔒 Admin Orders", key="btn_admin_toggle"):
+    st.session_state.show_admin = not st.session_state.get("show_admin", False)
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Shop Trigger (Top Right)
 st.markdown('<div class="shop-trigger-box shop-trigger-btn">', unsafe_allow_html=True)
 if st.button("🛍️ Soni Shop", key="btn_open_shop"):
     st.session_state.show_shop = not st.session_state.get("show_shop", False)
@@ -208,36 +236,43 @@ Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "orders" not in st.session_state:
-    st.session_state.orders = []
 if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
+if "show_admin" not in st.session_state:
+    st.session_state.show_admin = False
 
-# --- SHOP STORE SECTION ---
+# --- 1. ADMIN ORDERS DASHBOARD (Sirf aapke dekhne ke liye) ---
+if st.session_state.show_admin:
+    with st.expander("🔒 Owner Dashboard - Received Orders", expanded=True):
+        admin_pass = st.text_input("Enter Secret PIN to view orders:", type="password", placeholder="PIN likhein...")
+        if admin_pass == ADMIN_PIN:
+            all_orders = load_orders()
+            if not all_orders:
+                st.info("Abhi tak koi naya order nahi aaya hai.")
+            else:
+                st.success(f"Kul {len(all_orders)} orders mile hain:")
+                for idx, ord_data in enumerate(reversed(all_orders)):
+                    st.markdown(f"""
+                    ---
+                    **Order #{len(all_orders) - idx}**
+                    * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
+                    * **Customer:** **{ord_data['name']}**
+                    * **Mobile:** `{ord_data['phone']}`
+                    * **Delivery Address:** {ord_data['address']}
+                    * **Payment Method:** `{ord_data['payment']}`
+                    """)
+        elif admin_pass:
+            st.error("Galat PIN! Access denied.")
+
+# --- 2. USER SHOPPING WINDOW ---
 if st.session_state.show_shop:
     with st.expander("🛍️ Soni Store - Buy Products", expanded=True):
         st.markdown("### 🛒 Hamare Products")
         
-        # Product List (Aap yahan naye items add ya change kar sakte hain)
         products = [
-            {
-                "id": 1,
-                "name": "Women's Stylish Short Kurti",
-                "price": 299,
-                "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"
-            },
-            {
-                "id": 2,
-                "name": "Adjustable Aluminum Laptop Stand",
-                "price": 449,
-                "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"
-            },
-            {
-                "id": 3,
-                "name": "Premium Handbag For Women",
-                "price": 399,
-                "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"
-            }
+            {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
+            {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
+            {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
         ]
 
         col1, col2, col3 = st.columns(3)
@@ -248,11 +283,11 @@ if st.session_state.show_shop:
                 st.image(prod["img"], use_container_width=True)
                 st.markdown(f"**{prod['name']}**")
                 st.markdown(f"Price: **₹{prod['price']}**")
-                if st.button(f"Order Karein", key=f"buy_btn_{prod['id']}"):
+                if st.button(f"Buy Now", key=f"buy_btn_{prod['id']}"):
                     st.session_state.selected_product = prod
                     st.rerun()
 
-        # Order Form
+        # Checkout Form
         if "selected_product" in st.session_state and st.session_state.selected_product:
             item = st.session_state.selected_product
             st.markdown("---")
@@ -262,7 +297,7 @@ if st.session_state.show_shop:
                 cust_name = st.text_input("Aapka Naam*", placeholder="Apna pura naam likhein")
                 cust_phone = st.text_input("Mobile Number*", placeholder="10-digit mobile number")
                 cust_address = st.text_area("Delivery Address*", placeholder="House no, Gali/Ward, Gaon/City, District, Pincode")
-                payment_mode = st.radio("Payment Method*", ["Cash on Delivery (COD)", "Pay Online (UPI / QR)"])
+                payment_mode = st.radio("Payment Mode*", ["Cash on Delivery (COD)", "Pay Online (UPI / QR)"])
                 
                 submit_order = st.form_submit_button("Confirm Order 🚀")
 
@@ -273,58 +308,44 @@ if st.session_state.show_shop:
                         order_data = {
                             "item": item["name"],
                             "price": item["price"],
-                            "name": cust_name,
-                            "phone": cust_phone,
-                            "address": cust_address,
+                            "name": cust_name.strip(),
+                            "phone": cust_phone.strip(),
+                            "address": cust_address.strip(),
                             "payment": payment_mode
                         }
-                        st.session_state.orders.append(order_data)
                         
-                        # WhatsApp link prepare karein
+                        # File mein permanent save
+                        save_order_to_file(order_data)
+                        
+                        # WhatsApp URL ready
                         msg = (
-                            f"🛒 *NEW ORDER RECEIVED!* 🛒\n\n"
+                            f"🛒 *NEW ORDER - SONI STORE*\n\n"
                             f"📦 *Product:* {item['name']}\n"
                             f"💰 *Price:* ₹{item['price']}\n"
                             f"👤 *Customer:* {cust_name}\n"
-                            f"📞 *Phone:* {cust_phone}\n"
+                            f"📞 *Mobile:* {cust_phone}\n"
                             f"🏠 *Address:* {cust_address}\n"
                             f"💳 *Payment Mode:* {payment_mode}\n"
                         )
-                        encoded_msg = urllib.parse.quote(msg)
-                        wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={encoded_msg}"
+                        wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(msg)}"
                         
                         st.success("Order Confirm ho gaya hai! 🎉")
                         
                         if payment_mode == "Pay Online (UPI / QR)":
                             st.image(UPI_QR_URL, caption=f"Scan & Pay ₹{item['price']}", width=180)
-                            st.info("Payment karke neeche diye button par click karke WhatsApp par confirm karein.")
                         
                         st.markdown(f'''
-                            <a href="{wa_url}" target="_blank" style="display:inline-block; padding:10px 20px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">
-                                📲 WhatsApp par Order Detail Send Karein
+                            <a href="{wa_url}" target="_blank" style="display:inline-block; padding:12px 24px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">
+                                📲 WhatsApp par Order Send Karein
                             </a>
                         ''', unsafe_allow_html=True)
                         st.session_state.selected_product = None
-
-    # Admin View (Aapko sabhi orders dekhne ke liye)
-    if st.session_state.orders:
-        with st.expander("📋 View Received Orders (Admin)", expanded=False):
-            for idx, ord_info in enumerate(reversed(st.session_state.orders)):
-                st.markdown(f"""
-                **Order #{len(st.session_state.orders) - idx}**
-                * **Item:** {ord_info['item']} (₹{ord_info['price']})
-                * **Customer:** {ord_info['name']} | **Phone:** {ord_info['phone']}
-                * **Address:** {ord_info['address']}
-                * **Mode:** {ord_info['payment']}
-                ---
-                """)
 
 # Chat messages display
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Bottom chat input bar
 user_input = st.chat_input("Ask Soni AI anything...")
 
 if user_input:
