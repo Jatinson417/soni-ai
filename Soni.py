@@ -4,7 +4,7 @@ import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
-# --- BACKGROUND & GEMINI CAPSULE CSS ---
+# --- BACKGROUND & GEMINI UI CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 
 st.markdown(
@@ -18,16 +18,15 @@ st.markdown(
         background-attachment: fixed;
     }}
 
-    /* Sidebar completely off */
     [data-testid="stSidebar"] {{
         display: none;
     }}
 
-    header, [data-testid="stHeader"], footer {{
+    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
         background: transparent !important;
+        background-color: transparent !important;
     }}
 
-    /* Founder Badge */
     .founder-badge {{
         position: fixed;
         top: 55px;
@@ -48,7 +47,6 @@ st.markdown(
         color: #ffffff;
     }}
 
-    /* Chat bubble design */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
@@ -59,17 +57,18 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Gemini Buttons Styling */
+    /* Action buttons above chatbar */
     div.stButton > button {{
-        background-color: transparent !important;
-        border: none !important;
-        font-size: 22px !important;
-        padding: 4px 8px !important;
-        box-shadow: none !important;
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        border: 1px solid rgba(0,0,0,0.1) !important;
+        border-radius: 25px !important;
+        font-size: 16px !important;
+        padding: 4px 14px !important;
+        color: #111111 !important;
     }}
     div.stButton > button:hover {{
-        background-color: rgba(0, 0, 0, 0.08) !important;
-        border-radius: 50% !important;
+        background-color: #ffffff !important;
+        transform: scale(1.03);
     }}
     </style>
 
@@ -85,7 +84,6 @@ st.markdown(
 st.title("🤖 Soni AI")
 st.write("Aapka personal AI Assistant!")
 
-# Groq Setup
 client = Groq(api_key="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")
 
 CREATOR_REPLY = (
@@ -104,50 +102,53 @@ Jatin Soni ke baare mein details:
 - Location: Rori village, District Sirsa, Haryana
 Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya developer kaun hai, toh hamesha yahi batayein:
 "{CREATOR_REPLY}"
-Hamesha pichli conversation ka context yaad rakhein aur friendly Hinglish/Hindi/English mein jawab dein.
+Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
+# State Management
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "toggle_img" not in st.session_state:
-    st.session_state.toggle_img = False
-if "toggle_mic" not in st.session_state:
-    st.session_state.toggle_mic = False
+if "show_img_box" not in st.session_state:
+    st.session_state.show_img_box = False
+if "show_mic_box" not in st.session_state:
+    st.session_state.show_mic_box = False
+if "current_image_b64" not in st.session_state:
+    st.session_state.current_image_b64 = None
 
-# Chat History Display
+# Purane messages screen par render karna
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Popups if user clicked '+' or 'Mic'
-uploaded_image = None
-if st.session_state.toggle_img:
-    uploaded_image = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
-    if uploaded_image:
-        st.image(uploaded_image, width=180)
+# --- Action Bar (➕ Attach / 🎙️ Voice) ---
+col1, col2, _ = st.columns([1.3, 1.3, 6])
+with col1:
+    if st.button("➕ Photo"):
+        st.session_state.show_img_box = not st.session_state.show_img_box
+        st.session_state.show_mic_box = False
+        st.rerun()
 
+with col2:
+    if st.button("🎙️ Mic"):
+        st.session_state.show_mic_box = not st.session_state.show_mic_box
+        st.session_state.show_img_box = False
+        st.rerun()
+
+# Photo Box (Gemini Preview style)
+if st.session_state.show_img_box:
+    uploaded_file = st.file_uploader("Photo chuniye", type=["png", "jpg", "jpeg"])
+    if uploaded_file:
+        b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
+        st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
+        st.image(uploaded_file, caption="Selected Image ready for questions", width=180)
+
+# Mic Box
 voice_audio = None
-if st.session_state.toggle_mic:
-    voice_audio = st.audio_input("Record Voice", label_visibility="collapsed")
+if st.session_state.show_mic_box:
+    voice_audio = st.audio_input("Apni voice record karein")
 
-# --- GEMINI DOCK (➕ on left, Input in center, 🎙️ on right) ---
-col_plus, col_input, col_mic = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
-
-with col_plus:
-    if st.button("➕", help="Upload Image"):
-        st.session_state.toggle_img = not st.session_state.toggle_img
-        st.session_state.toggle_mic = False
-        st.rerun()
-
-with col_mic:
-    if st.button("🎙️", help="Voice Input"):
-        st.session_state.toggle_mic = not st.session_state.toggle_mic
-        st.session_state.toggle_img = False
-        st.rerun()
-
-with col_input:
-    text_input = st.chat_input("Apna sawal yahan likhein...")
-
+# Chat Input Box
+text_input = st.chat_input("Apna sawal yahan likhein (ya image ke baare mein puchein)...")
 user_input = None
 
 if voice_audio:
@@ -158,17 +159,21 @@ if voice_audio:
         )
         user_input = transcription.text
     except Exception as e:
-        st.error(f"Voice error: {e}")
+        st.error(f"Voice detect error: {e}")
 elif text_input:
     user_input = text_input
 
-if uploaded_image and not user_input:
-    user_input = "Describe this image in detail and tell me what is in it."
+# Agar user ne photo upload ki hai aur direct submit kiya bina likhe
+if st.session_state.current_image_b64 and not user_input and st.session_state.show_img_box:
+    # Wait for user input
+    pass
 
 if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    # Screen aur history update
+    display_text = user_input
+    st.session_state.messages.append({"role": "user", "content": display_text})
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(display_text)
 
     input_lower = user_input.lower()
     creator_triggers = [
@@ -180,25 +185,26 @@ if user_input:
         bot_reply = CREATOR_REPLY
     else:
         try:
-            if uploaded_image:
-                base64_image = base64.b64encode(uploaded_image.getvalue()).decode('utf-8')
-                image_url = f"data:{uploaded_image.type};base64,{base64_image}"
-
+            # Check: Agar photo selected hai toh Vision API call hogi
+            if st.session_state.current_image_b64:
                 chat_completion = client.chat.completions.create(
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": user_input},
-                                {"type": "image_url", "image_url": {"url": image_url}}
+                                {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nUser Question: {user_input}"},
+                                {"type": "image_url", "image_url": {"url": st.session_state.current_image_b64}}
                             ]
                         }
                     ],
                     model="llama-3.2-11b-vision-preview",
                 )
                 bot_reply = chat_completion.choices[0].message.content
+                # Process hone ke baad image buffer reset
+                st.session_state.current_image_b64 = None
+                st.session_state.show_img_box = False
             else:
+                # Normal Text / Voice chat with memory
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages[-10:]
@@ -211,7 +217,7 @@ if user_input:
                 )
                 bot_reply = chat_completion.choices[0].message.content
         except Exception as e:
-            bot_reply = f"Error aaya hai: {e}"
+            bot_reply = f"Error aaya: {e}"
 
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
