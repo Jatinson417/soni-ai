@@ -7,29 +7,30 @@ st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
 
+# CSS without f-string brackets clash
 st.markdown(
-    f"""
+    """
     <style>
     /* Full Page Background */
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background: url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe") no-repeat center center fixed !important;
         background-size: cover !important;
         height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow-x: hidden !important;
-    }}
+    }
 
-    [data-testid="stSidebar"] {{
+    [data-testid="stSidebar"] {
         display: none !important;
-    }}
+    }
 
-    header, [data-testid="stHeader"], footer {{
+    header, [data-testid="stHeader"], footer {
         background: transparent !important;
-    }}
+    }
 
     /* Founder Badge */
-    .founder-badge {{
+    .founder-badge {
         position: fixed;
         top: 40px;
         right: 25px;
@@ -44,16 +45,16 @@ st.markdown(
         backdrop-filter: blur(8px);
         z-index: 9999;
         display: block;
-    }}
+    }
 
     /* Donate Dropdown */
-    .donate-box {{
+    .donate-box {
         position: fixed;
         top: 80px;
         right: 25px;
         z-index: 9999;
-    }}
-    .donate-btn {{
+    }
+    .donate-btn {
         background: rgba(0, 0, 0, 0.75);
         color: #ff69b4 !important;
         padding: 6px 14px;
@@ -65,8 +66,8 @@ st.markdown(
         cursor: pointer;
         display: inline-block;
         text-align: center;
-    }}
-    .donate-content {{
+    }
+    .donate-content {
         display: none;
         position: absolute;
         right: 0;
@@ -79,78 +80,83 @@ st.markdown(
         box-shadow: 0 8px 32px rgba(0,0,0,0.6);
         width: 210px;
         backdrop-filter: blur(12px);
-    }}
-    .donate-box:hover .donate-content {{
+    }
+    .donate-box:hover .donate-content {
         display: block;
-    }}
-    .donate-content img {{
+    }
+    .donate-content img {
         width: 180px;
         border-radius: 10px;
         margin-bottom: 8px;
-    }}
-    .donate-content p {{
+    }
+    .donate-content p {
         font-size: 11px !important;
         color: #e0e0e0 !important;
         margin: 0 !important;
         line-height: 1.3;
-    }}
+    }
 
-    h1, h2, h3, p {{
+    h1, h2, h3, p {
         color: #ffffff;
-    }}
+    }
 
-    .main .block-container {{
+    /* Chat Messages scrolling container */
+    .main .block-container {
         max-width: 760px !important;
         padding-top: 40px !important;
         padding-bottom: 140px !important;
-    }}
+    }
 
-    [data-testid="stChatMessage"] {{
+    [data-testid="stChatMessage"] {
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
         margin-bottom: 12px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-    }}
-    [data-testid="stChatMessage"] p {{
+    }
+    [data-testid="stChatMessage"] p {
         color: #111111 !important;
-    }}
+    }
 
     /* Bottom Input Container Clean Styling */
-    [data-testid="stBottom"] {{
+    [data-testid="stBottom"] {
         background: transparent !important;
         padding-bottom: 22px !important;
-    }}
-    [data-testid="stBottom"] > div {{
+    }
+    [data-testid="stBottom"] > div {
         background: transparent !important;
-    }}
+    }
 
     /* Native chat input pill design */
-    [data-testid="stChatInput"] {{
+    [data-testid="stChatInput"] {
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
         padding-left: 45px !important;
         padding-right: 45px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
         border: 1px solid rgba(0,0,0,0.06) !important;
-    }}
-
-    /* Left ➕ Button CSS Position Inside Pill */
-    div[data-testid="stBottom"] .gemini-btn-left {
-        position: absolute;
-        left: 12px;
-        bottom: 7px;
-        z-index: 10005;
     }
 
-    /* Right 🎙️ Button CSS Position Inside Pill */
-    div[data-testid="stBottom"] .gemini-btn-right {
-        position: absolute;
-        right: 48px;
-        bottom: 7px;
-        z-index: 10005;
+    /* Left ➕ Button Inside Pill */
+    .gemini-btn-left {
+        position: fixed !important;
+        bottom: 35px !important;
+        left: calc(50% - 365px) !important;
+        z-index: 10005 !important;
     }
 
-    /* Native Action buttons inside the capsule pill */
+    /* Right 🎙️ Button Inside Pill */
+    .gemini-btn-right {
+        position: fixed !important;
+        bottom: 35px !important;
+        right: calc(50% - 325px) !important;
+        z-index: 10005 !important;
+    }
+
+    @media (max-width: 820px) {
+        .gemini-btn-left { left: 20px !important; }
+        .gemini-btn-right { right: 60px !important; }
+    }
+
     .gemini-action-btn button {
         background: transparent !important;
         border: none !important;
@@ -182,7 +188,7 @@ st.markdown(
     <div class="donate-box">
         <div class="donate-btn">💖 Donate / Support</div>
         <div class="donate-content">
-            <img src="{UPI_QR_URL}" alt="Paytm Scanner">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR" alt="Paytm Scanner">
             <p><b>Scan with Paytm/PhonePe/GPay</b></p>
             <p style="color:#00e5ff !important; margin-top:4px;">UPI: 8307940340@ptyes</p>
         </div>
@@ -229,7 +235,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Image / Voice Upload Box (Click hone par samne khulega)
+# Image / Voice Upload Box (Click hone par dikhega)
 if st.session_state.show_img_box:
     uploaded_file = st.file_uploader("Photo chunein", type=["png", "jpg", "jpeg"])
     if uploaded_file:
@@ -241,8 +247,7 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# --- GEMINI PILL DOCK (WITH DIRECT WORKING STREAMLIT BUTTONS) ---
-# Native Streamlit Buttons embedded inside the pill
+# Left ➕ Button
 st.markdown('<div class="gemini-btn-left gemini-action-btn">', unsafe_allow_html=True)
 if st.button("➕", key="pill_btn_plus", help="Attach Photo"):
     st.session_state.show_img_box = not st.session_state.show_img_box
@@ -250,6 +255,7 @@ if st.button("➕", key="pill_btn_plus", help="Attach Photo"):
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
+# Right 🎙️ Button
 st.markdown('<div class="gemini-btn-right gemini-action-btn">', unsafe_allow_html=True)
 if st.button("🎙️", key="pill_btn_mic", help="Voice Input"):
     st.session_state.show_mic_box = not st.session_state.show_mic_box
