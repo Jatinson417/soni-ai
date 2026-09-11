@@ -2,9 +2,9 @@ import streamlit as st
 from groq import Groq
 import base64
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
-# --- BACKGROUND & BADGE CSS ---
+# --- BACKGROUND & GEMINI CAPSULE CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 
 st.markdown(
@@ -18,20 +18,19 @@ st.markdown(
         background-attachment: fixed;
     }}
 
-    /* Sidebar hide karna */
+    /* Sidebar completely off */
     [data-testid="stSidebar"] {{
         display: none;
     }}
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
+    header, [data-testid="stHeader"], footer {{
         background: transparent !important;
-        background-color: transparent !important;
     }}
 
     /* Founder Badge */
     .founder-badge {{
         position: fixed;
-        top: 60px;
+        top: 55px;
         right: 25px;
         background: rgba(0, 0, 0, 0.75);
         color: #00e5ff !important;
@@ -43,14 +42,6 @@ st.markdown(
         border: 1px solid rgba(0, 229, 255, 0.4);
         backdrop-filter: blur(8px);
         z-index: 9999;
-        transition: all 0.3s ease;
-        display: inline-block;
-    }}
-    .founder-badge:hover {{
-        background: rgba(0, 229, 255, 0.25);
-        color: #ffffff !important;
-        border-color: #00e5ff;
-        transform: scale(1.05);
     }}
 
     h1, h2, h3, p {{
@@ -59,12 +50,26 @@ st.markdown(
 
     /* Chat bubble design */
     [data-testid="stChatMessage"] {{
-        background-color: rgba(255, 255, 255, 0.92) !important;
+        background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
+        margin-bottom: 12px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.15);
     }}
     [data-testid="stChatMessage"] p {{
         color: #111111 !important;
+    }}
+
+    /* Gemini Buttons Styling */
+    div.stButton > button {{
+        background-color: transparent !important;
+        border: none !important;
+        font-size: 22px !important;
+        padding: 4px 8px !important;
+        box-shadow: none !important;
+    }}
+    div.stButton > button:hover {{
+        background-color: rgba(0, 0, 0, 0.08) !important;
+        border-radius: 50% !important;
     }}
     </style>
 
@@ -104,36 +109,45 @@ Hamesha pichli conversation ka context yaad rakhein aur friendly Hinglish/Hindi/
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "show_uploader" not in st.session_state:
-    st.session_state.show_uploader = False
-if "show_mic" not in st.session_state:
-    st.session_state.show_mic = False
+if "toggle_img" not in st.session_state:
+    st.session_state.toggle_img = False
+if "toggle_mic" not in st.session_state:
+    st.session_state.toggle_mic = False
 
 # Chat History Display
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- GEMINI STYLE COMPACT ACTION BUTTONS (Above input bar) ---
-btn_col1, btn_col2, _ = st.columns([1, 1, 6])
-with btn_col1:
-    if st.button("➕ Photo"):
-        st.session_state.show_uploader = not st.session_state.show_uploader
-with btn_col2:
-    if st.button("🎙️ Mic"):
-        st.session_state.show_mic = not st.session_state.show_mic
-
+# Popups if user clicked '+' or 'Mic'
 uploaded_image = None
-if st.session_state.show_uploader:
+if st.session_state.toggle_img:
     uploaded_image = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
     if uploaded_image:
-        st.image(uploaded_image, width=220)
+        st.image(uploaded_image, width=180)
 
 voice_audio = None
-if st.session_state.show_mic:
-    voice_audio = st.audio_input("Bol kar puchein", label_visibility="collapsed")
+if st.session_state.toggle_mic:
+    voice_audio = st.audio_input("Record Voice", label_visibility="collapsed")
 
-text_input = st.chat_input("Apna sawal yahan likhein...")
+# --- GEMINI DOCK (➕ on left, Input in center, 🎙️ on right) ---
+col_plus, col_input, col_mic = st.columns([0.8, 8.4, 0.8], vertical_alignment="center")
+
+with col_plus:
+    if st.button("➕", help="Upload Image"):
+        st.session_state.toggle_img = not st.session_state.toggle_img
+        st.session_state.toggle_mic = False
+        st.rerun()
+
+with col_mic:
+    if st.button("🎙️", help="Voice Input"):
+        st.session_state.toggle_mic = not st.session_state.toggle_mic
+        st.session_state.toggle_img = False
+        st.rerun()
+
+with col_input:
+    text_input = st.chat_input("Apna sawal yahan likhein...")
+
 user_input = None
 
 if voice_audio:
@@ -144,7 +158,7 @@ if voice_audio:
         )
         user_input = transcription.text
     except Exception as e:
-        st.error(f"Voice detect error: {e}")
+        st.error(f"Voice error: {e}")
 elif text_input:
     user_input = text_input
 
