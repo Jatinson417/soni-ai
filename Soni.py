@@ -1,7 +1,5 @@
 import streamlit as st
 from groq import Groq
-import streamlit.components.v1 as components
-import json
 import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
@@ -12,7 +10,7 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     """
     <style>
-    /* Full Page Background */
+    /* 1. Full Screen Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {
         background: url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe") no-repeat center center fixed !important;
         background-size: cover !important;
@@ -30,7 +28,7 @@ st.markdown(
         background: transparent !important;
     }
 
-    /* Founder Badge */
+    /* Founder Badge (Top Right) */
     .founder-badge {
         position: fixed;
         top: 40px;
@@ -101,7 +99,7 @@ st.markdown(
         color: #ffffff;
     }
 
-    /* Messages container */
+    /* Scrollable chat messages area */
     .main .block-container {
         max-width: 760px !important;
         padding-top: 40px !important;
@@ -118,17 +116,61 @@ st.markdown(
         color: #111111 !important;
     }
 
-    /* Hide standard chat input completely to avoid glitches */
-    [data-testid="stBottom"] {
-        display: none !important;
+    /* --- PERMANENT BOTTOM CAPSULE FORM (GEMINI DOCK) --- */
+    div[data-testid="stForm"] {
+        position: fixed !important;
+        bottom: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: calc(100% - 40px) !important;
+        max-width: 760px !important;
+        background: rgba(255, 255, 255, 0.98) !important;
+        border-radius: 35px !important;
+        padding: 4px 12px !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.25) !important;
+        z-index: 99999 !important;
     }
 
-    /* Hidden bridge inputs */
-    #hidden-bridge-area {
-        position: fixed;
-        bottom: -200px;
-        opacity: 0;
-        pointer-events: none;
+    /* Flatten internal column elements inside form */
+    div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {
+        align-items: center !important;
+        gap: 6px !important;
+    }
+
+    /* Transparent borderless input box */
+    div[data-testid="stForm"] input[type="text"] {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        font-size: 15px !important;
+        padding: 8px 4px !important;
+        color: #111111 !important;
+    }
+    div[data-testid="stForm"] input[type="text"]:focus {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Transparent Round Buttons */
+    div[data-testid="stForm"] button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        font-size: 19px !important;
+        padding: 0 !important;
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        border-radius: 50% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #333333 !important;
+    }
+    div[data-testid="stForm"] button:hover {
+        background: rgba(0,0,0,0.06) !important;
+        transform: scale(1.1);
     }
     </style>
 
@@ -200,93 +242,33 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# Bridge Python Triggers
-st.markdown('<div id="hidden-bridge-area">', unsafe_allow_html=True)
-if st.button("trig_plus", key="bridge_plus"):
+# --- UNIFIED CAPSULE DOCK (ALL IN ONE PILL) ---
+with st.form("gemini_dock_form", clear_on_submit=True):
+    col_plus, col_text, col_mic, col_send = st.columns([0.8, 8.0, 0.8, 0.8], vertical_alignment="center")
+    
+    with col_plus:
+        plus_clicked = st.form_submit_button("➕", help="Attach Photo")
+        
+    with col_text:
+        text_entered = st.text_input("input_text", placeholder="Ask Soni AI anything...", label_visibility="collapsed")
+        
+    with col_mic:
+        mic_clicked = st.form_submit_button("🎙️", help="Voice Input")
+        
+    with col_send:
+        send_clicked = st.form_submit_button("↑", help="Send")
+
+# Handle Actions
+if plus_clicked:
     st.session_state.show_img_box = not st.session_state.show_img_box
     st.session_state.show_mic_box = False
     st.rerun()
 
-if st.button("trig_mic", key="bridge_mic"):
+if mic_clicked:
     st.session_state.show_mic_box = not st.session_state.show_mic_box
     st.session_state.show_img_box = False
     st.rerun()
 
-# Text bridge
-submitted_text = st.text_input("bridge_text", key="bridge_input", label_visibility="collapsed")
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- TRUE GEMINI HARD-WIRED PILL (Zero jumping, exact Gemini look) ---
-components.html(
-    """
-    <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 740px; background: rgba(255, 255, 255, 0.98); border-radius: 40px; display: flex; align-items: center; padding: 6px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.06); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box; z-index: 999999;">
-        
-        <!-- Left Plus Button -->
-        <button id="gem-plus" title="Attach Image" style="background: transparent; border: none; font-size: 20px; cursor: pointer; padding: 6px; color: #444; display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 36px; height: 36px;">
-            ➕
-        </button>
-
-        <!-- Center Input -->
-        <input id="gem-input" type="text" placeholder="Ask Soni AI anything..." style="flex: 1; border: none; outline: none; background: transparent; padding: 10px 14px; font-size: 15px; color: #111;" />
-
-        <!-- Right Mic Button -->
-        <button id="gem-mic" title="Voice Input" style="background: transparent; border: none; font-size: 20px; cursor: pointer; padding: 6px; color: #444; display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 36px; height: 36px; margin-right: 4px;">
-            🎙️
-        </button>
-
-        <!-- Right Send Arrow Button -->
-        <button id="gem-send" title="Send" style="background: #e8eaed; border: none; font-size: 16px; cursor: pointer; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #333; font-weight: bold;">
-            ↑
-        </button>
-    </div>
-
-    <script>
-    const parentDoc = window.parent.document;
-
-    // 1. Plus Click
-    document.getElementById('gem-plus').onclick = () => {
-        const btn = parentDoc.querySelector('[data-testid="stButton"] button[kind="secondary"]');
-        const allBtns = parentDoc.querySelectorAll('button');
-        for (let b of allBtns) {
-            if (b.innerText.includes('trig_plus')) { b.click(); break; }
-        }
-    };
-
-    // 2. Mic Click
-    document.getElementById('gem-mic').onclick = () => {
-        const allBtns = parentDoc.querySelectorAll('button');
-        for (let b of allBtns) {
-            if (b.innerText.includes('trig_mic')) { b.click(); break; }
-        }
-    };
-
-    // 3. Send Message
-    function sendMessage() {
-        const val = document.getElementById('gem-input').value.trim();
-        if (!val) return;
-        const inputBridge = parentDoc.querySelector('input[aria-label="bridge_text"]');
-        if (inputBridge) {
-            // Set value in Streamlit native text field & trigger React onChange
-            let lastValue = inputBridge.value;
-            inputBridge.value = val;
-            let event = new Event('input', { bubbles: true });
-            inputBridge.dispatchEvent(event);
-            let enterEvent = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, keyCode: 13, key: 'Enter' });
-            inputBridge.dispatchEvent(enterEvent);
-            document.getElementById('gem-input').value = '';
-        }
-    }
-
-    document.getElementById('gem-send').onclick = sendMessage;
-    document.getElementById('gem-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-    </script>
-    """,
-    height=80
-)
-
-# Handling message triggers
 user_input = None
 if voice_audio:
     try:
@@ -297,8 +279,8 @@ if voice_audio:
         user_input = transcription.text
     except Exception as e:
         st.error(f"Voice error: {e}")
-elif submitted_text:
-    user_input = submitted_text
+elif send_clicked and text_entered.strip():
+    user_input = text_entered.strip()
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
