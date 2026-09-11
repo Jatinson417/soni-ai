@@ -544,7 +544,7 @@ else:
 
                 chat_completion = client.chat.completions.create(
                     messages=payload,
-                    model="llama-3.3-70b-versatile",
+                    model="llama-3.1-8b-instant",
                 )
                 bot_reply = chat_completion.choices[0].message.content
             except Exception as e:
