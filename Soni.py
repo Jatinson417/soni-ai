@@ -4,7 +4,7 @@ import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
-# --- BACKGROUND, FOUNDER & DONATE CSS ---
+# --- BACKGROUND & GEMINI DOCK CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
 
@@ -28,7 +28,7 @@ st.markdown(
         background-color: transparent !important;
     }}
 
-    /* 1. Founder Badge (Top-Right) */
+    /* Founder Badge (Top Right) */
     .founder-badge {{
         position: fixed;
         top: 45px;
@@ -46,7 +46,7 @@ st.markdown(
         display: block;
     }}
 
-    /* 2. Donate Dropdown Badge (Directly below Founder Badge) */
+    /* Donate Dropdown Badge */
     .donate-box {{
         position: fixed;
         top: 85px;
@@ -68,7 +68,6 @@ st.markdown(
         text-align: center;
     }}
 
-    /* Hidden QR Modal on hover / click */
     .donate-content {{
         display: none;
         position: absolute;
@@ -101,22 +100,26 @@ st.markdown(
         line-height: 1.3;
     }}
 
-    /* Text & Chat Bubbles */
     h1, h2, h3, p {{
         color: #ffffff;
+    }}
+
+    /* Chat Messages Layout */
+    .chat-container {{
+        padding-bottom: 120px;
     }}
 
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.15);
     }}
     [data-testid="stChatMessage"] p {{
         color: #111111 !important;
     }}
 
-    /* Buttons (+ & Mic) */
+    /* Buttons (+ & Mic) Round Shape */
     div[data-testid="column"] button {{
         border-radius: 50% !important;
         height: 42px !important;
@@ -131,7 +134,6 @@ st.markdown(
     }}
     </style>
 
-    <!-- Top Right Corner UI -->
     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
        target="_blank" 
        class="founder-badge">
@@ -183,14 +185,16 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# Chat History
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# --- 1. CHAT MESSAGES DISPLAY (UPAR AAYENGE) ---
+chat_area = st.container()
+with chat_area:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-# Image Uploader if toggled
+# --- 2. IMAGE / MIC TOGGLED BOXES ---
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo chuniye", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader("Photo choose karein", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
@@ -200,7 +204,7 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice", label_visibility="collapsed")
 
-# --- Gemini Input Row (➕ Left | Input Center | 🎙️ Right) ---
+# --- 3. INPUT BAR (MESSAGES KE SABSE NICHE) ---
 c_left, c_mid, c_right = st.columns([1, 8, 1], vertical_alignment="bottom")
 
 with c_left:
@@ -234,8 +238,9 @@ elif text_input:
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
+    with chat_area:
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
     input_lower = user_input.lower()
     creator_triggers = [
@@ -246,7 +251,6 @@ if user_input:
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
-        # Image scan
         if st.session_state.current_image_b64:
             models_to_try = [
                 "qwen/qwen3.6-27b",
@@ -281,7 +285,6 @@ if user_input:
             st.session_state.current_image_b64 = None
             st.session_state.show_img_box = False
         else:
-            # Memory Context Chat
             try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
@@ -298,5 +301,8 @@ if user_input:
                 bot_reply = f"Error aaya: {e}"
 
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-    with st.chat_message("assistant"):
-        st.markdown(bot_reply)
+    with chat_area:
+        with st.chat_message("assistant"):
+            st.markdown(bot_reply)
+
+    st.rerun()
