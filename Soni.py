@@ -1,5 +1,7 @@
 import streamlit as st
 from groq import Groq
+import streamlit.components.v1 as components
+import json
 import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
@@ -116,67 +118,17 @@ st.markdown(
         color: #111111 !important;
     }
 
-    /* --- GEMINI PILL BAR & IN-LINE BUTTONS --- */
+    /* Hide standard chat input completely to avoid glitches */
     [data-testid="stBottom"] {
-        background: transparent !important;
-        padding-bottom: 15px !important;
-    }
-    [data-testid="stBottom"] > div {
-        background: transparent !important;
+        display: none !important;
     }
 
-    /* Chat Input Pill */
-    [data-testid="stChatInput"] {
-        background: rgba(255, 255, 255, 0.96) !important;
-        border-radius: 35px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
-        border: 1px solid rgba(0,0,0,0.06) !important;
-        padding-left: 46px !important;
-        padding-right: 48px !important;
-    }
-
-    /* Drop (+) Button directly inside the chat bar */
-    .pill-inside-plus {
-        position: fixed !important;
-        bottom: 23px !important;
-        left: calc(50% - 365px) !important;
-        z-index: 10005 !important;
-    }
-
-    /* Drop (Mic) Button directly inside the chat bar beside send arrow */
-    .pill-inside-mic {
-        position: fixed !important;
-        bottom: 23px !important;
-        right: calc(50% - 325px) !important;
-        z-index: 10005 !important;
-    }
-
-    @media (max-width: 820px) {
-        .pill-inside-plus { left: 16px !important; }
-        .pill-inside-mic { right: 54px !important; }
-    }
-
-    /* Invisible button base with clean visible icon */
-    .pill-inside-plus div[data-testid="stButton"] > button,
-    .pill-inside-mic div[data-testid="stButton"] > button {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        font-size: 19px !important;
-        color: #333333 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    .pill-inside-plus div[data-testid="stButton"] > button:hover,
-    .pill-inside-mic div[data-testid="stButton"] > button:hover {
-        transform: scale(1.15) !important;
-        background: rgba(0,0,0,0.05) !important;
-        border-radius: 50% !important;
+    /* Hidden bridge inputs */
+    #hidden-bridge-area {
+        position: fixed;
+        bottom: -200px;
+        opacity: 0;
+        pointer-events: none;
     }
     </style>
 
@@ -248,26 +200,94 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# Left Inside (+) Button
-st.markdown('<div class="pill-inside-plus">', unsafe_allow_html=True)
-if st.button("➕", key="btn_gemini_plus", help="Attach Photo"):
+# Bridge Python Triggers
+st.markdown('<div id="hidden-bridge-area">', unsafe_allow_html=True)
+if st.button("trig_plus", key="bridge_plus"):
     st.session_state.show_img_box = not st.session_state.show_img_box
     st.session_state.show_mic_box = False
     st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
 
-# Right Inside (🎙️) Button
-st.markdown('<div class="pill-inside-mic">', unsafe_allow_html=True)
-if st.button("🎙️", key="btn_gemini_mic", help="Voice Input"):
+if st.button("trig_mic", key="bridge_mic"):
     st.session_state.show_mic_box = not st.session_state.show_mic_box
     st.session_state.show_img_box = False
     st.rerun()
+
+# Text bridge
+submitted_text = st.text_input("bridge_text", key="bridge_input", label_visibility="collapsed")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Main Chat Input (Positioned at bottom permanently)
-text_input = st.chat_input("Ask Soni AI anything...")
-user_input = None
+# --- TRUE GEMINI HARD-WIRED PILL (Zero jumping, exact Gemini look) ---
+components.html(
+    """
+    <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 740px; background: rgba(255, 255, 255, 0.98); border-radius: 40px; display: flex; align-items: center; padding: 6px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.06); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box; z-index: 999999;">
+        
+        <!-- Left Plus Button -->
+        <button id="gem-plus" title="Attach Image" style="background: transparent; border: none; font-size: 20px; cursor: pointer; padding: 6px; color: #444; display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 36px; height: 36px;">
+            ➕
+        </button>
 
+        <!-- Center Input -->
+        <input id="gem-input" type="text" placeholder="Ask Soni AI anything..." style="flex: 1; border: none; outline: none; background: transparent; padding: 10px 14px; font-size: 15px; color: #111;" />
+
+        <!-- Right Mic Button -->
+        <button id="gem-mic" title="Voice Input" style="background: transparent; border: none; font-size: 20px; cursor: pointer; padding: 6px; color: #444; display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 36px; height: 36px; margin-right: 4px;">
+            🎙️
+        </button>
+
+        <!-- Right Send Arrow Button -->
+        <button id="gem-send" title="Send" style="background: #e8eaed; border: none; font-size: 16px; cursor: pointer; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #333; font-weight: bold;">
+            ↑
+        </button>
+    </div>
+
+    <script>
+    const parentDoc = window.parent.document;
+
+    // 1. Plus Click
+    document.getElementById('gem-plus').onclick = () => {
+        const btn = parentDoc.querySelector('[data-testid="stButton"] button[kind="secondary"]');
+        const allBtns = parentDoc.querySelectorAll('button');
+        for (let b of allBtns) {
+            if (b.innerText.includes('trig_plus')) { b.click(); break; }
+        }
+    };
+
+    // 2. Mic Click
+    document.getElementById('gem-mic').onclick = () => {
+        const allBtns = parentDoc.querySelectorAll('button');
+        for (let b of allBtns) {
+            if (b.innerText.includes('trig_mic')) { b.click(); break; }
+        }
+    };
+
+    // 3. Send Message
+    function sendMessage() {
+        const val = document.getElementById('gem-input').value.trim();
+        if (!val) return;
+        const inputBridge = parentDoc.querySelector('input[aria-label="bridge_text"]');
+        if (inputBridge) {
+            // Set value in Streamlit native text field & trigger React onChange
+            let lastValue = inputBridge.value;
+            inputBridge.value = val;
+            let event = new Event('input', { bubbles: true });
+            inputBridge.dispatchEvent(event);
+            let enterEvent = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, keyCode: 13, key: 'Enter' });
+            inputBridge.dispatchEvent(enterEvent);
+            document.getElementById('gem-input').value = '';
+        }
+    }
+
+    document.getElementById('gem-send').onclick = sendMessage;
+    document.getElementById('gem-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+    </script>
+    """,
+    height=80
+)
+
+# Handling message triggers
+user_input = None
 if voice_audio:
     try:
         transcription = client.audio.transcriptions.create(
@@ -277,8 +297,8 @@ if voice_audio:
         user_input = transcription.text
     except Exception as e:
         st.error(f"Voice error: {e}")
-elif text_input:
-    user_input = text_input
+elif submitted_text:
+    user_input = submitted_text
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
