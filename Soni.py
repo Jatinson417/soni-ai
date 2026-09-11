@@ -49,7 +49,7 @@ if user_input:
         "owner", "kaun banaya", "maker", "who created", "who is your developer"
     ]
 
-    # Agar creator ke baare mein sawaal ho toh direct accurate reply
+    # Agar creator ke baare mein sawaal ho toh direct reply
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
@@ -59,7 +59,7 @@ if user_input:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
                 ],
-                model="llama-3.3-70b-versatile",
+                model="llama3-8b-8192",
             )
             bot_reply = chat_completion.choices[0].message.content
         except Exception as e:
@@ -68,3 +68,4 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
         st.markdown(bot_reply)
+    
