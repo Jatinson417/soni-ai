@@ -4,7 +4,7 @@ import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
-# --- BACKGROUND & GEMINI DOCK CSS ---
+# --- BACKGROUND & FIXED GEMINI DOCK CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
 
@@ -23,9 +23,8 @@ st.markdown(
         display: none;
     }}
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
+    header, [data-testid="stHeader"], footer {{
         background: transparent !important;
-        background-color: transparent !important;
     }}
 
     /* Founder Badge (Top Right) */
@@ -104,32 +103,52 @@ st.markdown(
         color: #ffffff;
     }}
 
-    /* Chat Messages Layout */
-    .chat-container {{
-        padding-bottom: 120px;
+    /* Space at bottom taaki messages bar ke piche na chhupe */
+    .main .block-container {{
+        padding-bottom: 150px !important;
     }}
 
+    /* Chat bubble styling */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.93) !important;
         border-radius: 14px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.15);
     }}
     [data-testid="stChatMessage"] p {{
         color: #111111 !important;
     }}
 
-    /* Buttons (+ & Mic) Round Shape */
+    /* Floating Action Buttons (+ & Mic) Fixed at Bottom */
+    .action-dock {{
+        position: fixed;
+        bottom: 25px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 730px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        pointer-events: none;
+        z-index: 10000;
+    }}
+
+    .action-dock > div {{
+        pointer-events: auto;
+    }}
+
     div[data-testid="column"] button {{
         border-radius: 50% !important;
-        height: 42px !important;
-        width: 42px !important;
+        height: 44px !important;
+        width: 44px !important;
         padding: 0 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-size: 18px !important;
-        background: rgba(255, 255, 255, 0.9) !important;
+        font-size: 20px !important;
+        background: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
         border: 1px solid rgba(0,0,0,0.1) !important;
     }}
     </style>
@@ -185,43 +204,39 @@ if "show_mic_box" not in st.session_state:
 if "current_image_b64" not in st.session_state:
     st.session_state.current_image_b64 = None
 
-# --- 1. CHAT MESSAGES DISPLAY (UPAR AAYENGE) ---
-chat_area = st.container()
-with chat_area:
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+# --- CHAT MESSAGES DISPLAY ---
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# --- 2. IMAGE / MIC TOGGLED BOXES ---
+# Extra Inputs if opened
 if st.session_state.show_img_box:
-    uploaded_file = st.file_uploader("Photo choose karein", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader("Photo select karein", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
     if uploaded_file:
         b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
         st.session_state.current_image_b64 = f"data:{uploaded_file.type};base64,{b64}"
-        st.image(uploaded_file, caption="Photo attached. Sawal likhein.", width=170)
+        st.image(uploaded_file, caption="Photo Ready! Neeche sawal puchein.", width=160)
 
 voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice", label_visibility="collapsed")
 
-# --- 3. INPUT BAR (MESSAGES KE SABSE NICHE) ---
-c_left, c_mid, c_right = st.columns([1, 8, 1], vertical_alignment="bottom")
-
-with c_left:
-    if st.button("➕", help="Attach Photo"):
+# --- FIXED DOCK BUTTONS & NATIVE BOTTOM CHAT INPUT ---
+col_l, _, col_r = st.columns([1, 8, 1])
+with col_l:
+    if st.button("➕", help="Photo attach karein"):
         st.session_state.show_img_box = not st.session_state.show_img_box
         st.session_state.show_mic_box = False
         st.rerun()
 
-with c_right:
-    if st.button("🎙️", help="Voice Input"):
+with col_r:
+    if st.button("🎙️", help="Voice input karein"):
         st.session_state.show_mic_box = not st.session_state.show_mic_box
         st.session_state.show_img_box = False
         st.rerun()
 
-with c_mid:
-    text_input = st.chat_input("Ask Soni AI anything...")
-
+# Native pinned chat input (Screen ke bottom me permanently lock rehta hai)
+text_input = st.chat_input("Ask Soni AI anything...")
 user_input = None
 
 if voice_audio:
@@ -238,9 +253,8 @@ elif text_input:
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
-    with chat_area:
-        with st.chat_message("user"):
-            st.markdown(user_input)
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
     input_lower = user_input.lower()
     creator_triggers = [
@@ -251,6 +265,7 @@ if user_input:
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
+        # Photo Scan Request
         if st.session_state.current_image_b64:
             models_to_try = [
                 "qwen/qwen3.6-27b",
@@ -267,7 +282,7 @@ if user_input:
                             {
                                 "role": "user",
                                 "content": [
-                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nUser Question: {user_input}"},
+                                    {"type": "text", "text": f"{SYSTEM_PROMPT}\n\nQuestion: {user_input}"},
                                     {"type": "image_url", "image_url": {"url": st.session_state.current_image_b64}}
                                 ]
                             }
@@ -285,6 +300,7 @@ if user_input:
             st.session_state.current_image_b64 = None
             st.session_state.show_img_box = False
         else:
+            # Memory Context Chat
             try:
                 conversation_history = [
                     {"role": m["role"], "content": m["content"]}
@@ -301,8 +317,7 @@ if user_input:
                 bot_reply = f"Error aaya: {e}"
 
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-    with chat_area:
-        with st.chat_message("assistant"):
-            st.markdown(bot_reply)
+    with st.chat_message("assistant"):
+        st.markdown(bot_reply)
 
     st.rerun()
