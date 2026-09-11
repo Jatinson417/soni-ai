@@ -59,7 +59,7 @@ if user_input:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
                 ],
-                model="llama3-8b-8192",
+                model="llama-3.1-8b-instant",
             )
             bot_reply = chat_completion.choices[0].message.content
         except Exception as e:
@@ -68,4 +68,3 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
         st.markdown(bot_reply)
-    
