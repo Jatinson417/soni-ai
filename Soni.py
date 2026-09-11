@@ -59,7 +59,7 @@ if user_input:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
                 ],
-                model="llama-3.1-8b-instant",
+                model="gemma2-9b-it",
             )
             bot_reply = chat_completion.choices[0].message.content
         except Exception as e:
