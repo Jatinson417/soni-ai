@@ -9,7 +9,7 @@ BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 st.markdown(
     f"""
     <style>
-    /* Background Image */
+    /* Pura page aur Streamlit container cover */
     .stApp {{
         background-image: url("{BG_IMAGE_URL}");
         background-size: cover;
@@ -17,30 +17,43 @@ st.markdown(
         background-repeat: no-repeat;
         background-attachment: fixed;
     }}
-    
-    /* Founder Watermark Badge (Right Top Corner) */
+
+    /* Neeche chat input wale container ka white background hatane ke liye */
+    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
+        background: transparent !important;
+        background-color: transparent !important;
+    }}
+
+    /* Founder Clickable Badge (Click karte hi Gmail/Email khulega) */
     .founder-badge {{
         position: fixed;
         top: 60px;
         right: 25px;
-        background: rgba(0, 0, 0, 0.65);
-        color: #00e5ff;
+        background: rgba(0, 0, 0, 0.7);
+        color: #00e5ff !important;
         padding: 8px 16px;
         border-radius: 20px;
         font-size: 14px;
         font-weight: 600;
-        letter-spacing: 0.5px;
+        text-decoration: none !important;
         border: 1px solid rgba(0, 229, 255, 0.4);
         backdrop-filter: blur(8px);
         z-index: 9999;
+        transition: 0.3s ease;
+        display: inline-block;
+    }}
+    .founder-badge:hover {{
+        background: rgba(0, 229, 255, 0.2);
+        color: #ffffff !important;
+        border-color: #00e5ff;
+        transform: scale(1.05);
     }}
 
-    /* Title & UI styling */
+    /* Text & Chat Bubbles */
     h1, h2, h3, p {{
         color: #ffffff;
     }}
     
-    /* Chat Bubbles readable background */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.9) !important;
         border-radius: 12px;
@@ -50,7 +63,11 @@ st.markdown(
         color: #111111 !important;
     }}
     </style>
-    <div class="founder-badge">⚡ Founder: Jatin Soni</div>
+
+    <!-- Clickable Badge with mailto -->
+    <a href="mailto:sonijatin177@gmail.com" target="_blank" class="founder-badge">
+        ⚡ Founder: Jatin Soni
+    </a>
     """,
     unsafe_allow_html=True
 )
