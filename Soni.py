@@ -24,12 +24,12 @@ st.markdown(
         background-color: transparent !important;
     }}
 
-    /* Founder Clickable Badge (Click karte hi Gmail/Email khulega) */
+    /* Founder Clickable Badge (Direct Gmail Compose Link) */
     .founder-badge {{
         position: fixed;
         top: 60px;
         right: 25px;
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.75);
         color: #00e5ff !important;
         padding: 8px 16px;
         border-radius: 20px;
@@ -39,14 +39,14 @@ st.markdown(
         border: 1px solid rgba(0, 229, 255, 0.4);
         backdrop-filter: blur(8px);
         z-index: 9999;
-        transition: 0.3s ease;
+        transition: all 0.3s ease;
         display: inline-block;
     }}
     .founder-badge:hover {{
-        background: rgba(0, 229, 255, 0.2);
+        background: rgba(0, 229, 255, 0.25);
         color: #ffffff !important;
         border-color: #00e5ff;
-        transform: scale(1.05);
+        transform: scale(1.04);
     }}
 
     /* Text & Chat Bubbles */
@@ -64,9 +64,12 @@ st.markdown(
     }}
     </style>
 
-    <!-- Clickable Badge with mailto -->
-    <a href="mailto:sonijatin177@gmail.com" target="_blank" class="founder-badge">
-        ⚡ Founder: Jatin Soni
+    <!-- Direct Web Gmail Compose Link with Title Hover -->
+    <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
+       target="_blank" 
+       class="founder-badge" 
+       title="Email: sonijatin177@gmail.com">
+        ⚡ Founder: Jatin Soni (sonijatin177@gmail.com)
     </a>
     """,
     unsafe_allow_html=True
