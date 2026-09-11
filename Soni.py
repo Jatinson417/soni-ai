@@ -1,7 +1,8 @@
 import streamlit as st
 from groq import Groq
+import base64
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖")
+st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="wide")
 
 # --- BACKGROUND & FOUNDER WATERMARK CSS ---
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
@@ -9,7 +10,6 @@ BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 st.markdown(
     f"""
     <style>
-    /* Full background image */
     .stApp {{
         background-image: url("{BG_IMAGE_URL}");
         background-size: cover;
@@ -18,13 +18,11 @@ st.markdown(
         background-attachment: fixed;
     }}
 
-    /* Header aur bottom input bar transparent */
     header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
         background: transparent !important;
         background-color: transparent !important;
     }}
 
-    /* Top Right Founder Badge */
     .founder-badge {{
         position: fixed;
         top: 60px;
@@ -49,12 +47,10 @@ st.markdown(
         transform: scale(1.05);
     }}
 
-    /* Titles & Subtitles */
     h1, h2, h3, p {{
         color: #ffffff;
     }}
 
-    /* Chat bubbles styling */
     [data-testid="stChatMessage"] {{
         background-color: rgba(255, 255, 255, 0.92) !important;
         border-radius: 12px;
@@ -80,7 +76,6 @@ st.write("Aapka personal AI Assistant!")
 # Groq Setup
 client = Groq(api_key="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")
 
-# Creator & Identity Details
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
@@ -100,19 +95,44 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha pichli conversation ka context yaad rakhein aur friendly Hinglish/Hindi/English mein jawab dein.
 """
 
-# Chat memory initialize
+# --- SIDEBAR: MIC & IMAGE INPUTS ---
+with st.sidebar:
+    st.header("🎙️ Voice & 📷 Image")
+    
+    # 1. Voice Input (Mic)
+    audio_file = st.audio_input("Bol kar sawaal puchein")
+    
+    # 2. Image Input
+    uploaded_image = st.file_uploader("Photo upload karein", type=["png", "jpg", "jpeg"])
+    if uploaded_image:
+        st.image(uploaded_image, caption="Uploaded Image", use_container_width=True)
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Screen par purane messages show karna
+# Purane messages display karna
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-user_input = st.chat_input("Apna sawal yahan likhein...")
+# Text box se input ya Mic se aayi aawaz detect karna
+text_input = st.chat_input("Apna sawal yahan likhein...")
+user_input = None
+
+if text_input:
+    user_input = text_input
+elif audio_file:
+    # Whisper API se voice ko text mein convert karna
+    try:
+        transcription = client.audio.transcriptions.create(
+            file=(audio_file.name, audio_file.read()),
+            model="whisper-large-v3"
+        )
+        user_input = transcription.text
+    except Exception as e:
+        st.error(f"Voice detect karne mein issue aaya: {e}")
 
 if user_input:
-    # User message history mein save aur show karna
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -123,12 +143,10 @@ if user_input:
         "owner", "kaun banaya", "maker", "who created", "who is your developer"
     ]
 
-    # Creator related sawal ka direct reply
     if any(trigger in input_lower for trigger in creator_triggers):
         bot_reply = CREATOR_REPLY
     else:
         try:
-            # Memory Context: Pichle conversation ke messages bhejna taaki purani baat yaad rahe
             conversation_history = [
                 {"role": m["role"], "content": m["content"]}
                 for m in st.session_state.messages[-10:]
@@ -144,7 +162,6 @@ if user_input:
         except Exception as e:
             bot_reply = f"Error aaya hai: {e}"
 
-    # Bot ka reply history mein save aur show karna
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
         st.markdown(bot_reply)
