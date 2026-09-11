@@ -1,5 +1,6 @@
 import streamlit as st
 from groq import Groq
+import streamlit.components.v1 as components
 import base64
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
@@ -10,7 +11,7 @@ UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi:
 st.markdown(
     f"""
     <style>
-    /* 1. Full Screen Background without edges */
+    /* Full Viewport Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
@@ -24,11 +25,14 @@ st.markdown(
         display: none !important;
     }}
 
-    header, [data-testid="stHeader"], footer {{
+    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
         background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
     }}
 
-    /* Founder Badge (Top Right) */
+    /* Founder Badge */
     .founder-badge {{
         position: fixed;
         top: 40px;
@@ -115,64 +119,25 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* --- GEMINI ROUND CAPSULE BAR --- */
-    [data-testid="stBottom"] {{
-        background: transparent !important;
-        padding-bottom: 25px !important;
-    }}
-    [data-testid="stBottom"] > div {{
-        background: transparent !important;
-    }}
-
-    /* Main Chat Bar Pill: Left aur Right mein padding icons ke liye */
+    /* Custom pill modifications on the native chat bar */
     [data-testid="stChatInput"] {{
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
-        padding-left: 48px !important;
-        padding-right: 48px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
         border: 1px solid rgba(0,0,0,0.06) !important;
     }}
 
-    /* Inside Left Button (+) */
-    .inside-dock-left {{
-        position: fixed !important;
-        bottom: 38px !important;
-        left: calc(50% - 365px) !important;
-        z-index: 10005 !important;
+    [data-testid="stChatInput"] textarea {{
+        padding-left: 54px !important;
+        padding-right: 50px !important;
     }}
 
-    /* Inside Right Button (Mic) - Placed beside Send arrow */
-    .inside-dock-right {{
-        position: fixed !important;
-        bottom: 38px !important;
-        right: calc(50% - 325px) !important;
-        z-index: 10005 !important;
-    }}
-
-    @media (max-width: 820px) {{
-        .inside-dock-left {{ left: 22px !important; }}
-        .inside-dock-right {{ right: 58px !important; }}
-    }}
-
-    /* Transparent buttons inside the input bar */
-    .inside-pill-btn button {{
-        background: transparent !important;
-        border: none !important;
-        font-size: 20px !important;
-        color: #444444 !important;
-        padding: 0 !important;
-        height: 28px !important;
-        width: 28px !important;
-        box-shadow: none !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }}
-    .inside-pill-btn button:hover {{
-        background: transparent !important;
-        color: #000000 !important;
-        transform: scale(1.15) !important;
+    /* Native action buttons hiding off-screen */
+    #hidden-trigger-plus, #hidden-trigger-mic {{
+        position: fixed;
+        bottom: -200px;
+        opacity: 0;
+        pointer-events: none;
     }}
     </style>
 
@@ -244,16 +209,18 @@ voice_audio = None
 if st.session_state.show_mic_box:
     voice_audio = st.audio_input("Record Voice")
 
-# --- ICONS EMBEDDED INSIDE CHAT BAR ---
-st.markdown('<div class="inside-dock-left inside-pill-btn">', unsafe_allow_html=True)
-if st.button("➕", key="btn_gemini_plus", help="Attach Photo"):
+# Hidden buttons connected to JS injection
+st.markdown('<div id="hidden-trigger-plus">', unsafe_allow_html=True)
+btn_plus = st.button("plus_act", key="btn_hidden_plus")
+if btn_plus:
     st.session_state.show_img_box = not st.session_state.show_img_box
     st.session_state.show_mic_box = False
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="inside-dock-right inside-pill-btn">', unsafe_allow_html=True)
-if st.button("🎙️", key="btn_gemini_mic", help="Voice Input"):
+st.markdown('<div id="hidden-trigger-mic">', unsafe_allow_html=True)
+btn_mic = st.button("mic_act", key="btn_hidden_mic")
+if btn_mic:
     st.session_state.show_mic_box = not st.session_state.show_mic_box
     st.session_state.show_img_box = False
     st.rerun()
@@ -261,6 +228,51 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # Native Chat Input
 text_input = st.chat_input("Ask Soni AI anything...")
+
+# JavaScript Injection to place icons directly inside the input pill
+components.html(
+    """
+    <script>
+    const parentDoc = window.parent.document;
+    function injectIcons() {
+        const chatInput = parentDoc.querySelector('[data-testid="stChatInput"]');
+        if (!chatInput) return;
+
+        // Prevent duplicate icons
+        if (chatInput.querySelector('#gemini-plus-btn')) return;
+
+        chatInput.style.position = 'relative';
+
+        // 1. Plus Icon (Inside Left)
+        const plusBtn = document.createElement('div');
+        plusBtn.id = 'gemini-plus-btn';
+        plusBtn.innerHTML = '➕';
+        plusBtn.style.cssText = 'position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 19px; cursor: pointer; user-select: none; z-index: 99; color: #444;';
+        plusBtn.onclick = () => {
+            const hiddenBtn = parentDoc.querySelector('#hidden-trigger-plus button');
+            if (hiddenBtn) hiddenBtn.click();
+        };
+
+        // 2. Mic Icon (Inside Right, beside send button)
+        const micBtn = document.createElement('div');
+        micBtn.id = 'gemini-mic-btn';
+        micBtn.innerHTML = '🎙️';
+        micBtn.style.cssText = 'position: absolute; right: 54px; top: 50%; transform: translateY(-50%); font-size: 19px; cursor: pointer; user-select: none; z-index: 99; color: #444;';
+        micBtn.onclick = () => {
+            const hiddenBtn = parentDoc.querySelector('#hidden-trigger-mic button');
+            if (hiddenBtn) hiddenBtn.click();
+        };
+
+        chatInput.appendChild(plusBtn);
+        chatInput.appendChild(micBtn);
+    }
+    setInterval(injectIcons, 400);
+    </script>
+    """,
+    height=0,
+    width=0
+)
+
 user_input = None
 
 if voice_audio:
