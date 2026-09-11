@@ -53,6 +53,8 @@ if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
 if "admin_authenticated" not in st.session_state:
     st.session_state.admin_authenticated = False
+if "zoomed_image" not in st.session_state:
+    st.session_state.zoomed_image = None
 
 query_params = st.query_params
 if query_params.get("action") == "toggle_shop":
@@ -220,14 +222,11 @@ st.markdown(
         margin-bottom: 20px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }}
-    .shop-product-card img {{
-        border-radius: 12px;
-        margin-bottom: 10px;
-    }}
     .shop-product-title {{
         font-size: 15px;
         font-weight: 700;
         color: #ffffff;
+        margin-top: 8px;
         margin-bottom: 6px;
     }}
     .shop-product-price {{
@@ -369,7 +368,6 @@ if st.session_state.admin_authenticated:
         for idx, item in enumerate(cur_prods):
             col_img, col_info, col_del = st.columns([2, 5, 3], vertical_alignment="center")
             with col_img:
-                # Fixed using HTML image tag to prevent MediaFileStorageError crash
                 st.markdown(f'<img src="{item["img"]}" width="60" style="border-radius:8px; object-fit:cover; height:60px;">', unsafe_allow_html=True)
             with col_info:
                 st.markdown(f"**{item['name']}**\n\n₹{item['price']}")
@@ -389,9 +387,20 @@ if st.session_state.show_shop:
     with col_back:
         if st.button("⬅️ Back to Chat", key="btn_back_to_chat"):
             st.session_state.show_shop = False
+            st.session_state.zoomed_image = None
             st.rerun()
 
     st.markdown("---")
+
+    # Image Zoom View Modal/Popup
+    if st.session_state.zoomed_image:
+        z_img, z_title = st.session_state.zoomed_image
+        st.markdown(f"### 🔍 Zoomed View: {z_title}")
+        st.image(z_img, use_container_width=True)
+        if st.button("❌ Close Zoom", key="btn_close_zoom"):
+            st.session_state.zoomed_image = None
+            st.rerun()
+        st.markdown("---")
     
     products = load_products()
 
@@ -405,14 +414,19 @@ if st.session_state.show_shop:
             with cols[i % 3]:
                 st.markdown(f"""
                 <div class="shop-product-card">
-                    <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
                     <div class="shop-product-title">{prod['name']}</div>
                     <div class="shop-product-price">₹{prod['price']}</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # Clickable image to zoom
+                if st.button(f"🔍 Badi Photo Dekhein", key=f"zoom_btn_{prod['id']}", use_container_width=True):
+                    st.session_state.zoomed_image = (prod["img"], prod["name"])
+                    st.rerun()
+
                 if st.button(f"🛒 Buy Now", key=f"buy_btn_{prod['id']}", use_container_width=True):
                     st.session_state.selected_product = prod
+                    st.session_state.zoomed_image = None
                     st.rerun()
 
     # Checkout Form
