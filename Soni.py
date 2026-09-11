@@ -10,8 +10,11 @@ BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
-ORDERS_FILE = "orders_database.json"
 
+ORDERS_FILE = "orders_database.json"
+PRODUCTS_FILE = "products_database.json"
+
+# --- Storage Helper Functions ---
 def load_orders():
     if os.path.exists(ORDERS_FILE):
         try:
@@ -21,11 +24,30 @@ def load_orders():
             return []
     return []
 
-def save_order_to_file(order_dict):
-    orders = load_orders()
-    orders.append(order_dict)
+def save_all_orders(orders_list):
     with open(ORDERS_FILE, "w") as f:
-        json.dump(orders, f, indent=4)
+        json.dump(orders_list, f, indent=4)
+
+def load_products():
+    if os.path.exists(PRODUCTS_FILE):
+        try:
+            with open(PRODUCTS_FILE, "r") as f:
+                return json.load(f)
+        except:
+            pass
+    # Default products
+    default_items = [
+        {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
+        {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
+        {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
+    ]
+    with open(PRODUCTS_FILE, "w") as f:
+        json.dump(default_items, f, indent=4)
+    return default_items
+
+def save_all_products(products_list):
+    with open(PRODUCTS_FILE, "w") as f:
+        json.dump(products_list, f, indent=4)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -43,7 +65,6 @@ if query_params.get("action") == "toggle_shop":
 st.markdown(
     f"""
     <style>
-    /* Full Page Background */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
         background-size: cover !important;
@@ -64,7 +85,6 @@ st.markdown(
         box-shadow: none !important;
     }}
 
-    /* Top-Right Stack (Founder -> Donate -> Shop) */
     .top-right-stack {{
         position: fixed;
         top: 25px;
@@ -170,7 +190,6 @@ st.markdown(
         color: #111111 !important;
     }}
 
-    /* Global Button Styling */
     div[data-testid="stButton"] > button {{
         background: linear-gradient(135deg, #1e1e2f, #2c2d4a) !important;
         color: #ffffff !important;
@@ -193,7 +212,6 @@ st.markdown(
         color: #00e5ff !important;
     }}
 
-    /* Product Card */
     .shop-product-card {{
         background: rgba(0, 0, 0, 0.55);
         border: 1px solid rgba(255, 255, 255, 0.15);
@@ -221,6 +239,14 @@ st.markdown(
         margin-bottom: 12px;
     }}
 
+    .admin-card-box {{
+        background: rgba(18, 18, 28, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 14px;
+    }}
+
     [data-testid="stChatInput"] {{
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
@@ -229,7 +255,6 @@ st.markdown(
     }}
     </style>
 
-    <!-- Top Right Stack (Public View) -->
     <div class="top-right-stack">
         <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
            target="_blank" 
@@ -275,31 +300,89 @@ Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya deve
 Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
 """
 
-# --- 1. OWNER DASHBOARD (Opens when secret command is entered) ---
+# --- 1. OWNER CONTROL PANEL ---
 if st.session_state.admin_authenticated:
     col_adm_title, col_adm_close = st.columns([7, 3])
     with col_adm_title:
-        st.markdown("### 👑 Secret Owner Dashboard")
+        st.markdown("## 👑 Secret Owner Control Panel")
     with col_adm_close:
         if st.button("❌ Close Admin", key="btn_close_admin"):
             st.session_state.admin_authenticated = False
             st.rerun()
 
-    all_orders = load_orders()
-    if not all_orders:
-        st.info("Abhi tak koi naya order nahi aaya hai.")
-    else:
-        st.success(f"Kul {len(all_orders)} orders mile hain:")
-        for idx, ord_data in enumerate(reversed(all_orders)):
-            st.markdown(f"""
-            ---
-            **Order #{len(all_orders) - idx}**
-            * **Product:** `{ord_data['item']}` (₹{ord_data['price']})
-            * **Customer Name:** **{ord_data['name']}**
-            * **Phone:** `{ord_data['phone']}`
-            * **Address:** {ord_data['address']}
-            * **Payment Mode:** `{ord_data['payment']}`
-            """)
+    tab_orders, tab_add_prod, tab_manage_prod = st.tabs(["📦 Manage Orders", "➕ List New Item", "🏷️ Current Store Items"])
+
+    # TAB A: Manage Orders (View & Delete Orders)
+    with tab_orders:
+        all_orders = load_orders()
+        if not all_orders:
+            st.info("Abhi tak koi naya order nahi aaya hai.")
+        else:
+            st.success(f"Total Orders: {len(all_orders)}")
+            if st.button("🗑️ Clear All Completed Orders", key="btn_clear_all_orders"):
+                save_all_orders([])
+                st.success("Saare orders clear ho gaye!")
+                st.rerun()
+
+            st.markdown("---")
+            for idx, ord_data in enumerate(all_orders):
+                st.markdown(f"""
+                <div class="admin-card-box">
+                    <b>Order #{idx + 1}</b><br>
+                    📦 <b>Item:</b> {ord_data['item']} (₹{ord_data['price']})<br>
+                    👤 <b>Customer:</b> {ord_data['name']} | 📞 <b>Phone:</b> {ord_data['phone']}<br>
+                    🏠 <b>Address:</b> {ord_data['address']}<br>
+                    💳 <b>Payment:</b> {ord_data['payment']}
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(f"🗑️ Delete Order #{idx + 1}", key=f"del_order_{idx}"):
+                    all_orders.pop(idx)
+                    save_all_orders(all_orders)
+                    st.rerun()
+
+    # TAB B: List New Product in Shop
+    with tab_add_prod:
+        st.markdown("### 🛒 Naya Item Shop Mein Add Karein")
+        with st.form("form_add_new_product"):
+            p_name = st.text_input("Product Name*", placeholder="Ex: Cotton Oversized T-Shirt")
+            p_price = st.number_input("Price (in ₹)*", min_value=1, step=1, value=299)
+            p_img = st.text_input("Product Image URL*", placeholder="https://example.com/image.jpg")
+            
+            submit_item = st.form_submit_button("Shop Mein List Karein 🚀")
+
+            if submit_item:
+                if not p_name.strip() or not p_img.strip():
+                    st.error("Kripya Product Name aur Image URL dono daalein!")
+                else:
+                    cur_prods = load_products()
+                    new_item = {
+                        "id": int(os.urandom(3).hex(), 16),
+                        "name": p_name.strip(),
+                        "price": int(p_price),
+                        "img": p_img.strip()
+                    }
+                    cur_prods.append(new_item)
+                    save_all_products(cur_prods)
+                    st.success(f"'{p_name}' successfully shop mein list ho gaya! 🎉")
+                    st.rerun()
+
+    # TAB C: Manage / Delete Store Products
+    with tab_manage_prod:
+        st.markdown("### 🗑️ Store ke Items Hataein")
+        cur_prods = load_products()
+        for idx, item in enumerate(cur_prods):
+            col_img, col_info, col_del = st.columns([2, 5, 3], vertical_alignment="center")
+            with col_img:
+                st.image(item["img"], width=70)
+            with col_info:
+                st.markdown(f"**{item['name']}**\n\n₹{item['price']}")
+            with col_del:
+                if st.button(f"Delete Product", key=f"del_prod_{item['id']}"):
+                    cur_prods.pop(idx)
+                    save_all_products(cur_prods)
+                    st.rerun()
+
     st.markdown("---")
 
 # --- 2. SHOPPING STORE WINDOW ---
@@ -314,28 +397,27 @@ if st.session_state.show_shop:
 
     st.markdown("---")
     
-    products = [
-        {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
-        {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
-        {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
-    ]
+    products = load_products()
 
-    col1, col2, col3 = st.columns(3)
-    cols = [col1, col2, col3]
+    if not products:
+        st.info("Shop mein filhal koi product nahi hai. Admin panel se add karein.")
+    else:
+        col1, col2, col3 = st.columns(3)
+        cols = [col1, col2, col3]
 
-    for i, prod in enumerate(products):
-        with cols[i % 3]:
-            st.markdown(f"""
-            <div class="shop-product-card">
-                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
-                <div class="shop-product-title">{prod['name']}</div>
-                <div class="shop-product-price">₹{prod['price']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button(f"🛒 Buy Now", key=f"buy_btn_{prod['id']}", use_container_width=True):
-                st.session_state.selected_product = prod
-                st.rerun()
+        for i, prod in enumerate(products):
+            with cols[i % 3]:
+                st.markdown(f"""
+                <div class="shop-product-card">
+                    <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
+                    <div class="shop-product-title">{prod['name']}</div>
+                    <div class="shop-product-price">₹{prod['price']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(f"🛒 Buy Now", key=f"buy_btn_{prod['id']}", use_container_width=True):
+                    st.session_state.selected_product = prod
+                    st.rerun()
 
     # Checkout Form
     if "selected_product" in st.session_state and st.session_state.selected_product:
@@ -364,7 +446,9 @@ if st.session_state.show_shop:
                         "payment": payment_mode
                     }
                     
-                    save_order_to_file(order_data)
+                    orders = load_orders()
+                    orders.append(order_data)
+                    save_all_orders(orders)
                     
                     msg = (
                         f"🛒 *NEW ORDER - SONI STORE*\n\n"
