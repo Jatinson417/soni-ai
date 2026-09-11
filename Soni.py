@@ -3,6 +3,58 @@ from groq import Groq
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖")
 
+# --- BACKGROUND & FOUNDER WATERMARK CSS ---
+BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
+
+st.markdown(
+    f"""
+    <style>
+    /* Background Image */
+    .stApp {{
+        background-image: url("{BG_IMAGE_URL}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+    
+    /* Founder Watermark Badge (Right Top Corner) */
+    .founder-badge {{
+        position: fixed;
+        top: 60px;
+        right: 25px;
+        background: rgba(0, 0, 0, 0.65);
+        color: #00e5ff;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        border: 1px solid rgba(0, 229, 255, 0.4);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+    }}
+
+    /* Title & UI styling */
+    h1, h2, h3, p {{
+        color: #ffffff;
+    }}
+    
+    /* Chat Bubbles readable background */
+    [data-testid="stChatMessage"] {{
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }}
+    [data-testid="stChatMessage"] p {{
+        color: #111111 !important;
+    }}
+    </style>
+    <div class="founder-badge">⚡ Founder: Jatin Soni</div>
+    """,
+    unsafe_allow_html=True
+)
+
 st.title("🤖 Soni AI")
 st.write("Aapka personal AI Assistant!")
 
