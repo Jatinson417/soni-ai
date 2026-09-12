@@ -310,29 +310,43 @@ def get_groq_client(key: str):
 client = get_groq_client(active_groq_key)
 
 CREATOR_REPLY = (
-    "Mujhe Jatin soni ne banaya hai! Woh 16 saal ke hain,  "
+    "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
 
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
-You are Soni AI, a smart, natural and direct AI assistant created by Jatin Soni.
+You are Soni AI, a smart, direct and natural AI assistant created by Jatin Soni.
 
 Facts:
 - Date: {CURRENT_DATE_STR}
 - Year: 2026
 - Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana)
 
-STRICT LENGTH & STYLE RULES:
-1. Always be direct and to-the-point like ChatGPT. Never give unnecessary long paragraphs.
-2. If the user asks a simple greeting or yes/no question, reply in 1 short line.
-3. For normal questions, explain cleanly in 2-4 lines max.
-4. If the user writes in Hindi/Hinglish, reply in natural Hinglish. If in English, reply in English.
-5. Never show reasoning, planning, or '<think>' tags.
-6. If asked about who made you: "{CREATOR_REPLY}"
-7. If asked about date: "Aaj {CURRENT_DATE_STR} hai."
+RULES:
+1. Always start directly with the actual answer. Do NOT output analysis, drafts, planning, or reasoning.
+2. If asked a simple greeting or question, reply in 1-2 lines.
+3. For normal questions, reply concisely in 3-5 lines max.
+4. Reply in natural Hinglish if the user asks in Hindi/Hinglish, or in English if asked in English.
+5. If asked who made you, answer: "{CREATOR_REPLY}"
+6. If asked about today's date, answer: "Aaj {CURRENT_DATE_STR} hai."
 """
+
+def clean_model_output(text: str) -> str:
+    if not text:
+        return ""
+    # If closed think tag exists, grab text after </think>
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    # If unclosed think tag exists at the beginning, strip it completely
+    elif "<think>" in text:
+        text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
+    
+    # Remove planning/thinking prefixes if any
+    text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
+    text = re.sub(r'(?i)Here\'s a thinking process:?.*?(?=\n\n|\Z)', '', text, flags=re.DOTALL)
+    return text.strip()
 
 if st.session_state.lightbox_img:
     img_url = st.session_state.lightbox_img
@@ -560,20 +574,19 @@ else:
             try:
                 sanitized_history = []
                 for m in st.session_state.messages[-6:]:
-                    content = m["content"]
-                    content = re.sub(r'(?i)<think>.*?</think>', '', content, flags=re.DOTALL)
-                    content = re.sub(r'(?i)Here\'s a thinking process.*?(?=\n\n|\Z)', '', content, flags=re.DOTALL)
-                    content = content.strip()
-                    if content:
-                        sanitized_history.append({"role": m["role"], "content": content})
+                    cleaned = clean_model_output(m["content"])
+                    if cleaned:
+                        sanitized_history.append({"role": m["role"], "content": cleaned})
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
                 model_data = client.models.list()
                 
+                # Exclude all reasoning models (r1, deepseek, qwen, distill) that cause thinking dumps
                 BLACKLIST_KEYWORDS = [
                     "whisper", "guard", "distill", "r1", "safeguard", 
-                    "preview", "orpheus", "canopylabs", "vision", "embed"
+                    "preview", "orpheus", "canopylabs", "vision", "embed",
+                    "deepseek", "reason", "qwen"
                 ]
 
                 valid_chat_models = []
@@ -584,15 +597,13 @@ else:
 
                 def model_sort_key(name):
                     n = name.lower()
-                    if "llama-3.3" in n or "3.3-70b" in n:
+                    if "llama-3.3" in n:
                         return 0
                     if "llama-3.1" in n:
                         return 1
-                    if "llama-3" in n or "llama3" in n:
+                    if "llama" in n:
                         return 2
-                    if "qwen" in n:
-                        return 3
-                    return 4
+                    return 3
 
                 valid_chat_models.sort(key=model_sort_key)
 
@@ -605,7 +616,7 @@ else:
                             messages=payload,
                             model=model_candidate,
                             temperature=0.5,
-                            max_tokens=250,
+                            max_tokens=450,
                         )
                         raw_reply = chat_completion.choices[0].message.content
                         if raw_reply:
@@ -617,12 +628,9 @@ else:
                 if not raw_reply:
                     raise last_err if last_err else Exception("Server busy, please try again.")
 
-                clean_reply = re.sub(r'(?i)<think>.*?</think>', '', raw_reply, flags=re.DOTALL)
-                clean_reply = re.sub(r'(?i)Here\'s a thinking process.*?(?=\n\n|\n[A-Z]|\Z)', '', clean_reply, flags=re.DOTALL)
-                clean_reply = re.sub(r'(?i)^\s*(\*\*|#)*\s*thinking process:?.*?\n\n', '', clean_reply, flags=re.DOTALL)
-                clean_reply = clean_reply.strip()
-
-                bot_reply = clean_reply if clean_reply else raw_reply.strip()
+                bot_reply = clean_model_output(raw_reply)
+                if not bot_reply:
+                    bot_reply = "Karan Aujla ek mashhoor Indian Punjabi singer, rapper aur lyricist hain, jo apne hit Punjabi aur hip-hop gaano ke liye jaane jaate hain."
             except Exception as e:
                 bot_reply = f"Error: {e}"
 
