@@ -546,16 +546,23 @@ else:
                 ]
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
-                # Fetch available models directly from your Groq account
+                # Fetch and select best active model (Llama models prioritized, avoiding low-limit Qwen)
                 model_list = client.models.list()
-                available_models = [m.id for m in model_list.data if "whisper" not in m.id]
-                
-                # Pick the first available chat model
-                selected_model = available_models[0] if available_models else "llama-3.3-70b-versatile"
+                all_ids = [m.id for m in model_list.data if "whisper" not in m.id]
+
+                priority_order = [
+                    "llama-3.3-70b-versatile",
+                    "llama-3.1-8b-instant",
+                    "deepseek-r1-distill-llama-70b",
+                    "qwen/qwen3.6-27b"
+                ]
+
+                chosen_model = next((pm for pm in priority_order if pm in all_ids), all_ids[0] if all_ids else "qwen/qwen3.6-27b")
 
                 chat_completion = client.chat.completions.create(
                     messages=payload,
-                    model=selected_model,
+                    model=chosen_model,
+                    max_tokens=600,
                 )
                 bot_reply = chat_completion.choices[0].message.content
             except Exception as e:
