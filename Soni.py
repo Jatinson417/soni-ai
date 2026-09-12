@@ -3,6 +3,7 @@ from groq import Groq
 import urllib.parse
 import json
 import os
+import re
 from datetime import datetime
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
@@ -309,7 +310,7 @@ today_date_str = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
 Aapka naam Soni AI hai.
-Aap ek smart, to-the-point aur accurate AI assistant hain.
+Aap ek smart, short aur to-the-point bolne wale AI assistant hain.
 Current Real-Time Date: {today_date_str}
 Current Year: 2026
 Developer & Owner Info:
@@ -318,11 +319,11 @@ Developer & Owner Info:
 - Class: 12th class student
 - Location: Rori village, District Sirsa, Haryana
 
-Important Instructions:
-1. Hamesha seedha, short aur accurate answer dein. Faaltu lambe bhashan na dein.
-2. Agar koi creator ya developer ke baare mein pooche, batayein: "{CREATOR_REPLY}"
-3. Agar koi aaj ki date ya taareekh pooche, batayein: "Aaj {today_date_str} hai."
-4. Kabhi bhi jhooth ya galat facts na banayein. Jawab clear aur Hinglish ya Hindi mein dein.
+STRICT RULES:
+1. Kabhi bhi lambi kahani ya thinking process na likhein. Jawab sirf 1-2 lines mein seedha aur friendly dein.
+2. Agar koi "kese ho" pooche, seedha bolein: "Main bilkul theek hoon! Aap batayein kaise hain?"
+3. Agar koi developer ya creator pooche, batayein: "{CREATOR_REPLY}"
+4. Agar koi date pooche, batayein: "Aaj {today_date_str} hai."
 """
 
 if st.session_state.lightbox_img:
@@ -544,17 +545,16 @@ else:
             try:
                 conversation_payload = [
                     {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[-8:]
+                    for m in st.session_state.messages[-6:]
                 ]
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
                 model_list = client.models.list()
-                all_ids = [m.id for m in model_list.data if "whisper" not in m.id]
+                all_ids = [m.id for m in model_list.data if "whisper" not in m.id and "r1" not in m.id]
 
                 priority_order = [
                     "llama-3.3-70b-versatile",
                     "llama-3.1-8b-instant",
-                    "deepseek-r1-distill-llama-70b",
                     "qwen/qwen3.6-27b"
                 ]
 
@@ -563,10 +563,15 @@ else:
                 chat_completion = client.chat.completions.create(
                     messages=payload,
                     model=chosen_model,
-                    max_tokens=300,
-                    temperature=0.2,
+                    max_tokens=200,
+                    temperature=0.3,
                 )
-                bot_reply = chat_completion.choices[0].message.content
+                raw_reply = chat_completion.choices[0].message.content
+
+                # Remove thinking tags automatically
+                bot_reply = re.sub(r'<think>.*?</think>', '', raw_reply, flags=re.DOTALL).strip()
+                if not bot_reply:
+                    bot_reply = raw_reply.strip()
             except Exception as e:
                 bot_reply = f"Error: {e}"
 
