@@ -313,7 +313,6 @@ CREATOR_REPLY = (
     "Mujhe Jatin soni ne banaya hai! Woh 16 saal ke hain,  "
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
-CREATE_REPLY = ("madhav is form china his father name is shanty")
 
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
