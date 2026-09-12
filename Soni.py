@@ -310,7 +310,7 @@ def get_groq_client(key: str):
 client = get_groq_client(active_groq_key)
 
 CREATOR_REPLY = (
-    "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
+    "Mujhe Akshit  ne banaya hai! Woh 16 saal ke hain,  "
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
 
