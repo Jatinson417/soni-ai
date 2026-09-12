@@ -309,7 +309,7 @@ today_date_str = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
 Aapka naam Soni AI hai.
-Aap ek smart, accurate aur helpful AI assistant hain.
+Aap ek smart, to-the-point aur accurate AI assistant hain.
 Current Real-Time Date: {today_date_str}
 Current Year: 2026
 Developer & Owner Info:
@@ -317,10 +317,12 @@ Developer & Owner Info:
 - Age: 16 saal
 - Class: 12th class student
 - Location: Rori village, District Sirsa, Haryana
-Rules:
-1. Agar koi pooche ki aapko kisne banaya ya developer kaun hai, batayein: "{CREATOR_REPLY}"
-2. Agar koi date ya taareekh pooche, batayein: "Aaj {today_date_str} hai."
-3. Friendly, respectful aur Hinglish/Hindi mein accurate jawab dein.
+
+Important Instructions:
+1. Hamesha seedha, short aur accurate answer dein. Faaltu lambe bhashan na dein.
+2. Agar koi creator ya developer ke baare mein pooche, batayein: "{CREATOR_REPLY}"
+3. Agar koi aaj ki date ya taareekh pooche, batayein: "Aaj {today_date_str} hai."
+4. Kabhi bhi jhooth ya galat facts na banayein. Jawab clear aur Hinglish ya Hindi mein dein.
 """
 
 if st.session_state.lightbox_img:
@@ -542,11 +544,10 @@ else:
             try:
                 conversation_payload = [
                     {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[-10:]
+                    for m in st.session_state.messages[-8:]
                 ]
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
-                # Fetch and select best active model (Llama models prioritized, avoiding low-limit Qwen)
                 model_list = client.models.list()
                 all_ids = [m.id for m in model_list.data if "whisper" not in m.id]
 
@@ -557,12 +558,13 @@ else:
                     "qwen/qwen3.6-27b"
                 ]
 
-                chosen_model = next((pm for pm in priority_order if pm in all_ids), all_ids[0] if all_ids else "qwen/qwen3.6-27b")
+                chosen_model = next((pm for pm in priority_order if pm in all_ids), all_ids[0] if all_ids else "llama-3.3-70b-versatile")
 
                 chat_completion = client.chat.completions.create(
                     messages=payload,
                     model=chosen_model,
-                    max_tokens=600,
+                    max_tokens=300,
+                    temperature=0.2,
                 )
                 bot_reply = chat_completion.choices[0].message.content
             except Exception as e:
