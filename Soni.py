@@ -319,8 +319,8 @@ Developer & Owner Info:
 - Location: Rori village, District Sirsa, Haryana
 Rules:
 1. Agar koi pooche ki aapko kisne banaya ya developer kaun hai, batayein: "{CREATOR_REPLY}"
-2. Agar koi aaj ki taareekh ya date pooche, batayein: "Aaj {today_date_str} hai."
-3. Hamesha accurate, friendly aur Hinglish/Hindi mein seedha jawab dein.
+2. Agar koi date ya taareekh pooche, batayein: "Aaj {today_date_str} hai."
+3. Friendly, respectful aur Hinglish/Hindi mein accurate jawab dein.
 """
 
 if st.session_state.lightbox_img:
@@ -546,31 +546,20 @@ else:
                 ]
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
-                # Auto-fallback mechanism: pehla fail hua to doosra chalega
-                models_to_try = [
-                    "llama-3.3-70b-versatile",
-                    "llama-3.3-70b-specdec",
-                    "qwen-2.5-32b",
-                    "deepseek-r1-distill-llama-70b"
-                ]
+                # Fetch available models directly from your Groq account
+                model_list = client.models.list()
+                available_models = [m.id for m in model_list.data if "whisper" not in m.id]
+                
+                # Pick the first available chat model
+                selected_model = available_models[0] if available_models else "llama-3.3-70b-versatile"
 
-                bot_reply = None
-                for m_name in models_to_try:
-                    try:
-                        chat_completion = client.chat.completions.create(
-                            messages=payload,
-                            model=m_name,
-                        )
-                        bot_reply = chat_completion.choices[0].message.content
-                        if bot_reply:
-                            break
-                    except Exception:
-                        continue
-
-                if not bot_reply:
-                    bot_reply = "Service thodi busy hai, kripya 1 minute baad try karein."
+                chat_completion = client.chat.completions.create(
+                    messages=payload,
+                    model=selected_model,
+                )
+                bot_reply = chat_completion.choices[0].message.content
             except Exception as e:
-                bot_reply = f"Error aaya: {e}"
+                bot_reply = f"Error: {e}"
 
         st.session_state.messages.append({"role": "assistant", "content": bot_reply})
         with st.chat_message("assistant"):
