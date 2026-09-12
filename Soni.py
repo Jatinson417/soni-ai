@@ -299,8 +299,16 @@ st.markdown(
 
 st.title("🤖 Soni AI")
 
-groq_api_key = st.secrets.get("GROQ_API_KEY", "")
-client = Groq(api_key=groq_api_key)
+# Resilient API key handling
+api_key_from_secrets = st.secrets.get("GROQ_API_KEY", "")
+BACKUP_GROQ_KEY = "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"
+active_groq_key = api_key_from_secrets if api_key_from_secrets else BACKUP_GROQ_KEY
+
+@st.cache_resource
+def get_groq_client(key: str):
+    return Groq(api_key=key, timeout=20.0, max_retries=2)
+
+client = get_groq_client(active_groq_key)
 
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
@@ -572,30 +580,31 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                model_list = client.models.list()
-                all_ids = [
-                    m.id for m in model_list.data 
-                    if "whisper" not in m.id and "r1" not in m.id and "deepseek" not in m.id
-                ]
-
-                priority_order = [
+                model_candidates = [
                     "llama-3.3-70b-versatile",
-                    "llama-3.1-8b-instant",
-                    "llama3-70b-8192",
-                    "llama3-8b-8192"
+                    "llama-3.1-8b-instant"
                 ]
 
-                chosen_model = next((pm for pm in priority_order if pm in all_ids), None)
-                if not chosen_model:
-                    chosen_model = all_ids[0] if all_ids else "llama-3.3-70b-versatile"
+                raw_reply = None
+                last_err = None
 
-                chat_completion = client.chat.completions.create(
-                    messages=payload,
-                    model=chosen_model,
-                    temperature=0.6,
-                    max_tokens=800,
-                )
-                raw_reply = chat_completion.choices[0].message.content
+                for model_name in model_candidates:
+                    try:
+                        chat_completion = client.chat.completions.create(
+                            messages=payload,
+                            model=model_name,
+                            temperature=0.6,
+                            max_tokens=650,
+                        )
+                        raw_reply = chat_completion.choices[0].message.content
+                        if raw_reply:
+                            break
+                    except Exception as err:
+                        last_err = err
+                        continue
+
+                if not raw_reply:
+                    raise last_err if last_err else Exception("Server busy, try again.")
 
                 clean_reply = re.sub(r'(?i)<think>.*?</think>', '', raw_reply, flags=re.DOTALL)
                 clean_reply = re.sub(r'(?i)Here\'s a thinking process.*?(?=\n\n|\n[A-Z]|\Z)', '', clean_reply, flags=re.DOTALL)
