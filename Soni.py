@@ -1,5 +1,5 @@
 import streamlit as st
-from groq import Groq
+from google import genai
 import urllib.parse
 import json
 import os
@@ -297,7 +297,9 @@ st.markdown(
 
 st.title("🤖 Soni AI")
 
-client = Groq(api_key="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")
+# Google Gemini Client Setup (Aap apni Gemini API key yahan daal sakte hain ya st.secrets use kar sakte hain)
+gemini_api_key = st.secrets.get("GEMINI_API_KEY", "Aapki_Gemini_API_Key_Yahan_Dalein")
+client = genai.Client(api_key=gemini_api_key)
 
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
@@ -536,17 +538,19 @@ else:
             bot_reply = CREATOR_REPLY
         else:
             try:
-                conversation_payload = [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[-10:]
-                ]
-                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
+                # Format history for Gemini API
+                chat_history = []
+                for m in st.session_state.messages[-10:-1]:
+                    role = "user" if m["role"] == "user" else "model"
+                    chat_history.append({"role": role, "parts": [{"text": m["content"]}]})
 
-                chat_completion = client.chat.completions.create(
-                    messages=payload,
-                    model="openai/gpt-oss-20b",
+                chat = client.chats.create(
+                    model="gemini-2.5-flash",
+                    history=chat_history,
+                    config={"system_instruction": SYSTEM_PROMPT}
                 )
-                bot_reply = chat_completion.choices[0].message.content
+                response = chat.send_message(user_input)
+                bot_reply = response.text
             except Exception as e:
                 bot_reply = f"Error aaya: {e}"
 
