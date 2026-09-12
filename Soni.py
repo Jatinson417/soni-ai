@@ -579,17 +579,40 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                # Active, supported Groq models (strictly excluding decommissioned and terms-gated models)
-                ACTIVE_SUPPORTED_MODELS = [
-                    "llama-3.3-70b-versatile",
-                    "llama-3.2-3b-preview",
-                    "llama-3.2-1b-preview"
+                # Query all active models currently available on your Groq account
+                model_data = client.models.list()
+                
+                # Exclude all problematic, specialized, preview, audio, guard, and reasoning models
+                BLACKLIST_KEYWORDS = [
+                    "whisper", "guard", "distill", "r1", "safeguard", 
+                    "preview", "orpheus", "canopylabs", "vision", "embed"
                 ]
+
+                valid_chat_models = []
+                for m in model_data.data:
+                    m_id_low = m.id.lower()
+                    if not any(k in m_id_low for k in BLACKLIST_KEYWORDS):
+                        valid_chat_models.append(m.id)
+
+                # Prioritize high-quality models
+                def model_sort_key(name):
+                    n = name.lower()
+                    if "llama-3.3" in n or "3.3-70b" in n:
+                        return 0
+                    if "llama-3.1" in n:
+                        return 1
+                    if "llama-3" in n or "llama3" in n:
+                        return 2
+                    if "qwen" in n:
+                        return 3
+                    return 4
+
+                valid_chat_models.sort(key=model_sort_key)
 
                 raw_reply = None
                 last_err = None
 
-                for model_candidate in ACTIVE_SUPPORTED_MODELS:
+                for model_candidate in valid_chat_models:
                     try:
                         chat_completion = client.chat.completions.create(
                             messages=payload,
