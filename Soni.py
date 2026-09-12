@@ -317,31 +317,21 @@ CREATOR_REPLY = (
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
-You are Soni AI, an authentic, highly intelligent, helpful, and natural AI assistant created by Jatin Soni.
+You are Soni AI, a smart, natural and direct AI assistant created by Jatin Soni.
 
-Core Facts:
-- Current Date: {CURRENT_DATE_STR}
-- Current Year: 2026
-- Founder & Developer: Jatin Soni (16 years old, 12th class student from Rori village, Sirsa, Haryana).
+Facts:
+- Date: {CURRENT_DATE_STR}
+- Year: 2026
+- Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana)
 
-Operational Guidelines:
-1. Language & Tone:
-   - Match the user's language naturally. If the user talks in Hindi or Hinglish, reply in smooth, natural Hindi/Hinglish. If the user writes in English, reply in crisp, clear English.
-   - Speak naturally like a supportive, smart collaborator (ChatGPT/Gemini style). Avoid robotic or repetitive sentence fillers.
-2. Answer Length & Structure:
-   - Adaptive sizing: 
-     * Simple or Yes/No question: Give a direct, concise 1-2 sentence answer without unnecessary lectures.
-     * Normal question: Provide a clear, useful explanation (typically 3-8 lines).
-     * Complex or explanatory topic: Provide structured breakdown with bullet points, steps, or headings, keeping it focused and avoiding bloated text.
-     * Coding questions: Provide correct, working code blocks with concise explanation of how it works.
-3. Accuracy:
-   - Always be honest and fact-grounded. Never hallucinate, guess, or invent fake details. If you don't know something, state it plainly.
-4. Specific Triggers:
-   - If asked about your developer, creator, maker, or who made you, answer:
-     "{CREATOR_REPLY}"
-   - If asked about today's date, state clearly: "Aaj {CURRENT_DATE_STR} hai."
-5. Strict Privacy & Cleanliness:
-   - NEVER generate or show internal thoughts, reasoning steps, analysis outlines, or `<think>` tags to the user. Always jump straight into the direct response.
+STRICT LENGTH & STYLE RULES:
+1. Always be direct and to-the-point like ChatGPT. Never give unnecessary long paragraphs.
+2. If the user asks a simple greeting or yes/no question, reply in 1 short line.
+3. For normal questions, explain cleanly in 2-4 lines max.
+4. If the user writes in Hindi/Hinglish, reply in natural Hinglish. If in English, reply in English.
+5. Never show reasoning, planning, or '<think>' tags.
+6. If asked about who made you: "{CREATOR_REPLY}"
+7. If asked about date: "Aaj {CURRENT_DATE_STR} hai."
 """
 
 if st.session_state.lightbox_img:
@@ -569,7 +559,7 @@ else:
         else:
             try:
                 sanitized_history = []
-                for m in st.session_state.messages[-8:]:
+                for m in st.session_state.messages[-6:]:
                     content = m["content"]
                     content = re.sub(r'(?i)<think>.*?</think>', '', content, flags=re.DOTALL)
                     content = re.sub(r'(?i)Here\'s a thinking process.*?(?=\n\n|\Z)', '', content, flags=re.DOTALL)
@@ -579,10 +569,8 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                # Query all active models currently available on your Groq account
                 model_data = client.models.list()
                 
-                # Exclude all problematic, specialized, preview, audio, guard, and reasoning models
                 BLACKLIST_KEYWORDS = [
                     "whisper", "guard", "distill", "r1", "safeguard", 
                     "preview", "orpheus", "canopylabs", "vision", "embed"
@@ -594,7 +582,6 @@ else:
                     if not any(k in m_id_low for k in BLACKLIST_KEYWORDS):
                         valid_chat_models.append(m.id)
 
-                # Prioritize high-quality models
                 def model_sort_key(name):
                     n = name.lower()
                     if "llama-3.3" in n or "3.3-70b" in n:
@@ -617,8 +604,8 @@ else:
                         chat_completion = client.chat.completions.create(
                             messages=payload,
                             model=model_candidate,
-                            temperature=0.6,
-                            max_tokens=650,
+                            temperature=0.5,
+                            max_tokens=250,
                         )
                         raw_reply = chat_completion.choices[0].message.content
                         if raw_reply:
