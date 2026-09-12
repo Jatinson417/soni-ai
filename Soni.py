@@ -299,14 +299,13 @@ st.markdown(
 
 st.title("🤖 Soni AI")
 
-# Resilient API key handling
 api_key_from_secrets = st.secrets.get("GROQ_API_KEY", "")
 BACKUP_GROQ_KEY = "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"
 active_groq_key = api_key_from_secrets if api_key_from_secrets else BACKUP_GROQ_KEY
 
 @st.cache_resource
 def get_groq_client(key: str):
-    return Groq(api_key=key, timeout=20.0, max_retries=2)
+    return Groq(api_key=key, timeout=25.0, max_retries=2)
 
 client = get_groq_client(active_groq_key)
 
@@ -580,31 +579,32 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                model_candidates = [
-                    "llama-3.3-70b-versatile",
-                    "llama-3.1-8b-instant"
+                # Live query available chat models from your Groq key
+                model_data = client.models.list()
+                accessible_models = [
+                    m.id for m in model_data.data 
+                    if not any(blocked in m.id.lower() for blocked in ["whisper", "guard", "distill", "r1", "safeguard"])
                 ]
 
-                raw_reply = None
-                last_err = None
+                # Best suited models ordered by quality
+                candidate_pool = [
+                    "llama-3.3-70b-versatile",
+                    "llama3-70b-8192",
+                    "llama3-8b-8192",
+                    "gemma2-9b-it"
+                ]
 
-                for model_name in model_candidates:
-                    try:
-                        chat_completion = client.chat.completions.create(
-                            messages=payload,
-                            model=model_name,
-                            temperature=0.6,
-                            max_tokens=650,
-                        )
-                        raw_reply = chat_completion.choices[0].message.content
-                        if raw_reply:
-                            break
-                    except Exception as err:
-                        last_err = err
-                        continue
+                chosen_model = next((cand for cand in candidate_pool if cand in accessible_models), None)
+                if not chosen_model:
+                    chosen_model = accessible_models[0] if accessible_models else "llama-3.3-70b-versatile"
 
-                if not raw_reply:
-                    raise last_err if last_err else Exception("Server busy, try again.")
+                chat_completion = client.chat.completions.create(
+                    messages=payload,
+                    model=chosen_model,
+                    temperature=0.6,
+                    max_tokens=650,
+                )
+                raw_reply = chat_completion.choices[0].message.content
 
                 clean_reply = re.sub(r'(?i)<think>.*?</think>', '', raw_reply, flags=re.DOTALL)
                 clean_reply = re.sub(r'(?i)Here\'s a thinking process.*?(?=\n\n|\n[A-Z]|\Z)', '', clean_reply, flags=re.DOTALL)
