@@ -4,7 +4,6 @@ import urllib.parse
 import json
 import os
 import re
-from datetime import datetime
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
@@ -306,22 +305,20 @@ CREATOR_REPLY = (
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
 
-today_date_str = datetime.now().strftime("%d %B %Y")
+CURRENT_DATE_STR = "12 September 2026"
 
 SYSTEM_PROMPT = f"""
-Aap Soni AI hain, ek highly intelligent, friendly aur helpful AI conversational partner bilkul ChatGPT/Gemini ki tarah.
-
-Current Reference Context:
-- Today's Date: {today_date_str}
+Aap Soni AI hain. Aap ek natural, super smart aur crisp AI assistant hain.
+- Aaj ki date: {CURRENT_DATE_STR}
 - Current Year: 2026
-- Creator/Developer: Jatin Soni (16-year-old, 12th grade student from Rori village, Sirsa, Haryana)
+- Developer: Jatin Soni (16 saal, 12th class, Rori, Sirsa, Haryana)
 
-Personality & Formatting Rules:
-1. Tone: Warm, witty, respectful aur conversational (natural Hinglish / Hindi / English).
-2. Answer Style: User ke sawaal ka seedha aur relevant jawab dein. Har cheez ke liye unnecessarily lamba essay na likhein, aur bohot chota bhi na karein—jitna user ko samajhne ke liye zaroori ho utna clean jawab dein.
-3. Creator Question: Agar koi developer ya founder ke baare mein pooche, batayein: "{CREATOR_REPLY}"
-4. Real-time Info: Aaj ki date hamesha {today_date_str} consider karein.
-5. Quality: Bilkul natural insaan ki tarah baat karein, koi robotic ya internal thinking text (<think>) na generate karein.
+Strict Rules:
+1. Seedha aur to-the-point jawab dein. Koi unnecessary bhashan ya paragraph mat likhein.
+2. Agar koi "kese ho" pooche, seedha 1 line mein jawab dein (jaise: "Main bilkul badhiya hoon! Aap kaise ho?").
+3. Agar koi developer ya creator ke baare mein pooche, batayein: "{CREATOR_REPLY}"
+4. Agar koi date pooche, batayein: "Aaj {CURRENT_DATE_STR} hai."
+5. Kabhi bhi internal thinking ya `<think>` tags output mein nahi aane chahiye.
 """
 
 if st.session_state.lightbox_img:
@@ -513,7 +510,14 @@ if st.session_state.show_shop:
 
 # Chat Area
 else:
-    st.write("Aapka personal AI Assistant!")
+    col_c1, col_c2 = st.columns([7, 3])
+    with col_c1:
+        st.write("Aapka personal AI Assistant!")
+    with col_c2:
+        if st.button("🧹 Clear Chat", key="btn_clear_chat"):
+            st.session_state.messages = []
+            st.rerun()
+
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -541,11 +545,13 @@ else:
             bot_reply = CREATOR_REPLY
         else:
             try:
-                conversation_payload = [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[-8:]
-                ]
-                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
+                # Clean payload: purane gande thinking tags context se saaf kar ke bhejo
+                sanitized_history = []
+                for m in st.session_state.messages[-4:]:
+                    clean_content = re.sub(r'<think>.*?</think>', '', m["content"], flags=re.DOTALL).strip()
+                    sanitized_history.append({"role": m["role"], "content": clean_content})
+
+                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
                 model_list = client.models.list()
                 all_ids = [m.id for m in model_list.data if "whisper" not in m.id and "r1" not in m.id]
@@ -558,17 +564,14 @@ else:
 
                 chosen_model = next((pm for pm in priority_order if pm in all_ids), all_ids[0] if all_ids else "llama-3.3-70b-versatile")
 
-                # Natural parameters balanced like ChatGPT/Gemini
                 chat_completion = client.chat.completions.create(
                     messages=payload,
                     model=chosen_model,
-                    max_tokens=650,
-                    temperature=0.65,
-                    top_p=0.9
+                    max_tokens=150,
+                    temperature=0.3,
                 )
                 raw_reply = chat_completion.choices[0].message.content
 
-                # Remove any leftover thinking tags
                 bot_reply = re.sub(r'<think>.*?</think>', '', raw_reply, flags=re.DOTALL).strip()
                 if not bot_reply:
                     bot_reply = raw_reply.strip()
