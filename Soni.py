@@ -1,5 +1,5 @@
 import streamlit as st
-from google import genai
+from groq import Groq
 import urllib.parse
 import json
 import os
@@ -297,9 +297,7 @@ st.markdown(
 
 st.title("🤖 Soni AI")
 
-# Google Gemini Client Setup (Aap apni Gemini API key yahan daal sakte hain ya st.secrets use kar sakte hain)
-gemini_api_key = st.secrets.get("GEMINI_API_KEY", "Aapki_Gemini_API_Key_Yahan_Dalein")
-client = genai.Client(api_key=gemini_api_key)
+client = Groq(api_key="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")
 
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
@@ -308,19 +306,22 @@ CREATOR_REPLY = (
 
 SYSTEM_PROMPT = f"""
 Aapka naam Soni AI hai.
-Aap ek smart aur helpful AI assistant hain.
+Aap ek smart aur accurate AI assistant hain.
+Current Year: 2026
+Current Date: 12 September 2026
 Aapko Jatin Soni ne banaya aur develop kiya hai.
-Jatin Soni ke baare mein details:
+Jatin Soni details:
 - Name: Jatin Soni
 - Age: 16 saal
 - Class: 12th class student
 - Location: Rori village, District Sirsa, Haryana
-Agar koi bhi aapse pooche ki aapko kisne banaya, creator/owner kaun hai, ya developer kaun hai, toh hamesha yahi batayein:
+Agar koi pooche ki aapko kisne banaya, creator/owner kaun hai, toh batayein:
 "{CREATOR_REPLY}"
-Hamesha friendly, respectful aur natural Hinglish/Hindi/English mein jawab dein.
+Agar koi date/taareekh pooche toh batana: "Aaj 12 September 2026 hai."
+Hamesha friendly, respectful aur accurate jawab dein.
 """
 
-# --- FULLSCREEN LIGHTBOX MODAL ---
+# Lightbox Modal
 if st.session_state.lightbox_img:
     img_url = st.session_state.lightbox_img
     st.markdown(f"""
@@ -332,7 +333,7 @@ if st.session_state.lightbox_img:
         </div>
     """, unsafe_allow_html=True)
 
-# --- 1. OWNER CONTROL PANEL ---
+# Admin Panel
 if st.session_state.admin_authenticated:
     col_adm_title, col_adm_close = st.columns([7, 3])
     with col_adm_title:
@@ -414,7 +415,7 @@ if st.session_state.admin_authenticated:
 
     st.markdown("---")
 
-# --- 2. SHOPPING STORE WINDOW ---
+# Store Window
 if st.session_state.show_shop:
     col_head, col_back = st.columns([7, 3])
     with col_head:
@@ -508,7 +509,7 @@ if st.session_state.show_shop:
                     ''', unsafe_allow_html=True)
                     st.session_state.selected_product = None
 
-# --- 3. CHAT AREA ---
+# Chat Area
 else:
     st.write("Aapka personal AI Assistant!")
     for message in st.session_state.messages:
@@ -538,19 +539,17 @@ else:
             bot_reply = CREATOR_REPLY
         else:
             try:
-                # Format history for Gemini API
-                chat_history = []
-                for m in st.session_state.messages[-10:-1]:
-                    role = "user" if m["role"] == "user" else "model"
-                    chat_history.append({"role": role, "parts": [{"text": m["content"]}]})
+                conversation_payload = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages[-10:]
+                ]
+                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
-                chat = client.chats.create(
-                    model="gemini-2.5-flash",
-                    history=chat_history,
-                    config={"system_instruction": SYSTEM_PROMPT}
+                chat_completion = client.chat.completions.create(
+                    messages=payload,
+                    model="llama-3.1-8b-instant",
                 )
-                response = chat.send_message(user_input)
-                bot_reply = response.text
+                bot_reply = chat_completion.choices[0].message.content
             except Exception as e:
                 bot_reply = f"Error aaya: {e}"
 
