@@ -3,6 +3,7 @@ from groq import Groq
 import urllib.parse
 import json
 import os
+from datetime import datetime
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
@@ -304,24 +305,24 @@ CREATOR_REPLY = (
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
 
+today_date_str = datetime.now().strftime("%d %B %Y")
+
 SYSTEM_PROMPT = f"""
 Aapka naam Soni AI hai.
-Aap ek smart aur accurate AI assistant hain.
+Aap ek smart, accurate aur helpful AI assistant hain.
+Current Real-Time Date: {today_date_str}
 Current Year: 2026
-Current Date: 12 September 2026
-Aapko Jatin Soni ne banaya aur develop kiya hai.
-Jatin Soni details:
+Developer & Owner Info:
 - Name: Jatin Soni
 - Age: 16 saal
 - Class: 12th class student
 - Location: Rori village, District Sirsa, Haryana
-Agar koi pooche ki aapko kisne banaya, creator/owner kaun hai, toh batayein:
-"{CREATOR_REPLY}"
-Agar koi date/taareekh pooche toh batana: "Aaj 12 September 2026 hai."
-Hamesha friendly, respectful aur accurate jawab dein.
+Rules:
+1. Agar koi pooche ki aapko kisne banaya ya developer kaun hai, batayein: "{CREATOR_REPLY}"
+2. Agar koi aaj ki taareekh ya date pooche, batayein: "Aaj {today_date_str} hai."
+3. Hamesha accurate, friendly aur Hinglish/Hindi mein seedha jawab dein.
 """
 
-# Lightbox Modal
 if st.session_state.lightbox_img:
     img_url = st.session_state.lightbox_img
     st.markdown(f"""
@@ -545,11 +546,29 @@ else:
                 ]
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
-                chat_completion = client.chat.completions.create(
-                    messages=payload,
-                    model="llama-3.1-8b-instant",
-                )
-                bot_reply = chat_completion.choices[0].message.content
+                # Auto-fallback mechanism: pehla fail hua to doosra chalega
+                models_to_try = [
+                    "llama-3.3-70b-versatile",
+                    "llama-3.3-70b-specdec",
+                    "qwen-2.5-32b",
+                    "deepseek-r1-distill-llama-70b"
+                ]
+
+                bot_reply = None
+                for m_name in models_to_try:
+                    try:
+                        chat_completion = client.chat.completions.create(
+                            messages=payload,
+                            model=m_name,
+                        )
+                        bot_reply = chat_completion.choices[0].message.content
+                        if bot_reply:
+                            break
+                    except Exception:
+                        continue
+
+                if not bot_reply:
+                    bot_reply = "Service thodi busy hai, kripya 1 minute baad try karein."
             except Exception as e:
                 bot_reply = f"Error aaya: {e}"
 
