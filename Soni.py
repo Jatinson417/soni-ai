@@ -310,9 +310,10 @@ def get_groq_client(key: str):
 client = get_groq_client(active_groq_key)
 
 CREATOR_REPLY = (
-    "Mujhe Akshit  ne banaya hai! Woh 16 saal ke hain,  "
+    "Mujhe Jatin soni ne banaya hai! Woh 16 saal ke hain,  "
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
+CREATE_REPLY = ("madhav is form china his father name is shanty")
 
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
