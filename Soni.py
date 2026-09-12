@@ -579,20 +579,17 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                # Standard text models whitelist (only proven open models, strictly avoiding specialized/regional terms-required models)
-                SAFE_CHAT_MODELS = [
+                # Active, supported Groq models (strictly excluding decommissioned and terms-gated models)
+                ACTIVE_SUPPORTED_MODELS = [
                     "llama-3.3-70b-versatile",
-                    "llama-3.1-8b-instant",
-                    "llama3-70b-8192",
-                    "llama3-8b-8192",
-                    "gemma2-9b-it"
+                    "llama-3.2-3b-preview",
+                    "llama-3.2-1b-preview"
                 ]
 
                 raw_reply = None
                 last_err = None
 
-                # Test safe models until one succeeds
-                for model_candidate in SAFE_CHAT_MODELS:
+                for model_candidate in ACTIVE_SUPPORTED_MODELS:
                     try:
                         chat_completion = client.chat.completions.create(
                             messages=payload,
