@@ -309,21 +309,19 @@ CREATOR_REPLY = (
 today_date_str = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
-Aapka naam Soni AI hai.
-Aap ek smart, short aur to-the-point bolne wale AI assistant hain.
-Current Real-Time Date: {today_date_str}
-Current Year: 2026
-Developer & Owner Info:
-- Name: Jatin Soni
-- Age: 16 saal
-- Class: 12th class student
-- Location: Rori village, District Sirsa, Haryana
+Aap Soni AI hain, ek highly intelligent, friendly aur helpful AI conversational partner bilkul ChatGPT/Gemini ki tarah.
 
-STRICT RULES:
-1. Kabhi bhi lambi kahani ya thinking process na likhein. Jawab sirf 1-2 lines mein seedha aur friendly dein.
-2. Agar koi "kese ho" pooche, seedha bolein: "Main bilkul theek hoon! Aap batayein kaise hain?"
-3. Agar koi developer ya creator pooche, batayein: "{CREATOR_REPLY}"
-4. Agar koi date pooche, batayein: "Aaj {today_date_str} hai."
+Current Reference Context:
+- Today's Date: {today_date_str}
+- Current Year: 2026
+- Creator/Developer: Jatin Soni (16-year-old, 12th grade student from Rori village, Sirsa, Haryana)
+
+Personality & Formatting Rules:
+1. Tone: Warm, witty, respectful aur conversational (natural Hinglish / Hindi / English).
+2. Answer Style: User ke sawaal ka seedha aur relevant jawab dein. Har cheez ke liye unnecessarily lamba essay na likhein, aur bohot chota bhi na karein—jitna user ko samajhne ke liye zaroori ho utna clean jawab dein.
+3. Creator Question: Agar koi developer ya founder ke baare mein pooche, batayein: "{CREATOR_REPLY}"
+4. Real-time Info: Aaj ki date hamesha {today_date_str} consider karein.
+5. Quality: Bilkul natural insaan ki tarah baat karein, koi robotic ya internal thinking text (<think>) na generate karein.
 """
 
 if st.session_state.lightbox_img:
@@ -545,7 +543,7 @@ else:
             try:
                 conversation_payload = [
                     {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[-6:]
+                    for m in st.session_state.messages[-8:]
                 ]
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_payload
 
@@ -560,15 +558,17 @@ else:
 
                 chosen_model = next((pm for pm in priority_order if pm in all_ids), all_ids[0] if all_ids else "llama-3.3-70b-versatile")
 
+                # Natural parameters balanced like ChatGPT/Gemini
                 chat_completion = client.chat.completions.create(
                     messages=payload,
                     model=chosen_model,
-                    max_tokens=200,
-                    temperature=0.3,
+                    max_tokens=650,
+                    temperature=0.65,
+                    top_p=0.9
                 )
                 raw_reply = chat_completion.choices[0].message.content
 
-                # Remove thinking tags automatically
+                # Remove any leftover thinking tags
                 bot_reply = re.sub(r'<think>.*?</think>', '', raw_reply, flags=re.DOTALL).strip()
                 if not bot_reply:
                     bot_reply = raw_reply.strip()
