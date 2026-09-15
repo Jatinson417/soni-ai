@@ -20,6 +20,7 @@ ADMIN_PIN = "2009"
 ORDERS_FILE = "orders_database.json"
 PRODUCTS_FILE = "products_database.json"
 USERS_FILE = "users_database.json"
+VERIFY_FILE = "pending_verifications.json"
 
 # --- CREDENTIALS & SECRETS ---
 try:
@@ -53,9 +54,9 @@ def send_verification_email(to_email, otp_code):
     try:
         msg = MIMEText(
             f"Namaste!\n\n"
-            f"Soni AI verification code yeh hai:\n\n"
+            f"Aapka unique Soni AI verification code yeh hai:\n\n"
             f"👉 {otp_code}\n\n"
-            f"Yeh code 10 minute ke liye valid hai.\n\n"
+            f"Yeh code sirf aapke account verification ke liye hai.\n\n"
             f"- Team Soni AI"
         )
         msg['Subject'] = f"{otp_code} - Soni AI Verification Code"
@@ -65,12 +66,13 @@ def send_verification_email(to_email, otp_code):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
-        return True, "Verification code aapke Gmail par bhej diya gaya hai!"
+        return True, "Unique verification code aapki Gmail par bhej diya gaya hai!"
     except Exception as e:
         return False, f"Email error: {e}"
 
 # --- USER PERSISTENCE ---
 users_db = load_json(USERS_FILE, {})
+pending_verifications = load_json(VERIFY_FILE, {})
 query_params = st.query_params
 
 if "user" not in st.session_state:
@@ -82,8 +84,8 @@ if "user" not in st.session_state:
 
 if "signup_stage" not in st.session_state:
     st.session_state.signup_stage = "form"
-if "temp_signup_data" not in st.session_state:
-    st.session_state.temp_signup_data = None
+if "verifying_email" not in st.session_state:
+    st.session_state.verifying_email = None
 
 def load_orders():
     return load_json(ORDERS_FILE, [])
@@ -158,7 +160,7 @@ if query_params.get("action") == "toggle_shop":
     st.query_params["action"] = ""
     st.rerun()
 
-# --- CSS STYLING (Glassmorphism card + Gradient background) ---
+# --- CSS STYLING ---
 st.markdown(
     f"""
     <style>
@@ -179,7 +181,6 @@ st.markdown(
         background: transparent !important;
     }}
 
-    /* Top Brand and Navigation Bar */
     .top-nav-bar {{
         display: flex;
         align-items: center;
@@ -194,7 +195,6 @@ st.markdown(
         font-size: 26px;
         font-weight: 800;
         color: #1f1f2e;
-        letter-spacing: -0.5px;
     }}
     .top-actions {{
         display: flex;
@@ -212,12 +212,8 @@ st.markdown(
         border: 1px solid rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(10px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
     }}
 
-    /* Glassmorphism Sign In Card */
     .auth-glass-container {{
         max-width: 480px;
         margin: 30px auto;
@@ -229,7 +225,6 @@ st.markdown(
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
     }}
 
-    /* Streamlit Form Input Overrides */
     div[data-testid="stTextInput"] input {{
         background: rgba(255, 255, 255, 0.9) !important;
         border: 1px solid rgba(255, 255, 255, 0.8) !important;
@@ -238,12 +233,7 @@ st.markdown(
         color: #1f1f2e !important;
         font-size: 14px !important;
     }}
-    div[data-testid="stTextInput"] input:focus {{
-        border-color: #6a11cb !important;
-        box-shadow: 0 0 0 2px rgba(106, 17, 203, 0.2) !important;
-    }}
 
-    /* Primary Action Buttons */
     div[data-testid="stButton"] > button, div[data-testid="stFormSubmitButton"] > button {{
         background: linear-gradient(90deg, #ff7e5f, #feb47b) !important;
         color: #ffffff !important;
@@ -253,11 +243,6 @@ st.markdown(
         font-weight: 700 !important;
         font-size: 15px !important;
         box-shadow: 0 8px 20px rgba(254, 180, 123, 0.4) !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-    }}
-    div[data-testid="stButton"] > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {{
-        transform: translateY(-2px) !important;
-        box-shadow: 0 12px 24px rgba(254, 180, 123, 0.5) !important;
     }}
     </style>
 
@@ -296,52 +281,62 @@ def clean_model_output(text: str) -> str:
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- SIGN IN & SIGN UP SCREENS ---
+# --- SIGN IN & SIGN UP (INDIVIDUAL OTP PER USER) ---
 if not st.session_state.user:
     st.markdown('<div class="auth-glass-container">', unsafe_allow_html=True)
     
-    # Header inside the card
     st.markdown("""
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
             <div>
                 <h3 style="margin:0; font-size:22px; font-weight:700; color:#1f1f2e;">Soni AI: Access</h3>
-                <p style="margin:4px 0 0 0; font-size:13px; color:#555;">Apna Gmail dalein aur verify karke login karein</p>
+                <p style="margin:4px 0 0 0; font-size:13px; color:#555;">Apna Gmail dalein aur unique code se verify karein</p>
             </div>
             <div style="font-size:32px;">🔐</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # State 1: Verification code entry
+    # Verification stage
     if st.session_state.signup_stage == "verify":
-        temp = st.session_state.temp_signup_data
-        st.info(f"Verification code sent to:\n**{temp['email']}**")
+        active_email = st.session_state.verifying_email
+        all_pendings = load_json(VERIFY_FILE, {})
+        user_pending_data = all_pendings.get(active_email, {})
+
+        st.info(f"Verification code sent to:\n**{active_email}**")
 
         with st.form("verify_form"):
             code_in = st.text_input("Enter 6-digit Verification Code*", placeholder="Ex: 481920").strip()
             submit_verify = st.form_submit_button("Sign In / Explore Soni AI ➔", use_container_width=True)
 
             if submit_verify:
-                if code_in == temp["otp"]:
-                    users_db[temp["email"]] = {
-                        "password": temp["password"],
+                expected_otp = str(user_pending_data.get("otp", "")).strip()
+                entered_otp = str(code_in).strip()
+
+                if entered_otp and expected_otp and entered_otp == expected_otp:
+                    users_db[active_email] = {
+                        "password": user_pending_data.get("password", ""),
                         "joined": datetime.now().strftime("%d-%m-%Y")
                     }
                     save_json(USERS_FILE, users_db)
 
-                    st.session_state.user = temp["email"]
-                    st.query_params["user"] = temp["email"]
+                    # Saaf karein pending entry
+                    if active_email in all_pendings:
+                        del all_pendings[active_email]
+                        save_json(VERIFY_FILE, all_pendings)
+
+                    st.session_state.user = active_email
+                    st.query_params["user"] = active_email
                     st.session_state.signup_stage = "form"
-                    st.session_state.temp_signup_data = None
+                    st.session_state.verifying_email = None
                     st.success("Verification successful! Welcome to Soni AI.")
                     st.rerun()
                 else:
-                    st.error("Invalid verification code! Kripya sahi code dalein.")
+                    st.error("Invalid verification code! Kripya apni Gmail par aaya hua naya code dalein.")
 
         if st.button("⬅️ Change Email / Resend"):
             st.session_state.signup_stage = "form"
             st.rerun()
 
-    # State 2: Login or Sign Up tabs
+    # Form stage
     else:
         tab_login, tab_signup = st.tabs(["🔑 Log In", "📝 Sign Up"])
 
@@ -377,14 +372,19 @@ if not st.session_state.user:
                     elif s_email in users_db:
                         st.error("Yeh email pehle se registered hai! 'Log In' tab use karein.")
                     else:
-                        otp_gen = str(random.randint(100000, 999999))
-                        ok, msg = send_verification_email(s_email, otp_gen)
+                        # Har request par 100% alag aur fresh 6-digit random code
+                        unique_otp = f"{random.randint(100000, 999999)}"
+                        ok, msg = send_verification_email(s_email, unique_otp)
                         if ok:
-                            st.session_state.temp_signup_data = {
-                                "email": s_email,
+                            all_pendings = load_json(VERIFY_FILE, {})
+                            all_pendings[s_email] = {
                                 "password": s_pass,
-                                "otp": otp_gen
+                                "otp": unique_otp,
+                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             }
+                            save_json(VERIFY_FILE, all_pendings)
+
+                            st.session_state.verifying_email = s_email
                             st.session_state.signup_stage = "verify"
                             st.rerun()
                         else:
@@ -405,7 +405,6 @@ with col_u2:
         st.query_params.clear()
         st.rerun()
 
-# Clear chat button
 col_c1, col_c2 = st.columns([8.5, 1.5])
 with col_c2:
     if st.button("🧹 Clear Chat"):
