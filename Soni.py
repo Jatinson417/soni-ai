@@ -305,7 +305,7 @@ active_groq_key = api_key_from_secrets if api_key_from_secrets else BACKUP_GROQ_
 
 @st.cache_resource
 def get_groq_client(key: str):
-    return Groq(api_key=key, timeout=25.0, max_retries=2)
+    return Groq(api_key=key, timeout=20.0, max_retries=2)
 
 client = get_groq_client(active_groq_key)
 
@@ -314,7 +314,6 @@ CREATOR_REPLY = (
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
 
-# Custom Replies Dictionary (Flex & Fun)
 CUSTOM_ANSWERS = {
     "what is skb": "Santosh kulcha bandar",
     "skb": "Santosh kulcha bandar",
@@ -323,14 +322,14 @@ CUSTOM_ANSWERS = {
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
-You are Soni AI, a smart, direct and natural AI assistant created by Jatin Soni.
+You are Soni AI, an intelligent, helpful, natural and direct AI assistant created by Jatin Soni.
 
 Facts:
 - Date: {CURRENT_DATE_STR}
 - Year: 2026
-- Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana)
+- Creator: Jatin Soni (16 yrs, 12th class, Rori village, Sirsa district, Haryana)
 
-RULES:
+Rules:
 1. Always start directly with the actual answer. Do NOT output analysis, drafts, planning, or reasoning.
 2. If asked a simple greeting or question, reply in 1-2 lines.
 3. For normal questions, reply concisely in 3-5 lines max.
@@ -571,7 +570,6 @@ else:
             "owner", "kaun banaya", "maker", "who created", "who is your developer"
         ]
 
-        # 1. Check Custom Answers first (SKB)
         matched_custom_reply = None
         for q_trigger, ans in CUSTOM_ANSWERS.items():
             if q_trigger in input_lower:
@@ -580,10 +578,8 @@ else:
 
         if matched_custom_reply:
             bot_reply = matched_custom_reply
-        # 2. Check Creator Triggers
         elif any(trigger in input_lower for trigger in creator_triggers):
             bot_reply = CREATOR_REPLY
-        # 3. Process with Groq AI Model
         else:
             try:
                 sanitized_history = []
@@ -594,58 +590,19 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                model_data = client.models.list()
-                
-                BLACKLIST_KEYWORDS = [
-                    "whisper", "guard", "distill", "r1", "safeguard", 
-                    "preview", "orpheus", "canopylabs", "vision", "embed",
-                    "deepseek", "reason", "qwen"
-                ]
-
-                valid_chat_models = []
-                for m in model_data.data:
-                    m_id_low = m.id.lower()
-                    if not any(k in m_id_low for k in BLACKLIST_KEYWORDS):
-                        valid_chat_models.append(m.id)
-
-                def model_sort_key(name):
-                    n = name.lower()
-                    if "llama-3.3" in n:
-                        return 0
-                    if "llama-3.1" in n:
-                        return 1
-                    if "llama" in n:
-                        return 2
-                    return 3
-
-                valid_chat_models.sort(key=model_sort_key)
-
-                raw_reply = None
-                last_err = None
-
-                for model_candidate in valid_chat_models:
-                    try:
-                        chat_completion = client.chat.completions.create(
-                            messages=payload,
-                            model=model_candidate,
-                            temperature=0.5,
-                            max_tokens=450,
-                        )
-                        raw_reply = chat_completion.choices[0].message.content
-                        if raw_reply:
-                            break
-                    except Exception as err:
-                        last_err = err
-                        continue
-
-                if not raw_reply:
-                    raise last_err if last_err else Exception("Server busy, please try again.")
-
+                chat_completion = client.chat.completions.create(
+                    messages=payload,
+                    model="llama-3.3-70b-versatile",
+                    temperature=0.5,
+                    max_tokens=400,
+                )
+                raw_reply = chat_completion.choices[0].message.content
                 bot_reply = clean_model_output(raw_reply)
+
                 if not bot_reply:
-                    bot_reply = "Aapka message samajh gaya. Bataiye aage kya madat kar sakta hoon?"
+                    bot_reply = "Main aapka sawal samajh gaya, kripya thoda aur vistaar se batayein."
             except Exception as e:
-                bot_reply = f"Error: {e}"
+                bot_reply = "Service abhi busy hai. Kripya 10 second baad dobara try karein."
 
         st.session_state.messages.append({"role": "assistant", "content": bot_reply})
         with st.chat_message("assistant"):
