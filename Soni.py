@@ -11,7 +11,6 @@ st.set_page_config(page_title="Soni AI", page_icon="✨", layout="wide", initial
 
 CHATS_FILE = "chats_history_database.json"
 USERS_FILE = "users_database.json"
-PROJECTS_FILE = "projects_database.json"
 USAGE_FILE = "user_usage_database.json"
 PAYMENTS_FILE = "pending_payments_database.json"
 
@@ -19,7 +18,7 @@ UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
-FREE_DAILY_LIMIT = 50  # 1 din mein 50 free messages
+FREE_DAILY_LIMIT = 50
 
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
@@ -112,7 +111,6 @@ for u_k, u_v in DEFAULT_PERSISTENT_USERS.items():
 save_json(USERS_FILE, users_db)
 
 chats_db = load_json(CHATS_FILE, {})
-projects_db = load_json(PROJECTS_FILE, ["AI Assistant Bot", "E-Commerce Recommender", "Customer Support Workflow"])
 usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 
@@ -416,10 +414,6 @@ with st.sidebar:
         st.session_state.current_tab = "History"
         st.rerun()
 
-    if st.button("📁 Projects", key="btn_sb_proj"):
-        st.session_state.current_tab = "Projects"
-        st.rerun()
-
     if st.button("⚡ Integrations", key="btn_sb_int"):
         st.session_state.current_tab = "Integrations"
         st.rerun()
@@ -534,7 +528,6 @@ if st.session_state.current_tab == "Dashboard":
                 </div>
             """, unsafe_allow_html=True)
 
-    # 50 Messages Limit Check
     if not is_pro_user and chats_used_today >= FREE_DAILY_LIMIT:
         st.error(f"🚫 **Aaj ki {FREE_DAILY_LIMIT} free messages limit poori ho chuki hai!**")
         st.info("💡 Unlimited chats use karne ke liye **Pro Mode** activate karein.")
@@ -767,35 +760,7 @@ elif st.session_state.current_tab == "History":
             st.markdown("---")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 5: PROJECTS ---
-elif st.session_state.current_tab == "Projects":
-    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 📁 My AI Projects")
-    
-    col_p1, col_p2 = st.columns([8, 2])
-    with col_p1:
-        new_proj_name = st.text_input("New Project Name", placeholder="Ex: Voice Assistant")
-    with col_p2:
-        st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
-        if st.button("➕ Add Project", use_container_width=True):
-            if new_proj_name.strip():
-                projects_db.append(new_proj_name.strip())
-                save_json(PROJECTS_FILE, projects_db)
-                st.rerun()
-
-    st.markdown("---")
-    for idx, p_name in enumerate(projects_db):
-        col_item, col_action = st.columns([8.5, 1.5])
-        with col_item:
-            st.markdown(f"🔹 **{p_name}** `Active`")
-        with col_action:
-            if st.button("Remove", key=f"del_proj_{idx}"):
-                projects_db.pop(idx)
-                save_json(PROJECTS_FILE, projects_db)
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- TAB 6: INTEGRATIONS ---
+# --- TAB 5: INTEGRATIONS ---
 elif st.session_state.current_tab == "Integrations":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### ⚡ Integrations")
@@ -804,7 +769,7 @@ elif st.session_state.current_tab == "Integrations":
     st.warning("🟡 **UPI Dynamic Intent QR:** Active (Auto-amount locked)")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 7: MARKETPLACE ---
+# --- TAB 6: MARKETPLACE ---
 elif st.session_state.current_tab == "Marketplace":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🏛️ Soni Store & Marketplace")
