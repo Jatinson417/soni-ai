@@ -299,7 +299,6 @@ st.markdown(
 
 st.title("🤖 Soni AI")
 
-# Clean key setup without any invisible whitespaces
 HARDCODED_KEY = "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".strip()
 
 try:
@@ -309,7 +308,7 @@ except Exception:
 
 FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
 
-client = Groq(api_key=FINAL_API_KEY, timeout=30.0)
+client = Groq(api_key=FINAL_API_KEY, timeout=25.0)
 
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
@@ -592,15 +591,35 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                chat_completion = client.chat.completions.create(
-                    messages=payload,
-                    model="llama-3.3-70b-versatile",
-                    temperature=0.5,
-                    max_tokens=400,
-                )
-                raw_reply = chat_completion.choices[0].message.content
-                bot_reply = clean_model_output(raw_reply)
+                # Guaranteed Active Stable Models
+                STABLE_MODELS = [
+                    "llama3-8b-8192",
+                    "llama-3.3-70b-specdec",
+                    "llama-3.3-70b-versatile"
+                ]
 
+                raw_reply = None
+                last_err = None
+
+                for m_candidate in STABLE_MODELS:
+                    try:
+                        chat_completion = client.chat.completions.create(
+                            messages=payload,
+                            model=m_candidate,
+                            temperature=0.5,
+                            max_tokens=350,
+                        )
+                        raw_reply = chat_completion.choices[0].message.content
+                        if raw_reply:
+                            break
+                    except Exception as err:
+                        last_err = err
+                        continue
+
+                if not raw_reply:
+                    raise last_err if last_err else Exception("Server busy, try again.")
+
+                bot_reply = clean_model_output(raw_reply)
                 if not bot_reply:
                     bot_reply = "Main samajh gaya. Aage batayein main kya madad kar sakta hoon?"
             except Exception as e:
