@@ -15,9 +15,16 @@ PROJECTS_FILE = "projects_database.json"
 USAGE_FILE = "user_usage_database.json"
 PAYMENTS_FILE = "pending_payments_database.json"
 
-UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&am=1.00&cu=INR"
+UPI_ID = "8307940340@ptyes"
+UPI_NAME = "Jatin Soni"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
+
+def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
+    # Standard UPI URI with prefilled non-editable minimum and exact amount parameters
+    upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
+    qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_url)}"
+    return qr_api, upi_url
 
 def load_json(filepath, default):
     if os.path.exists(filepath):
@@ -110,6 +117,9 @@ if "messages" not in st.session_state:
         {"role": "user", "content": "hy", "time": "12:36 AM"},
         {"role": "assistant", "content": "Hi! How can I help you today?", "time": "12:36 AM"}
     ]
+
+if "applied_coupon" not in st.session_state:
+    st.session_state.applied_coupon = None
 
 # --- THEME STYLING ---
 st.markdown(
@@ -258,6 +268,17 @@ st.markdown(
         padding: 3px 8px;
         border-radius: 8px;
         margin-left: 8px;
+    }
+
+    .coupon-box {
+        background: #f0fdf4;
+        border: 1px dashed #22c55e;
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+        color: #166534;
+        font-size: 13px;
+        font-weight: 600;
     }
     </style>
     """,
@@ -436,7 +457,7 @@ st.markdown(f"""
         </h3>
         <div style="font-size:13px; font-weight:600; color:#475569;">
             Today's Usage: <span style="color:#0f172a;">{'Unlimited' if is_pro_user else f'{chats_used_today}/100 chats'}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-            Plan Status: <span style="color:#2563eb;">{'VIP Pro Tier 💎' if is_pro_user else ('⏳ Payment Under Verification' if user_payment_pending else 'Free Tier (₹1 to Unlock Pro)')}</span>
+            Plan Status: <span style="color:#2563eb;">{'VIP Pro Tier 💎' if is_pro_user else ('⏳ Payment Under Verification' if user_payment_pending else 'Free Tier (Upgrade to Pro)')}</span>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -466,7 +487,7 @@ with c3:
         st.rerun()
 
 with c4:
-    if st.button("⚡ Upgrade to Pro (₹1)", use_container_width=True):
+    if st.button("⚡ Upgrade to Pro (₹99)", use_container_width=True):
         st.session_state.current_tab = "Billing"
         st.rerun()
 
@@ -505,8 +526,8 @@ if st.session_state.current_tab == "Dashboard":
 
     if not is_pro_user and chats_used_today >= 100:
         st.error("🚫 **Aaj ki 100 free chats limit poori ho chuki hai!**")
-        st.info("💡 Unlimited chats use karne ke liye sirf **₹1 mein Pro Mode** activate karein.")
-        if st.button("💎 Unlock Unlimited Pro Now (₹1)", use_container_width=True):
+        st.info("💡 Unlimited chats use karne ke liye **Pro Mode** activate karein (Coupon 'SONI' use karein flat 50% discount ke liye).")
+        if st.button("💎 Unlock Unlimited Pro Now", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
@@ -516,7 +537,7 @@ if st.session_state.current_tab == "Dashboard":
             clean_input = user_input.strip()
             now_stamp = datetime.now().strftime("%I:%M %p")
 
-            # Owner Command: /admin 2009
+            # Owner Secret Command: /admin 2009
             if clean_input == f"/admin {ADMIN_PIN}":
                 st.session_state.current_tab = "AdminPanel"
                 st.rerun()
@@ -567,53 +588,87 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_reply, "time": datetime.now().strftime("%I:%M %p")})
             st.rerun()
 
-# --- TAB 2: BILLING & APPROVAL-BASED PRO PLAN ---
+# --- TAB 2: BILLING (₹99 PRO PLAN, 50% COUPON 'SONI', AUTO-AMOUNT QR) ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 💳 Upgrade to Soni AI Pro Tier (₹1 Only)")
-    st.markdown("Rozana ki 100 chat limit hatane aur **Unlimited Pro Mode** activate karne ke liye QR scan karein:")
+    st.markdown("### 💳 Upgrade to Soni AI Pro Tier")
 
-    col_qr, col_pay_form = st.columns([4, 6])
+    # Pricing calculation based on coupon
+    base_price = 99.00
+    applied = st.session_state.get("applied_coupon") == "SONI"
+    final_price = 49.50 if applied else base_price
+
+    # Generate Dynamic Locked QR
+    qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
+
+    col_qr, col_pay_form = st.columns([4.2, 5.8])
     with col_qr:
-        st.image(UPI_QR_URL, caption="Scan with PhonePe / Paytm / GPay (₹1)", width=220)
-        st.markdown("**UPI ID:** `8307940340@ptyes`")
-        st.markdown("**Amount:** ₹1 (One-Time / Lifetime)")
+        st.image(qr_img_url, caption=f"Scan to Pay ₹{final_price:.2f} (Amount auto-filled & locked)", width=230)
+        st.markdown(f"**Amount to Pay:** `₹{final_price:.2f}`")
+        st.markdown(f"**UPI ID:** `{UPI_ID}`")
+        st.markdown(f'<a href="{direct_upi_link}" target="_blank" style="font-size:12px; font-weight:600; color:#2563eb;">🔗 PhonePe/GPay direct pay link</a>', unsafe_allow_html=True)
 
     with col_pay_form:
-        st.markdown("#### ✅ Payment Verification")
         if is_pro_user:
-            st.success("🎉 **Aapka Pro Mode active hai!** Unlimited chats on hain.")
+            st.success("🎉 **Aapka Pro Mode active hai!** Aap unlimited chats access kar sakte hain.")
         elif user_payment_pending:
             st.warning("⏳ **Aapka payment approval pending hai!**")
-            st.info(f"UTR `{payments_db[active_user].get('utr')}` verify kiya ja raha hai. Admin approval ke baad Pro activate ho jayega.")
-            wa_msg = f"Namaste Jatin bhai! Maine ₹1 pay kar diya hai Soni AI Pro ke liye.\nUser: {active_user}\nUTR: {payments_db[active_user].get('utr')}\nKripya approve kar dein!"
+            st.info(f"Paid Amount: `₹{payments_db[active_user].get('amount', 99)}` | UTR: `{payments_db[active_user].get('utr')}`")
+            wa_msg = f"Namaste Jatin! Maine Soni AI Pro upgrade ke liye ₹{payments_db[active_user].get('amount', 99)} pay kiya hai.\nAccount: {active_user}\nUTR: {payments_db[active_user].get('utr')}\nKripya approve kar dein."
             wa_link = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}"
-            st.markdown(f'<a href="{wa_link}" target="_blank" style="display:inline-block; padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt send karein</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{wa_link}" target="_blank" style="display:inline-block; padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt bhejein</a>', unsafe_allow_html=True)
         else:
-            st.write("QR par ₹1 pay karne ke baad transaction details enter karein:")
-            with st.form("form_activate_pro"):
+            # Coupon Code Box
+            st.markdown("#### 🏷️ Have a Coupon Code?")
+            c_code_col, c_btn_col = st.columns([7, 3])
+            with c_code_col:
+                coupon_input = st.text_input("Enter Coupon", placeholder="Ex: SONI", value="SONI" if applied else "", label_visibility="collapsed").strip().upper()
+            with c_btn_col:
+                if st.button("Apply", use_container_width=True):
+                    if coupon_input == "SONI":
+                        st.session_state.applied_coupon = "SONI"
+                        st.rerun()
+                    else:
+                        st.error("Invalid coupon code!")
+
+            if applied:
+                st.markdown("""
+                    <div class="coupon-box">
+                        🎉 Coupon 'SONI' Applied! Flat 50% OFF unlocked. Pay only ₹49.50 instead of ₹99.00.
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.caption("💡 Tip: Use coupon code **SONI** for flat 50% discount.")
+
+            st.markdown("---")
+            st.markdown("#### ✅ Submit UTR / Transaction ID")
+            st.write(f"QR scan karke **₹{final_price:.2f}** pay karein aur 12-digit UTR submit karein:")
+            
+            with st.form("form_activate_pro_amount"):
                 utr_number = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
-                pay_app = st.selectbox("Kaunse app se pay kiya?", ["PhonePe", "Paytm", "Google Pay (GPay)", "Other UPI"])
+                pay_app = st.selectbox("Kaunse app se payment kiya?", ["PhonePe", "Google Pay (GPay)", "Paytm", "BHIM / Other UPI"])
                 submit_pro = st.form_submit_button("Submit For Verification 📩", use_container_width=True)
 
                 if submit_pro:
                     if len(utr_number) >= 8 and utr_number.isdigit():
                         payments_db[active_user] = {
                             "utr": utr_number,
+                            "amount": final_price,
+                            "coupon": "SONI" if applied else "NONE",
                             "app": pay_app,
                             "time": datetime.now().strftime("%Y-%m-%d %I:%M %p"),
                             "status": "pending"
                         }
                         save_json(PAYMENTS_FILE, payments_db)
 
-                        wa_msg = f"⚡ *NEW PRO PAYMENT REQUEST*\nUser: {active_user}\nUTR: {utr_number}\nApp: {pay_app}\nAmount: ₹1\nStatus: Pending Verification"
+                        wa_msg = f"⚡ *NEW PRO PAYMENT REQUEST*\nUser: {active_user}\nAmount: ₹{final_price:.2f}\nCoupon: {'SONI (50% OFF)' if applied else 'NONE'}\nUTR: {utr_number}\nApp: {pay_app}"
                         wa_link = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}"
 
-                        st.success("Request submit ho gayi! Jatin Soni ke verify karte hi Pro activate ho jayega.")
+                        st.success(f"Request submit ho gayi! ₹{final_price:.2f} verify hone par Pro unlock ho jayega.")
                         st.markdown(f'<a href="{wa_link}" target="_blank" style="display:inline-block; margin-top:8px; padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt confirm karein</a>', unsafe_allow_html=True)
                         st.rerun()
                     else:
-                        st.error("Kripya valid 12-digit UTR number daalein (sirf numbers)!")
+                        st.error("Kripya valid UTR number daalein (sirf digits)!")
 
     st.markdown("---")
     st.markdown("#### 📊 Account Usage Stats")
@@ -622,11 +677,11 @@ elif st.session_state.current_tab == "Billing":
     st.caption(f"Today's Chats Used: {'Unlimited' if is_pro_user else f'{chats_used_today} / 100'}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 3: ADMIN APPROVAL PANEL (Secret: /admin 2009) ---
+# --- TAB 3: ADMIN APPROVAL PANEL (/admin 2009) ---
 elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Owner Verification & Approval Panel")
-    st.write("Yahan se check karein kisne ₹1 pay kiya hai, aur genuine payment aane par **Approve** karein:")
+    st.write("Yahan check karein kisne kitna payment (₹99 ya ₹49.50) kiya hai:")
 
     if not payments_db:
         st.info("Abhi koi pending payment nahi hai.")
@@ -634,7 +689,7 @@ elif st.session_state.current_tab == "AdminPanel":
         for u_email, p_info in list(payments_db.items()):
             col_pinfo, col_pbtn1, col_pbtn2 = st.columns([6, 2, 2])
             with col_pinfo:
-                st.markdown(f"👤 **{u_email}** | UTR: `{p_info.get('utr')}` | Via: **{p_info.get('app')}** ({p_info.get('time')})")
+                st.markdown(f"👤 **{u_email}** | Amount: **₹{p_info.get('amount', 99)}** | Coupon: `{p_info.get('coupon', 'NONE')}` | UTR: `{p_info.get('utr')}` via **{p_info.get('app')}**")
             with col_pbtn1:
                 if st.button("✅ Approve Pro", key=f"appr_{u_email}"):
                     if u_email not in users_db:
@@ -723,7 +778,7 @@ elif st.session_state.current_tab == "Integrations":
     st.markdown("### ⚡ Integrations")
     st.success("🟢 **Groq LLM Engine:** Connected & Active")
     st.info("🟢 **SMTP Email Engine:** Connected (`smtp.gmail.com`)")
-    st.warning("🟡 **WhatsApp Support:** Ready")
+    st.warning("🟡 **UPI Dynamic Intent QR:** Active (Auto-amount locked)")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB 7: MARKETPLACE ---
