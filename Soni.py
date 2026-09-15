@@ -5,6 +5,7 @@ import json
 import os
 import re
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
@@ -15,6 +16,55 @@ ADMIN_PIN = "2009"
 
 ORDERS_FILE = "orders_database.json"
 PRODUCTS_FILE = "products_database.json"
+
+TIMEZONE_MAP = {
+    "india": ("Asia/Kolkata", "India 🇮🇳"),
+    "bharat": ("Asia/Kolkata", "India 🇮🇳"),
+    "dubai": ("Asia/Dubai", "Dubai (UAE) 🇦🇪"),
+    "uae": ("Asia/Dubai", "UAE 🇦🇪"),
+    "usa": ("America/New_York", "USA (New York) 🇺🇸"),
+    "america": ("America/New_York", "USA 🇺🇸"),
+    "new york": ("America/New_York", "New York 🇺🇸"),
+    "london": ("Europe/London", "London (UK) 🇬🇧"),
+    "uk": ("Europe/London", "UK 🇬🇧"),
+    "england": ("Europe/London", "England 🇬🇧"),
+    "canada": ("America/Toronto", "Canada 🇨🇦"),
+    "australia": ("Australia/Sydney", "Australia (Sydney) 🇦🇺"),
+    "sydney": ("Australia/Sydney", "Sydney 🇦🇺"),
+    "japan": ("Asia/Tokyo", "Japan 🇯🇵"),
+    "tokyo": ("Asia/Tokyo", "Tokyo 🇯🇵"),
+    "germany": ("Europe/Berlin", "Germany 🇩🇪"),
+    "berlin": ("Europe/Berlin", "Berlin 🇩🇪"),
+    "singapore": ("Asia/Singapore", "Singapore 🇸🇬"),
+    "pakistan": ("Asia/Karachi", "Pakistan 🇵🇰"),
+    "saudi": ("Asia/Riyadh", "Saudi Arabia 🇸🇦"),
+    "france": ("Europe/Paris", "France 🇫🇷"),
+    "paris": ("Europe/Paris", "Paris 🇫🇷"),
+    "russia": ("Europe/Moscow", "Russia 🇷🇺"),
+    "moscow": ("Europe/Moscow", "Moscow 🇷🇺"),
+    "china": ("Asia/Shanghai", "China 🇨🇳"),
+    "qatar": ("Asia/Qatar", "Qatar 🇶🇦"),
+}
+
+def get_country_time(text: str):
+    text_low = text.lower()
+    time_keywords = ["time", "samay", "baje", "waqt", "ghadi", "clock", "kitne baje"]
+    
+    if any(k in text_low for k in time_keywords):
+        for place, (tz_name, label) in TIMEZONE_MAP.items():
+            if place in text_low:
+                try:
+                    now = datetime.now(ZoneInfo(tz_name))
+                    return f"Abhi **{label}** mein live time **{now.strftime('%I:%M %p')}** ho raha hai ({now.strftime('%d %b %Y')})."
+                except Exception:
+                    pass
+        
+        now_india = datetime.now(ZoneInfo("Asia/Kolkata"))
+        return (
+            f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai.\n\n"
+            "Kisi dusre desh ka time dekhne ke liye country ka naam likhein (jaise: *'Dubai time'*, *'USA time'*, *'London time'*)."
+        )
+    return None
 
 def load_orders():
     if os.path.exists(ORDERS_FILE):
@@ -571,16 +621,24 @@ else:
             "owner", "kaun banaya", "maker", "who created", "who is your developer"
         ]
 
+        # 1. Custom Triggers (SKB)
         matched_custom_reply = None
         for q_trigger, ans in CUSTOM_ANSWERS.items():
             if q_trigger in input_lower:
                 matched_custom_reply = ans
                 break
 
+        # 2. Live World Clock Trigger
+        time_reply = get_country_time(clean_input)
+
         if matched_custom_reply:
             bot_reply = matched_custom_reply
+        elif time_reply:
+            bot_reply = time_reply
+        # 3. Creator Triggers
         elif any(trigger in input_lower for trigger in creator_triggers):
             bot_reply = CREATOR_REPLY
+        # 4. Groq Dynamic Model AI Call
         else:
             try:
                 sanitized_history = []
@@ -591,7 +649,6 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                # Dynamic Model Detection - Fetch active models directly from your Groq account
                 model_data = client.models.list()
                 
                 BLACKLIST = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1"]
