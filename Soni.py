@@ -299,9 +299,17 @@ st.markdown(
 
 st.title("🤖 Soni AI")
 
-# Active Groq Key explicitly connected
-GROQ_API_KEY = "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"
-client = Groq(api_key=GROQ_API_KEY, timeout=30.0)
+# Clean key setup without any invisible whitespaces
+HARDCODED_KEY = "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".strip()
+
+try:
+    secret_key = st.secrets.get("GROQ_API_KEY", "").strip()
+except Exception:
+    secret_key = ""
+
+FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
+
+client = Groq(api_key=FINAL_API_KEY, timeout=30.0)
 
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
