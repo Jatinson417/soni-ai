@@ -70,16 +70,15 @@ if "user" not in st.session_state:
     if stored_user:
         st.session_state.user = stored_user
     else:
-        st.session_state.user = None
+        st.session_state.user = "jatinson8489@gmail.com"
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "user", "content": "hy", "time": "12:36 AM"},
-        {"role": "assistant", "content": "Hi! How can I help you today?", "time": "12:36 AM"},
-        {"role": "user", "content": "wsp", "time": "14:15 AM"}
+        {"role": "assistant", "content": "Hi! How can I help you today?", "time": "12:36 AM"}
     ]
 
-# --- EXACT SCREENSHOT CSS STYLING ---
+# --- CSS STYLING ---
 st.markdown(
     """
     <style>
@@ -96,7 +95,6 @@ st.markdown(
         background: transparent !important;
     }
 
-    /* Left Sidebar Styling */
     [data-testid="stSidebar"] {
         background: #f1f3f7 !important;
         border-right: 1px solid #e2e8f0 !important;
@@ -140,10 +138,6 @@ st.markdown(
         margin-bottom: 4px;
         cursor: pointer;
     }
-    .nav-pill:hover {
-        background: rgba(226, 232, 240, 0.6);
-        color: #1e293b;
-    }
 
     .sidebar-user-pill {
         display: flex;
@@ -154,7 +148,6 @@ st.markdown(
         margin-top: 50px;
     }
 
-    /* Top Navigation Action Bar */
     .top-action-bar {
         display: flex;
         justify-content: flex-end;
@@ -174,10 +167,8 @@ st.markdown(
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
 
-    /* Welcome Card */
     .welcome-card {
         background: rgba(255, 255, 255, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.9);
@@ -185,10 +176,8 @@ st.markdown(
         padding: 18px 24px;
         margin-bottom: 14px;
         backdrop-filter: blur(10px);
-        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
     }
 
-    /* Action Buttons Row */
     .action-row {
         display: flex;
         gap: 12px;
@@ -207,31 +196,8 @@ st.markdown(
         align-items: center;
         justify-content: center;
         gap: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
 
-    /* Chat Area Card */
-    .chat-container-card {
-        background: #ffffff;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        padding: 18px;
-        min-height: 380px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-    }
-
-    .msg-box {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        padding: 12px 0;
-        border-bottom: 1px solid #f1f5f9;
-    }
-    .msg-left {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-    }
     .avatar-red {
         width: 36px;
         height: 36px;
@@ -255,7 +221,6 @@ st.markdown(
         font-size: 20px;
     }
 
-    /* Right Widgets */
     .info-widget-card {
         background: rgba(255, 255, 255, 0.75);
         border: 1px solid #e2e8f0;
@@ -265,19 +230,16 @@ st.markdown(
         backdrop-filter: blur(8px);
     }
 
-    /* Chat Input Override */
     div[data-testid="stChatInput"] {
         border-radius: 14px !important;
         background: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# API SETUP
 HARDCODED_KEY = "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".strip()
 try:
     secret_key = st.secrets.get("GROQ_API_KEY", "").strip()
@@ -306,15 +268,10 @@ def clean_model_output(text: str) -> str:
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- DEFAULT LOGIN FALLBACK ---
-if not st.session_state.user:
-    st.session_state.user = "jatinson8489@gmail.com"
-    st.query_params["user"] = "jatinson8489@gmail.com"
-
 active_user = st.session_state.user
 user_handle = active_user.split("@")[0]
 
-# --- LEFT SIDEBAR (EXACT MATCH) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.markdown("""
         <div class="brand-title">
@@ -351,7 +308,6 @@ with col_btns:
         <div class="top-action-bar">
             <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" target="_blank" class="top-action-btn">⚡ Founder: Jatin Soni</a>
             <a href="/?action=toggle_shop" target="_self" class="top-action-btn">🛒 Soni Shop</a>
-            <a href="/?action=logout" target="_self" class="top-action-btn">🚪 Logout</a>
             <a href="#" class="top-action-btn">❓ Help Center</a>
         </div>
     """, unsafe_allow_html=True)
@@ -380,38 +336,35 @@ st.markdown("""
 col_chat, col_widget = st.columns([7.2, 2.8])
 
 with col_chat:
-    st.markdown('<div class="chat-container-card">', unsafe_allow_html=True)
     for msg in st.session_state.messages:
         time_tag = msg.get("time", datetime.now().strftime("%I:%M %p"))
         if msg["role"] == "user":
             st.markdown(f"""
-                <div class="msg-box">
-                    <div class="msg-left">
+                <div style="background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; backdrop-filter: blur(8px); display: flex; align-items: flex-start; justify-content: space-between;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
                         <div class="avatar-red">👤</div>
                         <div>
-                            <div style="font-weight:700; font-size:14px; color:#0f172a;">User</div>
-                            <div style="font-size:14px; color:#334155; margin-top:2px;">{msg['content']}</div>
+                            <div style="font-weight: 700; font-size: 14px; color: #0f172a;">User</div>
+                            <div style="font-size: 14px; color: #334155; margin-top: 2px;">{msg['content']}</div>
                         </div>
                     </div>
-                    <div style="font-size:11px; color:#94a3b8;">{time_tag} ↩</div>
+                    <div style="font-size: 11px; color: #94a3b8;">{time_tag} ↩</div>
                 </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
-                <div class="msg-box">
-                    <div class="msg-left">
+                <div style="background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; backdrop-filter: blur(8px); display: flex; align-items: flex-start; justify-content: space-between;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
                         <div class="avatar-ai">🤖</div>
                         <div>
-                            <div style="font-weight:700; font-size:14px; color:#0f172a;">Soni AI</div>
-                            <div style="font-size:14px; color:#334155; margin-top:2px;">{msg['content']}</div>
+                            <div style="font-weight: 700; font-size: 14px; color: #0f172a;">Soni AI</div>
+                            <div style="font-size: 14px; color: #334155; margin-top: 2px;">{msg['content']}</div>
                         </div>
                     </div>
-                    <div style="font-size:11px; color:#94a3b8;">{time_tag} ↩</div>
+                    <div style="font-size: 11px; color: #94a3b8;">{time_tag} ↩</div>
                 </div>
             """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Chat Input Box
     user_input = st.chat_input("Ask Soni AI anything...")
 
 with col_widget:
@@ -432,7 +385,7 @@ with col_widget:
         </div>
     """, unsafe_allow_html=True)
 
-# --- CHAT SUBMISSION LOGIC ---
+# --- CHAT LOGIC ---
 if user_input:
     clean_input = user_input.strip()
     now_stamp = datetime.now().strftime("%I:%M %p")
