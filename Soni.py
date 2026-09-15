@@ -83,7 +83,7 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Hi! How can I help you today?", "time": "12:36 AM"}
     ]
 
-# --- EXACT PASTEL THEME CSS ---
+# --- THEME STYLING ---
 st.markdown(
     """
     <style>
@@ -254,7 +254,7 @@ def clean_model_output(text: str) -> str:
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- OPTIONAL LOGIN / GUEST SCREEN ---
+# --- OPTIONAL LOGIN OR GUEST SCREEN ---
 if not st.session_state.user:
     st.markdown("""
         <div class="login-glass-card">
@@ -265,7 +265,6 @@ if not st.session_state.user:
 
     c_pad1, c_box, c_pad2 = st.columns([1, 1.3, 1])
     with c_box:
-        # Direct Guest Access Button
         if st.button("🚀 Continue as Guest (Without Login)", use_container_width=True):
             st.session_state.user = "guest@soniai.com"
             st.query_params["user"] = "guest@soniai.com"
@@ -277,35 +276,48 @@ if not st.session_state.user:
         with auth_t1:
             with st.form("form_quick_login"):
                 in_email = st.text_input("Email", placeholder="name@gmail.com").strip().lower()
-                in_pass = st.text_input("Password", type="password")
+                in_pass = st.text_input("Password", type="password").strip()
                 if st.form_submit_button("Log In", use_container_width=True):
-                    if in_email in users_db and users_db[in_email].get("password") == in_pass:
-                        st.session_state.user = in_email
-                        st.query_params["user"] = in_email
-                        st.rerun()
+                    users_db = load_json(USERS_FILE, {})
+                    if not in_email or not in_pass:
+                        st.error("Please enter both email and password.")
+                    elif in_email not in users_db:
+                        st.error("This email is not registered. Please sign up first.")
                     else:
-                        st.error("Invalid email or password!")
+                        user_entry = users_db[in_email]
+                        saved_pw = user_entry.get("password") if isinstance(user_entry, dict) else str(user_entry)
+                        if str(saved_pw).strip() == str(in_pass).strip():
+                            st.session_state.user = in_email
+                            st.query_params["user"] = in_email
+                            st.success("Login Successful!")
+                            st.rerun()
+                        else:
+                            st.error("Incorrect password! Please re-check your password.")
 
         with auth_t2:
             with st.form("form_quick_signup"):
                 reg_email = st.text_input("Your Email", placeholder="name@gmail.com").strip().lower()
-                reg_pass = st.text_input("Create Password", type="password")
+                reg_pass = st.text_input("Create Password", type="password").strip()
                 if st.form_submit_button("Create Account", use_container_width=True):
+                    users_db = load_json(USERS_FILE, {})
                     if not reg_email or not reg_pass:
                         st.error("Please fill all details.")
                     elif reg_email in users_db:
                         st.error("Email already registered! Log in instead.")
                     else:
-                        users_db[reg_email] = {"password": reg_pass, "date": datetime.now().strftime("%Y-%m-%d")}
+                        users_db[reg_email] = {
+                            "password": reg_pass,
+                            "date": datetime.now().strftime("%Y-%m-%d")
+                        }
                         save_json(USERS_FILE, users_db)
                         st.session_state.user = reg_email
                         st.query_params["user"] = reg_email
+                        st.success("Account created successfully!")
                         st.rerun()
 
     st.stop()
 
-# --- ACTIVE LOGGED IN USER INTERACTION ---
-active_user = st.session_state.user
+active_user = st.session_state.get("user", "guest@soniai.com")
 user_handle = active_user.split("@")[0]
 
 # --- SIDEBAR ---
@@ -374,7 +386,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# 4 Action Pills Row
+# 4 Action Buttons
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     if st.button("💬 Start New Chat", use_container_width=True):
