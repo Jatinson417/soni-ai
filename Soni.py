@@ -4,37 +4,15 @@ import urllib.parse
 import json
 import os
 import re
-import random
-import smtplib
-from email.mime.text import MIMEText
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Soni AI - Dashboard", page_icon="✨", layout="wide", initial_sidebar_state="expanded")
 
-BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
-UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
-MY_WHATSAPP_NUMBER = "918307940340"
-ADMIN_PIN = "2009"
-
-ORDERS_FILE = "orders_database.json"
-PRODUCTS_FILE = "products_database.json"
+CHATS_FILE = "chats_history_database.json"
 USERS_FILE = "users_database.json"
-VERIFY_FILE = "pending_verifications.json"
 
-# --- CREDENTIALS & SECRETS ---
-try:
-    SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "sonijatin177@gmail.com").strip()
-    SENDER_PASSWORD = st.secrets.get("SENDER_APP_PASSWORD", "").strip().replace(" ", "")
-    GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "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").strip()
-except Exception:
-    SENDER_EMAIL = "sonijatin177@gmail.com"
-    SENDER_PASSWORD = ""
-    GROQ_API_KEY = "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"
-
-client = Groq(api_key=GROQ_API_KEY, timeout=25.0)
-
-# --- DATABASE HELPERS ---
+# --- HELPER FUNCTIONS ---
 def load_json(filepath, default):
     if os.path.exists(filepath):
         try:
@@ -47,69 +25,6 @@ def load_json(filepath, default):
 def save_json(filepath, data):
     with open(filepath, "w") as f:
         json.dump(data, f, indent=4)
-
-def send_verification_email(to_email, otp_code):
-    if not SENDER_PASSWORD:
-        return False, "Secrets mein SENDER_APP_PASSWORD set nahi hai!"
-    try:
-        msg = MIMEText(
-            f"Namaste!\n\n"
-            f"Aapka unique Soni AI verification code yeh hai:\n\n"
-            f"👉 {otp_code}\n\n"
-            f"Yeh code sirf aapke account verification ke liye hai.\n\n"
-            f"- Team Soni AI"
-        )
-        msg['Subject'] = f"{otp_code} - Soni AI Verification Code"
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = to_email
-
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(SENDER_EMAIL, SENDER_PASSWORD)
-            server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
-        return True, "Unique verification code aapki Gmail par bhej diya gaya hai!"
-    except Exception as e:
-        return False, f"Email error: {e}"
-
-# --- USER PERSISTENCE ---
-users_db = load_json(USERS_FILE, {})
-pending_verifications = load_json(VERIFY_FILE, {})
-query_params = st.query_params
-
-if "user" not in st.session_state:
-    stored_user = query_params.get("user")
-    if stored_user and stored_user in users_db:
-        st.session_state.user = stored_user
-    else:
-        st.session_state.user = None
-
-if "signup_stage" not in st.session_state:
-    st.session_state.signup_stage = "form"
-if "verifying_email" not in st.session_state:
-    st.session_state.verifying_email = None
-
-def load_orders():
-    return load_json(ORDERS_FILE, [])
-
-def save_all_orders(orders_list):
-    save_json(ORDERS_FILE, orders_list)
-
-def load_products():
-    if os.path.exists(PRODUCTS_FILE):
-        try:
-            with open(PRODUCTS_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    default_items = [
-        {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
-        {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
-        {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
-    ]
-    save_json(PRODUCTS_FILE, default_items)
-    return default_items
-
-def save_all_products(products_list):
-    save_json(PRODUCTS_FILE, products_list)
 
 TIMEZONE_MAP = {
     "india": ("Asia/Kolkata", "India 🇮🇳"),
@@ -146,122 +61,230 @@ def get_country_time(text: str):
         return f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai."
     return None
 
+# --- AUTH & USER PERSISTENCE ---
+users_db = load_json(USERS_FILE, {})
+query_params = st.query_params
+
+if "user" not in st.session_state:
+    stored_user = query_params.get("user")
+    if stored_user:
+        st.session_state.user = stored_user
+    else:
+        st.session_state.user = None
+
 if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "show_shop" not in st.session_state:
-    st.session_state.show_shop = False
-if "admin_authenticated" not in st.session_state:
-    st.session_state.admin_authenticated = False
-if "lightbox_img" not in st.session_state:
-    st.session_state.lightbox_img = None
+    st.session_state.messages = [
+        {"role": "user", "content": "hy", "time": "12:36 AM"},
+        {"role": "assistant", "content": "Hi! How can I help you today?", "time": "12:36 AM"},
+        {"role": "user", "content": "wsp", "time": "14:15 AM"}
+    ]
 
-if query_params.get("action") == "toggle_shop":
-    st.session_state.show_shop = not st.session_state.show_shop
-    st.query_params["action"] = ""
-    st.rerun()
-
-# --- CSS STYLING ---
+# --- EXACT SCREENSHOT CSS STYLING ---
 st.markdown(
-    f"""
+    """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 50%, #c471ed 100%) !important;
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background: linear-gradient(120deg, #ffd9d6 0%, #ecd9fc 35%, #cfe4ff 70%, #d4f4ff 100%) !important;
         background-attachment: fixed !important;
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
-        min-height: 100vh !important;
-    }}
+        font-family: 'Inter', sans-serif !important;
+        color: #1e293b !important;
+    }
 
-    [data-testid="stSidebar"] {{
-        display: none !important;
-    }}
-
-    header, [data-testid="stHeader"] {{
+    [data-testid="stHeader"] {
         background: transparent !important;
-    }}
+    }
 
-    .top-nav-bar {{
+    /* Left Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background: #f1f3f7 !important;
+        border-right: 1px solid #e2e8f0 !important;
+        padding-top: 10px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
+
+    .brand-title {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 15px 30px;
-        width: 100%;
-    }}
-    .brand-logo {{
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 26px;
-        font-weight: 800;
-        color: #1f1f2e;
-    }}
-    .top-actions {{
+        gap: 8px;
+        font-size: 22px;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 22px;
+    }
+
+    .nav-pill-active {
         display: flex;
         align-items: center;
         gap: 12px;
-    }}
-    .action-pill {{
-        background: rgba(255, 255, 255, 0.75);
-        color: #1f1f2e !important;
-        padding: 8px 16px;
+        background: #e2e8f0;
+        color: #1e293b !important;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px 16px;
         border-radius: 20px;
+        margin-bottom: 8px;
+    }
+
+    .nav-pill {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #64748b;
+        font-weight: 500;
+        font-size: 14px;
+        padding: 9px 16px;
+        border-radius: 12px;
+        margin-bottom: 4px;
+        cursor: pointer;
+    }
+    .nav-pill:hover {
+        background: rgba(226, 232, 240, 0.6);
+        color: #1e293b;
+    }
+
+    .sidebar-user-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 6px;
+        border-top: 1px solid #e2e8f0;
+        margin-top: 50px;
+    }
+
+    /* Top Navigation Action Bar */
+    .top-action-bar {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+    .top-action-btn {
+        background: rgba(255, 255, 255, 0.85);
+        color: #334155 !important;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 6px 14px;
         font-size: 13px;
         font-weight: 600;
         text-decoration: none !important;
-        border: 1px solid rgba(255, 255, 255, 0.4);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    /* Welcome Card */
+    .welcome-card {
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        border-radius: 16px;
+        padding: 18px 24px;
+        margin-bottom: 14px;
         backdrop-filter: blur(10px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }}
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
 
-    .auth-glass-container {{
-        max-width: 480px;
-        margin: 30px auto;
-        background: rgba(255, 255, 255, 0.45);
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        border-radius: 28px;
-        padding: 36px;
-        backdrop-filter: blur(25px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-    }}
+    /* Action Buttons Row */
+    .action-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .action-card-btn {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
 
-    div[data-testid="stTextInput"] input {{
-        background: rgba(255, 255, 255, 0.9) !important;
-        border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    /* Chat Area Card */
+    .chat-container-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 18px;
+        min-height: 380px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+
+    .msg-box {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .msg-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .avatar-red {
+        width: 36px;
+        height: 36px;
+        background: #ef4444;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 16px;
+    }
+    .avatar-ai {
+        width: 36px;
+        height: 36px;
+        background: #f59e0b;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+
+    /* Right Widgets */
+    .info-widget-card {
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 12px;
+        backdrop-filter: blur(8px);
+    }
+
+    /* Chat Input Override */
+    div[data-testid="stChatInput"] {
         border-radius: 14px !important;
-        padding: 12px 16px !important;
-        color: #1f1f2e !important;
-        font-size: 14px !important;
-    }}
-
-    div[data-testid="stButton"] > button, div[data-testid="stFormSubmitButton"] > button {{
-        background: linear-gradient(90deg, #ff7e5f, #feb47b) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 14px !important;
-        padding: 12px 24px !important;
-        font-weight: 700 !important;
-        font-size: 15px !important;
-        box-shadow: 0 8px 20px rgba(254, 180, 123, 0.4) !important;
-    }}
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
+    }
     </style>
-
-    <div class="top-nav-bar">
-        <div class="brand-logo">
-            <span>✨</span> Soni AI
-        </div>
-        <div class="top-actions">
-            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" target="_blank" class="action-pill">
-                ⚡ Founder: Jatin Soni
-            </a>
-            <a href="/?action=toggle_shop" target="_self" class="action-pill" style="color:#e65c00 !important;">
-                🛒 Soni Shop
-            </a>
-        </div>
-    </div>
     """,
     unsafe_allow_html=True
 )
+
+# API SETUP
+HARDCODED_KEY = "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".strip()
+try:
+    secret_key = st.secrets.get("GROQ_API_KEY", "").strip()
+except Exception:
+    secret_key = ""
+FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
+client = Groq(api_key=FINAL_API_KEY, timeout=25.0)
 
 CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 CUSTOM_ANSWERS = {"what is skb": "Santosh kulcha bandar", "skb": "Santosh kulcha bandar"}
@@ -269,177 +292,167 @@ CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 SYSTEM_PROMPT = f"""
 You are Soni AI, created by Jatin Soni.
 Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
-Date: {CURRENT_DATE_STR}. Year: 2026.
+Today: {CURRENT_DATE_STR}. Year: 2026.
 Rules:
-1. Direct, clear answers without meta text or thinking tokens.
-2. If asked who made you: "{CREATOR_REPLY}"
+1. Always start directly with the actual answer. No drafts, setup, or reasoning tokens.
+2. Reply in natural concise Hinglish or English based on user query.
+3. If asked who made you, reply: "{CREATOR_REPLY}"
 """
 
 def clean_model_output(text: str) -> str:
     if not text: return ""
     if "</think>" in text: text = text.split("</think>")[-1]
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
+    text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- SIGN IN & SIGN UP (INDIVIDUAL OTP PER USER) ---
+# --- DEFAULT LOGIN FALLBACK ---
 if not st.session_state.user:
-    st.markdown('<div class="auth-glass-container">', unsafe_allow_html=True)
-    
+    st.session_state.user = "jatinson8489@gmail.com"
+    st.query_params["user"] = "jatinson8489@gmail.com"
+
+active_user = st.session_state.user
+user_handle = active_user.split("@")[0]
+
+# --- LEFT SIDEBAR (EXACT MATCH) ---
+with st.sidebar:
     st.markdown("""
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <div>
-                <h3 style="margin:0; font-size:22px; font-weight:700; color:#1f1f2e;">Soni AI: Access</h3>
-                <p style="margin:4px 0 0 0; font-size:13px; color:#555;">Apna Gmail dalein aur unique code se verify karein</p>
+        <div class="brand-title">
+            <span style="font-size:24px;">✨</span> Soni AI <span style="font-size:14px; margin-left:auto; color:#94a3b8;">«</span>
+        </div>
+        <div class="nav-pill-active">🏠 Dashboard</div>
+        <div class="nav-pill">🕒 Chat History</div>
+        <div class="nav-pill">📁 Projects</div>
+        <div class="nav-pill">⚡ Integrations</div>
+        <div class="nav-pill">💳 Billing</div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+        <div class="sidebar-user-pill">
+            <div style="width:32px; height:32px; background:#e2e8f0; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px;">👤</div>
+            <div style="line-height:1.2; overflow:hidden;">
+                <div style="font-size:13px; font-weight:600; color:#1e293b;">User Settings</div>
+                <div style="font-size:11px; color:#64748b; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">{active_user}</div>
             </div>
-            <div style="font-size:32px;">🔐</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Verification stage
-    if st.session_state.signup_stage == "verify":
-        active_email = st.session_state.verifying_email
-        all_pendings = load_json(VERIFY_FILE, {})
-        user_pending_data = all_pendings.get(active_email, {})
-
-        st.info(f"Verification code sent to:\n**{active_email}**")
-
-        with st.form("verify_form"):
-            code_in = st.text_input("Enter 6-digit Verification Code*", placeholder="Ex: 481920").strip()
-            submit_verify = st.form_submit_button("Sign In / Explore Soni AI ➔", use_container_width=True)
-
-            if submit_verify:
-                expected_otp = str(user_pending_data.get("otp", "")).strip()
-                entered_otp = str(code_in).strip()
-
-                if entered_otp and expected_otp and entered_otp == expected_otp:
-                    users_db[active_email] = {
-                        "password": user_pending_data.get("password", ""),
-                        "joined": datetime.now().strftime("%d-%m-%Y")
-                    }
-                    save_json(USERS_FILE, users_db)
-
-                    # Saaf karein pending entry
-                    if active_email in all_pendings:
-                        del all_pendings[active_email]
-                        save_json(VERIFY_FILE, all_pendings)
-
-                    st.session_state.user = active_email
-                    st.query_params["user"] = active_email
-                    st.session_state.signup_stage = "form"
-                    st.session_state.verifying_email = None
-                    st.success("Verification successful! Welcome to Soni AI.")
-                    st.rerun()
-                else:
-                    st.error("Invalid verification code! Kripya apni Gmail par aaya hua naya code dalein.")
-
-        if st.button("⬅️ Change Email / Resend"):
-            st.session_state.signup_stage = "form"
-            st.rerun()
-
-    # Form stage
-    else:
-        tab_login, tab_signup = st.tabs(["🔑 Log In", "📝 Sign Up"])
-
-        with tab_login:
-            with st.form("login_box_form"):
-                l_email = st.text_input("Enter Gmail Address*", placeholder="your_email@gmail.com").strip().lower()
-                l_pass = st.text_input("Password*", type="password", placeholder="Enter your password")
-                btn_l = st.form_submit_button("Log In ➔", use_container_width=True)
-
-                if btn_l:
-                    if not l_email or not l_pass:
-                        st.error("Email aur Password dono bharein!")
-                    elif l_email not in users_db:
-                        st.error("Yeh email registered nahi hai! Pehle Sign Up karein.")
-                    elif users_db[l_email].get("password") != l_pass:
-                        st.error("Incorrect password!")
-                    else:
-                        st.session_state.user = l_email
-                        st.query_params["user"] = l_email
-                        st.rerun()
-
-        with tab_signup:
-            with st.form("signup_box_form"):
-                s_email = st.text_input("Enter Gmail Address*", placeholder="your_email@gmail.com").strip().lower()
-                s_pass = st.text_input("Create Password*", type="password", placeholder="Choose a password")
-                btn_s = st.form_submit_button("🔑 Get Verification Code", use_container_width=True)
-
-                if btn_s:
-                    if not s_email or not s_pass:
-                        st.error("Email aur Password dono bharein!")
-                    elif "@gmail.com" not in s_email:
-                        st.error("Kripya valid @gmail.com address dalein!")
-                    elif s_email in users_db:
-                        st.error("Yeh email pehle se registered hai! 'Log In' tab use karein.")
-                    else:
-                        # Har request par 100% alag aur fresh 6-digit random code
-                        unique_otp = f"{random.randint(100000, 999999)}"
-                        ok, msg = send_verification_email(s_email, unique_otp)
-                        if ok:
-                            all_pendings = load_json(VERIFY_FILE, {})
-                            all_pendings[s_email] = {
-                                "password": s_pass,
-                                "otp": unique_otp,
-                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            }
-                            save_json(VERIFY_FILE, all_pendings)
-
-                            st.session_state.verifying_email = s_email
-                            st.session_state.signup_stage = "verify"
-                            st.rerun()
-                        else:
-                            st.error(msg)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()
-
-# --- MAIN APP (AFTER LOGIN) ---
-current_user = st.session_state.user
-
-col_u1, col_u2 = st.columns([8, 2])
-with col_u1:
-    st.markdown(f"👋 Welcome, **{current_user.split('@')[0].capitalize()}**!")
-with col_u2:
-    if st.button("🚪 Logout", key="btn_logout_main"):
+    if st.button("🚪 Logout", use_container_width=True):
         st.session_state.user = None
         st.query_params.clear()
         st.rerun()
 
-col_c1, col_c2 = st.columns([8.5, 1.5])
-with col_c2:
-    if st.button("🧹 Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
+# --- MAIN DASHBOARD BODY ---
+col_head, col_btns = st.columns([4, 6])
+with col_head:
+    st.markdown("<h2 style='margin:0; font-weight:700; color:#1e293b;'>Home Page</h2>", unsafe_allow_html=True)
+with col_btns:
+    st.markdown("""
+        <div class="top-action-bar">
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" target="_blank" class="top-action-btn">⚡ Founder: Jatin Soni</a>
+            <a href="/?action=toggle_shop" target="_self" class="top-action-btn">🛒 Soni Shop</a>
+            <a href="/?action=logout" target="_self" class="top-action-btn">🚪 Logout</a>
+            <a href="#" class="top-action-btn">❓ Help Center</a>
+        </div>
+    """, unsafe_allow_html=True)
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Welcome Card
+st.markdown(f"""
+    <div class="welcome-card">
+        <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700; color:#0f172a;">Welcome, {user_handle.capitalize()}!</h3>
+        <div style="font-size:13px; font-weight:600; color:#475569;">
+            Active Projects: <span style="color:#0f172a;">3</span> &nbsp;&nbsp;|&nbsp;&nbsp; Total Computes: <span style="color:#0f172a;">128</span>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
-user_input = st.chat_input("Ask Soni AI anything...")
+# 4 Action Pills Row
+st.markdown("""
+    <div class="action-row">
+        <div class="action-card-btn">💬 Start New Chat</div>
+        <div class="action-card-btn">🕒 Review History</div>
+        <div class="action-card-btn">🏛️ Browse Marketplace</div>
+        <div class="action-card-btn">👤 Account Usage</div>
+    </div>
+""", unsafe_allow_html=True)
 
+# Main Grid (Chat + Info Widgets)
+col_chat, col_widget = st.columns([7.2, 2.8])
+
+with col_chat:
+    st.markdown('<div class="chat-container-card">', unsafe_allow_html=True)
+    for msg in st.session_state.messages:
+        time_tag = msg.get("time", datetime.now().strftime("%I:%M %p"))
+        if msg["role"] == "user":
+            st.markdown(f"""
+                <div class="msg-box">
+                    <div class="msg-left">
+                        <div class="avatar-red">👤</div>
+                        <div>
+                            <div style="font-weight:700; font-size:14px; color:#0f172a;">User</div>
+                            <div style="font-size:14px; color:#334155; margin-top:2px;">{msg['content']}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:11px; color:#94a3b8;">{time_tag} ↩</div>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+                <div class="msg-box">
+                    <div class="msg-left">
+                        <div class="avatar-ai">🤖</div>
+                        <div>
+                            <div style="font-weight:700; font-size:14px; color:#0f172a;">Soni AI</div>
+                            <div style="font-size:14px; color:#334155; margin-top:2px;">{msg['content']}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:11px; color:#94a3b8;">{time_tag} ↩</div>
+                </div>
+            """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Chat Input Box
+    user_input = st.chat_input("Ask Soni AI anything...")
+
+with col_widget:
+    st.markdown("""
+        <div class="info-widget-card">
+            <h4 style="margin:0 0 10px 0; font-size:15px; font-weight:700; color:#0f172a;">Model Info</h4>
+            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Current model: <b>Llama-3.1-8b (Instant)</b></div>
+            <div style="font-size:12px; color:#334155; font-weight:600; margin-bottom:6px;">Gemini Pro Mode</div>
+            <div style="background:#e2e8f0; height:6px; border-radius:10px; width:100%; margin-bottom:6px;">
+                <div style="background:#3b82f6; width:65%; height:100%; border-radius:10px;"></div>
+            </div>
+            <div style="font-size:11px; color:#64748b;">Token usage: 1208 / 8192</div>
+        </div>
+        <div class="info-widget-card">
+            <h4 style="margin:0 0 8px 0; font-size:15px; font-weight:700; color:#0f172a;">Model Settings</h4>
+            <div style="font-size:12px; color:#64748b;">Parameters: Default (0.5 Temp)</div>
+            <div style="font-size:12px; color:#64748b; margin-top:4px;">Stream Speed: High-Performance</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# --- CHAT SUBMISSION LOGIC ---
 if user_input:
     clean_input = user_input.strip()
+    now_stamp = datetime.now().strftime("%I:%M %p")
 
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
+    st.session_state.messages.append({"role": "user", "content": clean_input, "time": now_stamp})
 
     input_lower = clean_input.lower()
-    creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "who created"]
-
-    matched_custom_reply = next((ans for q_t, ans in CUSTOM_ANSWERS.items() if q_t in input_lower), None)
+    matched_custom = next((ans for q_t, ans in CUSTOM_ANSWERS.items() if q_t in input_lower), None)
     time_reply = get_country_time(clean_input)
 
-    if matched_custom_reply:
-        bot_reply = matched_custom_reply
+    if matched_custom:
+        bot_reply = matched_custom
     elif time_reply:
         bot_reply = time_reply
-    elif any(trigger in input_lower for trigger in creator_triggers):
+    elif any(t in input_lower for t in ["kisne banaya", "who made you", "developer", "creator", "owner"]):
         bot_reply = CREATOR_REPLY
     else:
         try:
-            sanitized_history = [{"role": m["role"], "content": clean_model_output(m["content"])} for m in st.session_state.messages[-6:] if clean_model_output(m["content"])]
-            payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
+            sanitized = [{"role": m["role"], "content": clean_model_output(m["content"])} for m in st.session_state.messages[-6:] if clean_model_output(m["content"])]
+            payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized
 
             model_data = client.models.list()
             BLACKLIST = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1"]
@@ -447,15 +460,15 @@ if user_input:
             active_models.sort(key=lambda n: 0 if "llama-3.1-8b" in n.lower() else 1)
 
             raw_reply = None
-            for m_candidate in active_models:
+            for m_cand in active_models:
                 try:
-                    chat_completion = client.chat.completions.create(
+                    chat_comp = client.chat.completions.create(
                         messages=payload,
-                        model=m_candidate,
+                        model=m_cand,
                         temperature=0.5,
                         max_tokens=350,
                     )
-                    raw_reply = chat_completion.choices[0].message.content
+                    raw_reply = chat_comp.choices[0].message.content
                     if raw_reply: break
                 except Exception:
                     continue
@@ -464,8 +477,5 @@ if user_input:
         except Exception as e:
             bot_reply = f"Error details: {e}"
 
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-    with st.chat_message("assistant"):
-        st.markdown(bot_reply)
-
+    st.session_state.messages.append({"role": "assistant", "content": bot_reply, "time": datetime.now().strftime("%I:%M %p")})
     st.rerun()
