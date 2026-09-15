@@ -19,7 +19,7 @@ UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
-FREE_DAILY_LIMIT = 10  # 1 din mein 10 free messages
+FREE_DAILY_LIMIT = 50  # 1 din mein 50 free messages
 
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
@@ -534,7 +534,7 @@ if st.session_state.current_tab == "Dashboard":
                 </div>
             """, unsafe_allow_html=True)
 
-    # 10 Messages Limit Check
+    # 50 Messages Limit Check
     if not is_pro_user and chats_used_today >= FREE_DAILY_LIMIT:
         st.error(f"🚫 **Aaj ki {FREE_DAILY_LIMIT} free messages limit poori ho chuki hai!**")
         st.info("💡 Unlimited chats use karne ke liye **Pro Mode** activate karein.")
