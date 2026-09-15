@@ -4,6 +4,9 @@ import urllib.parse
 import json
 import os
 import re
+import random
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -16,6 +19,91 @@ ADMIN_PIN = "2009"
 
 ORDERS_FILE = "orders_database.json"
 PRODUCTS_FILE = "products_database.json"
+USERS_FILE = "users_database.json"
+
+# --- CONFIG & SECRETS ---
+try:
+    SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "sonijatin177@gmail.com")
+    SENDER_PASSWORD = st.secrets.get("SENDER_APP_PASSWORD", "")
+    GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "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").strip()
+except Exception:
+    SENDER_EMAIL = "sonijatin177@gmail.com"
+    SENDER_PASSWORD = ""
+    GROQ_API_KEY = "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"
+
+client = Groq(api_key=GROQ_API_KEY, timeout=25.0)
+
+# --- DATABASE HELPERS ---
+def load_json(filepath, default):
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r") as f:
+                return json.load(f)
+        except:
+            return default
+    return default
+
+def save_json(filepath, data):
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=4)
+
+def send_otp_email(to_email, otp_code):
+    if not SENDER_PASSWORD:
+        return False, "SENDER_APP_PASSWORD set nahi hai Secrets mein!"
+    try:
+        msg = MIMEText(f"Hello,\n\nAapka Soni AI verification code hai: {otp_code}\n\nYeh code kisi ke sath share na karein.\n\nTeam Soni AI")
+        msg['Subject'] = f"{otp_code} - Soni AI Verification Code"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = to_email
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
+        return True, "Code aapke Gmail par bhej diya gaya hai!"
+    except Exception as e:
+        return False, f"Email bhejne mein dikkat: {e}"
+
+# --- AUTO LOGIN PERSISTENCE (Refresh safe) ---
+users_db = load_json(USERS_FILE, {})
+query_params = st.query_params
+
+if "user" not in st.session_state:
+    stored_user = query_params.get("user")
+    if stored_user and stored_user in users_db:
+        st.session_state.user = stored_user
+    else:
+        st.session_state.user = None
+
+if "otp_sent" not in st.session_state:
+    st.session_state.otp_sent = False
+if "generated_otp" not in st.session_state:
+    st.session_state.generated_otp = None
+if "pending_email" not in st.session_state:
+    st.session_state.pending_email = None
+
+def load_orders():
+    return load_json(ORDERS_FILE, [])
+
+def save_all_orders(orders_list):
+    save_json(ORDERS_FILE, orders_list)
+
+def load_products():
+    if os.path.exists(PRODUCTS_FILE):
+        try:
+            with open(PRODUCTS_FILE, "r") as f:
+                return json.load(f)
+        except:
+            pass
+    default_items = [
+        {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
+        {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
+        {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
+    ]
+    save_json(PRODUCTS_FILE, default_items)
+    return default_items
+
+def save_all_products(products_list):
+    save_json(PRODUCTS_FILE, products_list)
 
 TIMEZONE_MAP = {
     "india": ("Asia/Kolkata", "India 🇮🇳"),
@@ -27,10 +115,8 @@ TIMEZONE_MAP = {
     "new york": ("America/New_York", "New York 🇺🇸"),
     "london": ("Europe/London", "London (UK) 🇬🇧"),
     "uk": ("Europe/London", "UK 🇬🇧"),
-    "england": ("Europe/London", "England 🇬🇧"),
     "canada": ("America/Toronto", "Canada 🇨🇦"),
     "australia": ("Australia/Sydney", "Australia (Sydney) 🇦🇺"),
-    "sydney": ("Australia/Sydney", "Sydney 🇦🇺"),
     "japan": ("Asia/Tokyo", "Japan 🇯🇵"),
     "tokyo": ("Asia/Tokyo", "Tokyo 🇯🇵"),
     "germany": ("Europe/Berlin", "Germany 🇩🇪"),
@@ -51,41 +137,8 @@ def get_country_time(text: str):
                 except:
                     pass
         now_india = datetime.now(ZoneInfo("Asia/Kolkata"))
-        return f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai.\n\nDusre desh ka time dekhne ke liye country ka naam likhein (jaise: *Dubai time*, *USA time*, *London time*)."
+        return f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai.\n\nDusre desh ka time dekhne ke liye country ka naam likhein (jaise: *Dubai time*, *USA time*)."
     return None
-
-def load_orders():
-    if os.path.exists(ORDERS_FILE):
-        try:
-            with open(ORDERS_FILE, "r") as f:
-                return json.load(f)
-        except:
-            return []
-    return []
-
-def save_all_orders(orders_list):
-    with open(ORDERS_FILE, "w") as f:
-        json.dump(orders_list, f, indent=4)
-
-def load_products():
-    if os.path.exists(PRODUCTS_FILE):
-        try:
-            with open(PRODUCTS_FILE, "r") as f:
-                return json.load(f)
-        except:
-            pass
-    default_items = [
-        {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
-        {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
-        {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
-    ]
-    with open(PRODUCTS_FILE, "w") as f:
-        json.dump(default_items, f, indent=4)
-    return default_items
-
-def save_all_products(products_list):
-    with open(PRODUCTS_FILE, "w") as f:
-        json.dump(products_list, f, indent=4)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -96,10 +149,9 @@ if "admin_authenticated" not in st.session_state:
 if "lightbox_img" not in st.session_state:
     st.session_state.lightbox_img = None
 
-query_params = st.query_params
 if query_params.get("action") == "toggle_shop":
     st.session_state.show_shop = not st.session_state.show_shop
-    st.query_params.clear()
+    st.query_params["action"] = ""
     st.rerun()
 
 st.markdown(
@@ -206,9 +258,6 @@ st.markdown(
         backdrop-filter: blur(8px);
         display: inline-block;
     }}
-    .shop-btn-link:hover {{
-        transform: scale(1.05);
-    }}
 
     h1, h2, h3, p {{
         color: #ffffff;
@@ -237,86 +286,30 @@ st.markdown(
         border-radius: 12px !important;
         font-weight: 600 !important;
         padding: 8px 18px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
     }}
     div[data-testid="stButton"] > button p {{
         color: #ffffff !important;
     }}
-    div[data-testid="stButton"] > button:hover {{
-        background: linear-gradient(135deg, #2b2b40, #3d3e65) !important;
-        border-color: #00e5ff !important;
-        color: #00e5ff !important;
-        transform: translateY(-2px);
-    }}
-    div[data-testid="stButton"] > button:hover p {{
-        color: #00e5ff !important;
-    }}
 
-    .shop-product-card {{
-        background: rgba(0, 0, 0, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(10px);
-        border-radius: 18px;
-        padding: 14px;
-        text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-    }}
-    .shop-product-title {{
-        font-size: 15px;
-        font-weight: 700;
-        color: #ffffff;
-        margin-top: 10px;
-        margin-bottom: 6px;
-    }}
-    .shop-product-price {{
-        font-size: 16px;
-        font-weight: 800;
-        color: #00e5ff;
-        margin-bottom: 12px;
-    }}
-
-    .lightbox-overlay {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.88);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999999;
-        backdrop-filter: blur(10px);
-    }}
-    .lightbox-content {{
-        max-width: 90%;
-        max-height: 85vh;
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        border: 2px solid rgba(255,255,255,0.2);
-    }}
-
-    .admin-card-box {{
-        background: rgba(18, 18, 28, 0.88);
+    .auth-card-box {{
+        background: rgba(18, 18, 28, 0.92);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 14px;
-        padding: 16px;
-        margin-bottom: 14px;
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 440px;
+        margin: 40px auto;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }}
 
     [data-testid="stChatInput"] {{
         background: rgba(255, 255, 255, 0.96) !important;
         border-radius: 35px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
-        border: 1px solid rgba(0,0,0,0.06) !important;
     }}
     </style>
 
     <div class="top-right-stack">
-        <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
-           target="_blank" 
-           class="founder-badge">
+        <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" target="_blank" class="founder-badge">
             ⚡ Founder: Jatin Soni
         </a>
         <div class="donate-box">
@@ -337,63 +330,100 @@ st.markdown(
 
 st.title("🤖 Soni AI")
 
-HARDCODED_KEY = "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".strip()
-try:
-    secret_key = st.secrets.get("GROQ_API_KEY", "").strip()
-except Exception:
-    secret_key = ""
-
-FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
-client = Groq(api_key=FINAL_API_KEY, timeout=25.0)
-
-CREATOR_REPLY = (
-    "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
-    "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
-)
-
-CUSTOM_ANSWERS = {
-    "what is skb": "Santosh kulcha bandar",
-    "skb": "Santosh kulcha bandar",
-}
-
+CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
+CUSTOM_ANSWERS = {"what is skb": "Santosh kulcha bandar", "skb": "Santosh kulcha bandar"}
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
-
 SYSTEM_PROMPT = f"""
-You are Soni AI, an intelligent, helpful, natural and direct AI assistant created by Jatin Soni.
-
-Facts:
-- Date: {CURRENT_DATE_STR}
-- Year: 2026
-- Creator: Jatin Soni (16 yrs, 12th class, Rori village, Sirsa district, Haryana)
-
+You are Soni AI, an intelligent, helpful AI assistant created by Jatin Soni.
+Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
+Date: {CURRENT_DATE_STR}. Year: 2026.
 Rules:
-1. Always start directly with the actual answer. Do NOT output analysis, drafts, planning, or reasoning.
-2. If asked a simple greeting or question, reply in 1-2 lines.
-3. For normal questions, reply concisely in 3-5 lines max.
-4. Reply in natural Hinglish if the user asks in Hindi/Hinglish, or in English if asked in English.
-5. If asked who made you, answer: "{CREATOR_REPLY}"
-6. If asked about today's date, answer: "Aaj {CURRENT_DATE_STR} hai."
+1. Always give direct answers without reasoning tokens, setup lines or fluff.
+2. Reply in natural Hinglish or English based on user query.
+3. If asked who made you, reply: "{CREATOR_REPLY}"
 """
 
 def clean_model_output(text: str) -> str:
-    if not text:
-        return ""
-    if "</think>" in text:
-        text = text.split("</think>")[-1]
-    elif "<think>" in text:
-        text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
-    
+    if not text: return ""
+    if "</think>" in text: text = text.split("</think>")[-1]
+    elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
-    text = re.sub(r'(?i)Here\'s a thinking process:?.*?(?=\n\n|\Z)', '', text, flags=re.DOTALL)
     return text.strip()
 
+# --- AUTH / LOGIN FLOW (OTP Verification) ---
+if not st.session_state.user:
+    st.markdown('<div class="auth-card-box">', unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center;'>🔐 Sign In to Soni AI</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; font-size:13px; color:#bbb;'>Apna Gmail daalein, verification code aapke inbox mein aayega</p>", unsafe_allow_html=True)
+
+    if not st.session_state.otp_sent:
+        with st.form("send_otp_form"):
+            email_in = st.text_input("Enter Gmail Address*", placeholder="name@gmail.com").strip().lower()
+            submit_email = st.form_submit_button("Send Verification Code 📩", use_container_width=True)
+
+            if submit_email:
+                if email_in and "@gmail.com" in email_in:
+                    generated_otp = str(random.randint(100000, 999999))
+                    success, msg = send_otp_email(email_in, generated_otp)
+                    if success:
+                        st.session_state.otp_sent = True
+                        st.session_state.generated_otp = generated_otp
+                        st.session_state.pending_email = email_in
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+                else:
+                    st.error("Kripya ek valid Gmail address bharein (@gmail.com)!")
+    else:
+        st.info(f"Code sent to: **{st.session_state.pending_email}**")
+        with st.form("verify_otp_form"):
+            otp_entered = st.text_input("6-digit Code Daalein*", placeholder="Ex: 582194").strip()
+            verify_btn = st.form_submit_button("Verify & Login 🚀", use_container_width=True)
+
+            if verify_btn:
+                if otp_entered == st.session_state.generated_otp:
+                    user_email = st.session_state.pending_email
+                    users_db[user_email] = {"joined": datetime.now().strftime("%d-%m-%Y")}
+                    save_json(USERS_FILE, users_db)
+
+                    # Persist session in state and URL query params (Refresh safe)
+                    st.session_state.user = user_email
+                    st.query_params["user"] = user_email
+                    st.session_state.otp_sent = False
+                    st.session_state.generated_otp = None
+                    st.session_state.pending_email = None
+                    st.success("Login Successful!")
+                    st.rerun()
+                else:
+                    st.error("Galat code! Kripya apna Gmail check karke sahi code daalein.")
+
+        if st.button("Change Email / Resend", key="btn_resend"):
+            st.session_state.otp_sent = False
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
+
+# --- LOGGED IN USER INTERACTION ---
+user_active = st.session_state.user
+col_top_user, col_top_out = st.columns([7, 3])
+with col_top_user:
+    st.markdown(f"👤 Logged in as: **{user_active.split('@')[0].capitalize()}**")
+with col_top_out:
+    if st.button("🚪 Logout", key="btn_logout"):
+        st.session_state.user = None
+        st.query_params.clear()
+        st.rerun()
+
+# --- CHAT / STORE / ADMIN LOGIC ---
 if st.session_state.lightbox_img:
     img_url = st.session_state.lightbox_img
     st.markdown(f"""
         <div class="lightbox-overlay" onclick="window.location.reload();">
             <div style="text-align: center; position: relative;">
                 <img src="{img_url}" class="lightbox-content"><br>
-                <span style="color: #bbb; font-size: 13px; display: block; margin-top: 12px;">(Band karne ke liye photo ya screen par kahin bhi click karein)</span>
+                <span style="color: #bbb; font-size: 13px; display: block; margin-top: 12px;">(Band karne ke liye screen par click karein)</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -421,10 +451,9 @@ if st.session_state.admin_authenticated:
                 st.success("Saare orders clear ho gaye!")
                 st.rerun()
 
-            st.markdown("---")
             for idx, ord_data in enumerate(all_orders):
                 st.markdown(f"""
-                <div class="admin-card-box">
+                <div class="admin-card-box" style="background:rgba(18,18,28,0.88); border:1px solid #444; padding:12px; border-radius:10px; margin-bottom:8px;">
                     <b>Order #{idx + 1}</b><br>
                     📦 <b>Item:</b> {ord_data['item']} (₹{ord_data['price']})<br>
                     👤 <b>Customer:</b> {ord_data['name']} | 📞 <b>Phone:</b> {ord_data['phone']}<br>
@@ -432,7 +461,6 @@ if st.session_state.admin_authenticated:
                     💳 <b>Payment:</b> {ord_data['payment']}
                 </div>
                 """, unsafe_allow_html=True)
-                
                 if st.button(f"🗑️ Delete Order #{idx + 1}", key=f"del_order_{idx}"):
                     all_orders.pop(idx)
                     save_all_orders(all_orders)
@@ -444,7 +472,6 @@ if st.session_state.admin_authenticated:
             p_name = st.text_input("Product Name*", placeholder="Ex: Cotton Oversized T-Shirt")
             p_price = st.number_input("Price (in ₹)*", min_value=1, step=1, value=299)
             p_img = st.text_input("Product Image URL*", placeholder="https://example.com/image.jpg")
-            
             submit_item = st.form_submit_button("Shop Mein List Karein 🚀")
 
             if submit_item:
@@ -492,11 +519,10 @@ if st.session_state.show_shop:
             st.rerun()
 
     st.markdown("---")
-    
     products = load_products()
 
     if not products:
-        st.info("Shop mein filhal koi product nahi hai. Admin panel se add karein.")
+        st.info("Shop mein koi product nahi hai.")
     else:
         col1, col2, col3 = st.columns(3)
         cols = [col1, col2, col3]
@@ -508,10 +534,10 @@ if st.session_state.show_shop:
                     st.rerun()
 
                 st.markdown(f"""
-                <div class="shop-product-card" style="margin-top:-10px;">
-                    <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px; cursor:pointer;">
-                    <div class="shop-product-title">{prod['name']}</div>
-                    <div class="shop-product-price">₹{prod['price']}</div>
+                <div style="background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.15); border-radius:18px; padding:14px; text-align:center; margin-bottom:20px;">
+                    <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
+                    <div style="font-size:15px; font-weight:700; color:#fff; margin-top:8px;">{prod['name']}</div>
+                    <div style="font-size:16px; font-weight:800; color:#00e5ff; margin-bottom:10px;">₹{prod['price']}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -520,23 +546,21 @@ if st.session_state.show_shop:
                     st.session_state.lightbox_img = None
                     st.rerun()
 
-    # Checkout Form
     if "selected_product" in st.session_state and st.session_state.selected_product:
         item = st.session_state.selected_product
         st.markdown("---")
         st.markdown(f"### 📦 Checkout: {item['name']} (₹{item['price']})")
-        
+
         with st.form("order_checkout_form"):
             cust_name = st.text_input("Aapka Naam*", placeholder="Apna pura naam likhein")
             cust_phone = st.text_input("Mobile Number*", placeholder="10-digit mobile number")
             cust_address = st.text_area("Delivery Address*", placeholder="House no, Gali/Ward, Gaon/City, District, Pincode")
             payment_mode = st.radio("Payment Mode*", ["Cash on Delivery (COD)", "Pay Online (UPI / QR)"])
-            
             submit_order = st.form_submit_button("Confirm Order 🚀", use_container_width=True)
 
             if submit_order:
                 if not cust_name.strip() or not cust_phone.strip() or not cust_address.strip():
-                    st.error("Kripya saari details (Naam, Mobile, Address) bharein!")
+                    st.error("Kripya saari details bharein!")
                 else:
                     order_data = {
                         "item": item["name"],
@@ -546,32 +570,17 @@ if st.session_state.show_shop:
                         "address": cust_address.strip(),
                         "payment": payment_mode
                     }
-                    
                     orders = load_orders()
                     orders.append(order_data)
                     save_all_orders(orders)
-                    
-                    msg = (
-                        f"🛒 *NEW ORDER - SONI STORE*\n\n"
-                        f"📦 *Product:* {item['name']}\n"
-                        f"💰 *Price:* ₹{item['price']}\n"
-                        f"👤 *Customer:* {cust_name}\n"
-                        f"📞 *Mobile:* {cust_phone}\n"
-                        f"🏠 *Address:* {cust_address}\n"
-                        f"💳 *Payment Mode:* {payment_mode}\n"
-                    )
+
+                    msg = f"🛒 *NEW ORDER - SONI STORE*\n\n📦 Product: {item['name']}\n💰 Price: ₹{item['price']}\n👤 Customer: {cust_name}\n📞 Mobile: {cust_phone}\n🏠 Address: {cust_address}\n💳 Payment: {payment_mode}"
                     wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(msg)}"
-                    
                     st.success("Order Confirm ho gaya hai! 🎉")
-                    
                     if payment_mode == "Pay Online (UPI / QR)":
                         st.image(UPI_QR_URL, caption=f"Scan & Pay ₹{item['price']}", width=180)
-                    
-                    st.markdown(f'''
-                        <a href="{wa_url}" target="_blank" style="display:block; text-align:center; padding:12px 24px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">
-                            📲 WhatsApp par Order Send Karein
-                        </a>
-                    ''', unsafe_allow_html=True)
+
+                    st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block; text-align:center; padding:12px 24px; background:#25D366; color:white; border-radius:25px; text-decoration:none; font-weight:bold; margin-top:10px;">📲 WhatsApp par Order Send Karein</a>', unsafe_allow_html=True)
                     st.session_state.selected_product = None
 
 # Chat Area
@@ -602,60 +611,28 @@ else:
             st.markdown(user_input)
 
         input_lower = clean_input.lower()
-        creator_triggers = [
-            "kisne banaya", "who made you", "developer", "creator", 
-            "owner", "kaun banaya", "maker", "who created", "who is your developer"
-        ]
+        creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "who created"]
 
-        # 1. Custom Triggers (SKB)
-        matched_custom_reply = None
-        for q_trigger, ans in CUSTOM_ANSWERS.items():
-            if q_trigger in input_lower:
-                matched_custom_reply = ans
-                break
-
-        # 2. Live World Clock Trigger
+        matched_custom_reply = next((ans for q_t, ans in CUSTOM_ANSWERS.items() if q_t in input_lower), None)
         time_reply = get_country_time(clean_input)
 
         if matched_custom_reply:
             bot_reply = matched_custom_reply
         elif time_reply:
             bot_reply = time_reply
-        # 3. Creator Triggers
         elif any(trigger in input_lower for trigger in creator_triggers):
             bot_reply = CREATOR_REPLY
-        # 4. Groq Dynamic Model AI Call
         else:
             try:
-                sanitized_history = []
-                for m in st.session_state.messages[-6:]:
-                    cleaned = clean_model_output(m["content"])
-                    if cleaned:
-                        sanitized_history.append({"role": m["role"], "content": cleaned})
-
+                sanitized_history = [{"role": m["role"], "content": clean_model_output(m["content"])} for m in st.session_state.messages[-6:] if clean_model_output(m["content"])]
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
                 model_data = client.models.list()
-                
                 BLACKLIST = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1"]
-                active_models = []
-                for m in model_data.data:
-                    m_id = m.id.lower()
-                    if not any(b in m_id for b in BLACKLIST):
-                        active_models.append(m.id)
-
-                def priority(name):
-                    n = name.lower()
-                    if "llama-3.1-8b" in n: return 0
-                    if "llama3-8b" in n: return 1
-                    if "llama" in n: return 2
-                    return 3
-
-                active_models.sort(key=priority)
+                active_models = [m.id for m in model_data.data if not any(b in m.id.lower() for b in BLACKLIST)]
+                active_models.sort(key=lambda n: 0 if "llama-3.1-8b" in n.lower() else 1)
 
                 raw_reply = None
-                last_err = None
-
                 for m_candidate in active_models:
                     try:
                         chat_completion = client.chat.completions.create(
@@ -665,18 +642,11 @@ else:
                             max_tokens=350,
                         )
                         raw_reply = chat_completion.choices[0].message.content
-                        if raw_reply:
-                            break
-                    except Exception as err:
-                        last_err = err
+                        if raw_reply: break
+                    except:
                         continue
 
-                if not raw_reply:
-                    raise last_err if last_err else Exception("Server busy, try again.")
-
-                bot_reply = clean_model_output(raw_reply)
-                if not bot_reply:
-                    bot_reply = "Main samajh gaya. Aage batayein main kya madad kar sakta hoon?"
+                bot_reply = clean_model_output(raw_reply) if raw_reply else "Main samajh gaya. Aage batayein?"
             except Exception as e:
                 bot_reply = f"Error details: {e}"
 
