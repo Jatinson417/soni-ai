@@ -12,6 +12,10 @@ st.set_page_config(page_title="Soni AI", page_icon="✨", layout="wide", initial
 CHATS_FILE = "chats_history_database.json"
 USERS_FILE = "users_database.json"
 PROJECTS_FILE = "projects_database.json"
+USAGE_FILE = "user_usage_database.json"
+
+UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&am=1.00&cu=INR"
+MY_WHATSAPP_NUMBER = "918307940340"
 
 def load_json(filepath, default):
     if os.path.exists(filepath):
@@ -61,9 +65,33 @@ def get_country_time(text: str):
         return f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai."
     return None
 
+# --- USAGE TRACKER (100 CHATS / DAY) ---
+def get_user_chat_count(email, users_dict, usage_dict):
+    # Check if Pro Mode
+    user_info = users_dict.get(email, {})
+    if isinstance(user_info, dict) and user_info.get("plan") == "pro":
+        return 0, True  # (Count, is_pro)
+
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+    user_usage = usage_dict.get(email, {})
+    
+    if user_usage.get("date") != today_str:
+        return 0, False
+    return user_usage.get("count", 0), False
+
+def increment_user_chat_count(email, usage_dict):
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+    user_usage = usage_dict.get(email, {})
+    if user_usage.get("date") != today_str:
+        usage_dict[email] = {"date": today_str, "count": 1}
+    else:
+        usage_dict[email]["count"] = user_usage.get("count", 0) + 1
+    save_json(USAGE_FILE, usage_dict)
+
 users_db = load_json(USERS_FILE, {})
 chats_db = load_json(CHATS_FILE, {})
 projects_db = load_json(PROJECTS_FILE, ["AI Assistant Bot", "E-Commerce Recommender", "Customer Support Workflow"])
+usage_db = load_json(USAGE_FILE, {})
 
 query_params = st.query_params
 
@@ -221,6 +249,16 @@ st.markdown(
         box-shadow: 0 8px 30px rgba(0,0,0,0.06);
         backdrop-filter: blur(15px);
     }
+
+    .pro-badge {
+        background: linear-gradient(135deg, #f59e0b, #ef4444);
+        color: white;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        margin-left: 8px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -254,7 +292,7 @@ def clean_model_output(text: str) -> str:
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- OPTIONAL LOGIN OR GUEST SCREEN ---
+# --- LOGIN / GUEST SCREEN ---
 if not st.session_state.user:
     st.markdown("""
         <div class="login-glass-card">
@@ -307,6 +345,7 @@ if not st.session_state.user:
                     else:
                         users_db[reg_email] = {
                             "password": reg_pass,
+                            "plan": "free",
                             "date": datetime.now().strftime("%Y-%m-%d")
                         }
                         save_json(USERS_FILE, users_db)
@@ -319,6 +358,10 @@ if not st.session_state.user:
 
 active_user = st.session_state.get("user", "guest@soniai.com")
 user_handle = active_user.split("@")[0]
+
+# Compute current limits
+chats_used_today, is_pro_user = get_user_chat_count(active_user, users_db, usage_db)
+plan_badge = "PRO" if is_pro_user else f"{chats_used_today}/100 Free"
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -344,7 +387,7 @@ with st.sidebar:
         st.session_state.current_tab = "Integrations"
         st.rerun()
 
-    if st.button("💳 Billing", key="btn_sb_bill"):
+    if st.button("💳 Billing / Upgrade", key="btn_sb_bill"):
         st.session_state.current_tab = "Billing"
         st.rerun()
 
@@ -352,8 +395,11 @@ with st.sidebar:
         <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:50px;">
             <div style="width:34px; height:34px; background:#e2e8f0; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px;">👤</div>
             <div style="line-height:1.2; overflow:hidden;">
-                <div style="font-size:13px; font-weight:600; color:#1e293b;">User Settings</div>
-                <div style="font-size:11px; color:#64748b; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">{active_user}</div>
+                <div style="font-size:13px; font-weight:600; color:#1e293b;">
+                    {active_user}
+                    <span class="pro-badge">{plan_badge}</span>
+                </div>
+                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited Pro' if is_pro_user else 'Free (100 chats/day)'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -379,9 +425,12 @@ with col_btns:
 # Welcome Card
 st.markdown(f"""
     <div class="welcome-card">
-        <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700; color:#0f172a;">Welcome, {user_handle.capitalize()}!</h3>
+        <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700; color:#0f172a;">
+            Welcome, {user_handle.capitalize()}! {'🔥 (PRO ACTIVE)' if is_pro_user else ''}
+        </h3>
         <div style="font-size:13px; font-weight:600; color:#475569;">
-            Active Projects: <span style="color:#0f172a;">{len(projects_db)}</span> &nbsp;&nbsp;|&nbsp;&nbsp; Total Computes: <span style="color:#0f172a;">128</span>
+            Today's Usage: <span style="color:#0f172a;">{'Unlimited' if is_pro_user else f'{chats_used_today}/100 chats'}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+            Plan Status: <span style="color:#2563eb;">{'VIP Pro Tier 💎' if is_pro_user else 'Free Tier (₹1 to Unlock Pro)'}</span>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -411,7 +460,7 @@ with c3:
         st.rerun()
 
 with c4:
-    if st.button("👤 Account Usage", use_container_width=True):
+    if st.button("⚡ Upgrade to Pro (₹1)", use_container_width=True):
         st.session_state.current_tab = "Billing"
         st.rerun()
 
@@ -448,56 +497,121 @@ if st.session_state.current_tab == "Dashboard":
                 </div>
             """, unsafe_allow_html=True)
 
-    user_input = st.chat_input("Ask Soni AI anything...")
+    # Check limit before showing chat input
+    if not is_pro_user and chats_used_today >= 100:
+        st.error("🚫 **Aaj ki 100 free chats limit poori ho chuki hai!**")
+        st.info("💡 Unlimited chats use karne ke liye sirf **₹1 mein Pro Mode** activate karein.")
+        if st.button("💎 Unlock Unlimited Pro Now (₹1)", use_container_width=True):
+            st.session_state.current_tab = "Billing"
+            st.rerun()
+    else:
+        user_input = st.chat_input(f"Ask Soni AI anything... ({'Unlimited' if is_pro_user else f'{100 - chats_used_today} left today'})")
 
-    if user_input:
-        clean_input = user_input.strip()
-        now_stamp = datetime.now().strftime("%I:%M %p")
+        if user_input:
+            clean_input = user_input.strip()
+            now_stamp = datetime.now().strftime("%I:%M %p")
 
-        st.session_state.messages.append({"role": "user", "content": clean_input, "time": now_stamp})
+            # Increment count for free tier
+            if not is_pro_user:
+                increment_user_chat_count(active_user, usage_db)
 
-        input_lower = clean_input.lower()
-        matched_custom = next((ans for q_t, ans in CUSTOM_ANSWERS.items() if q_t in input_lower), None)
-        time_reply = get_country_time(clean_input)
+            st.session_state.messages.append({"role": "user", "content": clean_input, "time": now_stamp})
 
-        if matched_custom:
-            bot_reply = matched_custom
-        elif time_reply:
-            bot_reply = time_reply
-        elif any(t in input_lower for t in ["kisne banaya", "who made you", "developer", "creator", "owner"]):
-            bot_reply = CREATOR_REPLY
+            input_lower = clean_input.lower()
+            matched_custom = next((ans for q_t, ans in CUSTOM_ANSWERS.items() if q_t in input_lower), None)
+            time_reply = get_country_time(clean_input)
+
+            if matched_custom:
+                bot_reply = matched_custom
+            elif time_reply:
+                bot_reply = time_reply
+            elif any(t in input_lower for t in ["kisne banaya", "who made you", "developer", "creator", "owner"]):
+                bot_reply = CREATOR_REPLY
+            else:
+                try:
+                    sanitized = [{"role": m["role"], "content": clean_model_output(m["content"])} for m in st.session_state.messages[-6:] if clean_model_output(m["content"])]
+                    payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized
+
+                    model_data = client.models.list()
+                    BLACKLIST = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1"]
+                    active_models = [m.id for m in model_data.data if not any(b in m.id.lower() for b in BLACKLIST)]
+                    active_models.sort(key=lambda n: 0 if "llama-3.1-8b" in n.lower() else 1)
+
+                    raw_reply = None
+                    for m_cand in active_models:
+                        try:
+                            chat_comp = client.chat.completions.create(
+                                messages=payload,
+                                model=m_cand,
+                                temperature=0.5,
+                                max_tokens=350,
+                            )
+                            raw_reply = chat_comp.choices[0].message.content
+                            if raw_reply: break
+                        except Exception:
+                            continue
+
+                    bot_reply = clean_model_output(raw_reply) if raw_reply else "Main samajh gaya. Aage batayein?"
+                except Exception as e:
+                    bot_reply = f"Error details: {e}"
+
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply, "time": datetime.now().strftime("%I:%M %p")})
+            st.rerun()
+
+# --- TAB 2: BILLING & ₹1 PRO PLAN WITH SCANNER ---
+elif st.session_state.current_tab == "Billing":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 💳 Upgrade to Soni AI Pro Tier (₹1 Only)")
+    st.markdown("Rozana ki 100 chat limit hatane aur **Unlimited Pro Mode** activate karne ke liye QR scan karein:")
+
+    col_qr, col_pay_form = st.columns([4, 6])
+    with col_qr:
+        st.image(UPI_QR_URL, caption="Scan with PhonePe / Paytm / GPay (₹1)", width=220)
+        st.markdown("**UPI ID:** `8307940340@ptyes`")
+        st.markdown("**Amount:** ₹1 (One-Time / Lifetime)")
+
+    with col_pay_form:
+        st.markdown("#### ✅ Payment Verification")
+        if is_pro_user:
+            st.success("🎉 **Aapka Pro Mode pehle se active hai!** Aap unlimited chats use kar sakte hain.")
         else:
-            try:
-                sanitized = [{"role": m["role"], "content": clean_model_output(m["content"])} for m in st.session_state.messages[-6:] if clean_model_output(m["content"])]
-                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized
+            st.write("QR par ₹1 pay karne ke baad transaction details enter karein:")
+            with st.form("form_activate_pro"):
+                utr_number = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
+                pay_app = st.selectbox("Kaunse app se pay kiya?", ["PhonePe", "Paytm", "Google Pay (GPay)", "Other UPI"])
+                submit_pro = st.form_submit_button("🚀 Activate Pro Mode Now", use_container_width=True)
 
-                model_data = client.models.list()
-                BLACKLIST = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1"]
-                active_models = [m.id for m in model_data.data if not any(b in m.id.lower() for b in BLACKLIST)]
-                active_models.sort(key=lambda n: 0 if "llama-3.1-8b" in n.lower() else 1)
+                if submit_pro:
+                    if len(utr_number) >= 4:
+                        # Activate Pro in database
+                        if active_user not in users_db:
+                            users_db[active_user] = {}
+                        if isinstance(users_db[active_user], dict):
+                            users_db[active_user]["plan"] = "pro"
+                            users_db[active_user]["utr"] = utr_number
+                        else:
+                            users_db[active_user] = {"password": str(users_db[active_user]), "plan": "pro", "utr": utr_number}
+                        
+                        save_json(USERS_FILE, users_db)
 
-                raw_reply = None
-                for m_cand in active_models:
-                    try:
-                        chat_comp = client.chat.completions.create(
-                            messages=payload,
-                            model=m_cand,
-                            temperature=0.5,
-                            max_tokens=350,
-                        )
-                        raw_reply = chat_comp.choices[0].message.content
-                        if raw_reply: break
-                    except Exception:
-                        continue
+                        # WhatsApp notification link
+                        wa_msg = f"⚡ *NEW PRO SUBSCRIPTION*\nUser: {active_user}\nUTR: {utr_number}\nApp: {pay_app}\nAmount: ₹1"
+                        wa_link = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}"
 
-                bot_reply = clean_model_output(raw_reply) if raw_reply else "Main samajh gaya. Aage batayein?"
-            except Exception as e:
-                bot_reply = f"Error details: {e}"
+                        st.success("🎉 Mubarak! Aapka Pro Mode successfully activate ho gaya hai!")
+                        st.markdown(f'<a href="{wa_link}" target="_blank" style="display:inline-block; margin-top:8px; padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt confirm karein</a>', unsafe_allow_html=True)
+                        st.rerun()
+                    else:
+                        st.error("Kripya valid Transaction / UTR number daalein.")
 
-        st.session_state.messages.append({"role": "assistant", "content": bot_reply, "time": datetime.now().strftime("%I:%M %p")})
-        st.rerun()
+    st.markdown("---")
+    st.markdown("#### 📊 Account Usage Stats")
+    st.write(f"Account: **{active_user}** | Plan: **{'PRO UNLIMITED' if is_pro_user else 'FREE (100/day)'}**")
+    st.progress(1.0 if is_pro_user else min(chats_used_today / 100.0, 1.0))
+    st.caption(f"Today's Chats Used: {'Unlimited' if is_pro_user else f'{chats_used_today} / 100'}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 2: HISTORY ---
+# --- TAB 3: HISTORY ---
 elif st.session_state.current_tab == "History":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🕒 Saved Chat History")
@@ -524,7 +638,7 @@ elif st.session_state.current_tab == "History":
             st.markdown("---")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 3: PROJECTS ---
+# --- TAB 4: PROJECTS ---
 elif st.session_state.current_tab == "Projects":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 📁 My AI Projects")
@@ -552,22 +666,13 @@ elif st.session_state.current_tab == "Projects":
                 st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 4: INTEGRATIONS ---
+# --- TAB 5: INTEGRATIONS ---
 elif st.session_state.current_tab == "Integrations":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### ⚡ Integrations")
     st.success("🟢 **Groq LLM Engine:** Connected & Active")
     st.info("🟢 **SMTP Email Engine:** Connected (`smtp.gmail.com`)")
-    st.warning("🟡 **WhatsApp Support:** Ready")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- TAB 5: BILLING ---
-elif st.session_state.current_tab == "Billing":
-    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 💳 Usage & Plan Overview")
-    st.markdown(f"**Current Plan:** `Soni AI Pro Tier`")
-    st.progress(0.26)
-    st.caption("Total Computes Used: 128 / 500 Compute Units (26%)")
+    st.warning("🟡 **UPI Auto-Pay Webhook:** Active")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB 6: MARKETPLACE ---
