@@ -1,5 +1,6 @@
 import streamlit as st
 from groq import Groq
+import urllib.parse
 import json
 import os
 import re
@@ -71,7 +72,7 @@ if "user" not in st.session_state:
     if stored_user:
         st.session_state.user = stored_user
     else:
-        st.session_state.user = "jatinson8489@gmail.com"
+        st.session_state.user = None
 
 if "current_tab" not in st.session_state:
     st.session_state.current_tab = "Dashboard"
@@ -82,33 +83,32 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Hi! How can I help you today?", "time": "12:36 AM"}
     ]
 
-# --- EXACT ORIGINAL SCREENSHOT THEME (NO CHANGES) ---
+# --- EXACT PASTEL THEME CSS ---
 st.markdown(
     """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
+    html, body, [data-testid="stAppViewContainer"], .stApp {
         background: linear-gradient(120deg, #ffd9d6 0%, #ecd9fc 35%, #cfe4ff 70%, #d4f4ff 100%) !important;
         background-attachment: fixed !important;
         font-family: 'Inter', sans-serif !important;
         color: #1e293b !important;
-    }}
+    }
 
-    [data-testid="stHeader"] {{
+    [data-testid="stHeader"] {
         background: transparent !important;
-    }}
+    }
 
-    /* Exact Original Sidebar */
-    [data-testid="stSidebar"] {{
+    [data-testid="stSidebar"] {
         background: #f1f3f7 !important;
         border-right: 1px solid #e2e8f0 !important;
         padding-top: 15px !important;
         padding-left: 14px !important;
         padding-right: 14px !important;
-    }}
+    }
 
-    .brand-title {{
+    .brand-title {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -117,10 +117,9 @@ st.markdown(
         color: #1e293b;
         margin-bottom: 24px;
         padding-left: 6px;
-    }}
+    }
 
-    /* Sidebar Buttons (White Card Look from Screenshot) */
-    div[data-testid="stSidebar"] div[data-testid="stButton"] > button {{
+    div[data-testid="stSidebar"] div[data-testid="stButton"] > button {
         background: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
         text-align: left !important;
@@ -133,22 +132,21 @@ st.markdown(
         box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
         margin-bottom: 12px !important;
         width: 100% !important;
-    }}
+    }
 
-    div[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {{
+    div[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
         background: #f8fafc !important;
         border-color: #cbd5e1 !important;
-    }}
+    }
 
-    /* Top Action Buttons (Original Styling) */
-    .top-action-bar {{
+    .top-action-bar {
         display: flex;
         justify-content: flex-end;
         align-items: center;
         gap: 10px;
         margin-bottom: 20px;
-    }}
-    .top-action-btn {{
+    }
+    .top-action-btn {
         background: #ffffff !important;
         color: #334155 !important;
         border: 1px solid #e2e8f0;
@@ -161,20 +159,18 @@ st.markdown(
         align-items: center;
         gap: 6px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    }}
+    }
 
-    /* Original Welcome Box */
-    .welcome-card {{
+    .welcome-card {
         background: rgba(255, 255, 255, 0.9) !important;
         border: 1px solid #ffffff !important;
         border-radius: 16px;
         padding: 22px 26px;
         margin-bottom: 16px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-    }}
+    }
 
-    /* Action Row Buttons */
-    div.stButton > button {{
+    div.stButton > button {
         background: #ffffff !important;
         color: #334155 !important;
         border: 1px solid #e2e8f0 !important;
@@ -183,10 +179,9 @@ st.markdown(
         font-size: 13px !important;
         font-weight: 600 !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
-    }}
+    }
 
-    /* Chat Messages Glass Styling */
-    .avatar-red {{
+    .avatar-red {
         width: 36px;
         height: 36px;
         background: #ef4444;
@@ -197,8 +192,8 @@ st.markdown(
         color: white;
         font-weight: 700;
         font-size: 16px;
-    }}
-    .avatar-ai {{
+    }
+    .avatar-ai {
         width: 36px;
         height: 36px;
         background: #f59e0b;
@@ -207,14 +202,25 @@ st.markdown(
         align-items: center;
         justify-content: center;
         font-size: 20px;
-    }}
+    }
 
-    div[data-testid="stChatInput"] {{
+    div[data-testid="stChatInput"] {
         border-radius: 14px !important;
         background: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
         box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
-    }}
+    }
+
+    .login-glass-card {
+        max-width: 460px;
+        margin: 50px auto;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid #ffffff;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+        backdrop-filter: blur(15px);
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -245,12 +251,64 @@ def clean_model_output(text: str) -> str:
     if not text: return ""
     if "</think>" in text: text = text.split("</think>")[-1]
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
+    text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
+# --- OPTIONAL LOGIN / GUEST SCREEN ---
+if not st.session_state.user:
+    st.markdown("""
+        <div class="login-glass-card">
+            <h2 style="text-align:center; margin-bottom:4px;">✨ Soni AI</h2>
+            <p style="text-align:center; color:#64748b; font-size:14px; margin-bottom:20px;">Welcome! Choose how you want to continue</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    c_pad1, c_box, c_pad2 = st.columns([1, 1.3, 1])
+    with c_box:
+        # Direct Guest Access Button
+        if st.button("🚀 Continue as Guest (Without Login)", use_container_width=True):
+            st.session_state.user = "guest@soniai.com"
+            st.query_params["user"] = "guest@soniai.com"
+            st.rerun()
+
+        st.markdown("<div style='text-align:center; margin:15px 0; color:#94a3b8; font-size:12px;'>── OR USE EMAIL ACCOUNT ──</div>", unsafe_allow_html=True)
+
+        auth_t1, auth_t2 = st.tabs(["🔑 Log In", "📝 Sign Up"])
+        with auth_t1:
+            with st.form("form_quick_login"):
+                in_email = st.text_input("Email", placeholder="name@gmail.com").strip().lower()
+                in_pass = st.text_input("Password", type="password")
+                if st.form_submit_button("Log In", use_container_width=True):
+                    if in_email in users_db and users_db[in_email].get("password") == in_pass:
+                        st.session_state.user = in_email
+                        st.query_params["user"] = in_email
+                        st.rerun()
+                    else:
+                        st.error("Invalid email or password!")
+
+        with auth_t2:
+            with st.form("form_quick_signup"):
+                reg_email = st.text_input("Your Email", placeholder="name@gmail.com").strip().lower()
+                reg_pass = st.text_input("Create Password", type="password")
+                if st.form_submit_button("Create Account", use_container_width=True):
+                    if not reg_email or not reg_pass:
+                        st.error("Please fill all details.")
+                    elif reg_email in users_db:
+                        st.error("Email already registered! Log in instead.")
+                    else:
+                        users_db[reg_email] = {"password": reg_pass, "date": datetime.now().strftime("%Y-%m-%d")}
+                        save_json(USERS_FILE, users_db)
+                        st.session_state.user = reg_email
+                        st.query_params["user"] = reg_email
+                        st.rerun()
+
+    st.stop()
+
+# --- ACTIVE LOGGED IN USER INTERACTION ---
 active_user = st.session_state.user
 user_handle = active_user.split("@")[0]
 
-# --- SIDEBAR (EXACT SCREENSHOT BUTTONS) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.markdown("""
         <div class="brand-title">
@@ -296,7 +354,7 @@ with st.sidebar:
 # --- TOP ACTION BAR ---
 col_head, col_btns = st.columns([4, 6])
 with col_head:
-    st.markdown("<h2 style='margin:0; font-weight:700; color:#1e293b;'>Home Page</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='margin:0; font-weight:700; color:#1e293b;'>{st.session_state.current_tab}</h2>", unsafe_allow_html=True)
 with col_btns:
     st.markdown("""
         <div class="top-action-bar">
@@ -306,7 +364,7 @@ with col_btns:
         </div>
     """, unsafe_allow_html=True)
 
-# Original Welcome Card
+# Welcome Card
 st.markdown(f"""
     <div class="welcome-card">
         <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700; color:#0f172a;">Welcome, {user_handle.capitalize()}!</h3>
