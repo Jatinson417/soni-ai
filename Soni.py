@@ -591,10 +591,10 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                # Guaranteed Active Stable Models
+                # Active Groq Models (Instant default)
                 STABLE_MODELS = [
+                    "llama-3.1-8b-instant",
                     "llama3-8b-8192",
-                    "llama-3.3-70b-specdec",
                     "llama-3.3-70b-versatile"
                 ]
 
