@@ -575,31 +575,51 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_reply, "time": datetime.now().strftime("%I:%M %p")})
             st.rerun()
 
-# --- TAB 2: BILLING (SECRET COUPON INPUT BOX, NO NAME REVEALED) ---
+# --- TAB 2: BILLING (COUPONS: SONI 50%, FREAND 70%, REMOVE OPTION) ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro Tier")
 
-    is_soni_applied = (st.session_state.get("applied_coupon") == "SONI")
+    current_coupon = st.session_state.get("applied_coupon")
     base_price = 99.00
-    final_price = 49.50 if is_soni_applied else base_price
 
-    # Secret Coupon Code Box (Name not disclosed anywhere)
+    # Coupon Discount Calculation
+    if current_coupon == "FREAND":
+        final_price = 29.70  # 70% OFF (99 - 69.30)
+        discount_label = "Special 70% OFF"
+    elif current_coupon == "SONI":
+        final_price = 49.50  # 50% OFF (99 - 49.50)
+        discount_label = "Special 50% OFF"
+    else:
+        final_price = base_price
+        discount_label = None
+
+    # Secret Coupon Input Box with Remove Option
     st.markdown("##### 🏷️ Have a Coupon Code?")
-    col_cpn_in, col_cpn_btn = st.columns([7.5, 2.5])
-    with col_cpn_in:
-        c_code = st.text_input("Coupon Code", placeholder="Enter coupon code here...", label_visibility="collapsed").strip().upper()
-    with col_cpn_btn:
-        if st.button("Apply", use_container_width=True):
-            if c_code == "SONI":
-                st.session_state.applied_coupon = "SONI"
-                st.success("✅ Coupon applied! Flat 50% discount activated.")
+    if current_coupon:
+        c_status_col, c_rem_col = st.columns([7.5, 2.5])
+        with c_status_col:
+            st.success(f"✅ **Coupon Applied!** ({discount_label}) — Pay only ₹{final_price:.2f}")
+        with c_rem_col:
+            if st.button("❌ Remove Coupon", use_container_width=True):
+                st.session_state.applied_coupon = None
                 st.rerun()
-            else:
-                st.error("Invalid coupon code!")
-
-    if is_soni_applied:
-        st.info("🎉 **Special Discount Applied:** ₹49.50 (50% OFF)")
+    else:
+        col_cpn_in, col_cpn_btn = st.columns([7.5, 2.5])
+        with col_cpn_in:
+            c_code = st.text_input("Coupon Code", placeholder="Enter coupon code here...", label_visibility="collapsed").strip().upper()
+        with col_cpn_btn:
+            if st.button("Apply", use_container_width=True):
+                if c_code == "FREAND":
+                    st.session_state.applied_coupon = "FREAND"
+                    st.success("✅ Coupon applied! Flat 70% discount activated.")
+                    st.rerun()
+                elif c_code == "SONI":
+                    st.session_state.applied_coupon = "SONI"
+                    st.success("✅ Coupon applied! Flat 50% discount activated.")
+                    st.rerun()
+                else:
+                    st.error("Invalid coupon code!")
 
     st.markdown("---")
 
@@ -609,7 +629,7 @@ elif st.session_state.current_tab == "Billing":
     col_qr, col_pay_form = st.columns([4.2, 5.8])
     with col_qr:
         st.image(qr_img_url, caption=f"Scan & Pay: ₹{final_price:.2f}", width=230)
-        st.markdown(f"**Amount:** `₹{final_price:.2f}`")
+        st.markdown(f"**Amount to Pay:** `₹{final_price:.2f}`")
         st.markdown(f"**UPI ID:** `{UPI_ID}`")
         st.markdown(f'<a href="{direct_upi_link}" target="_blank" style="font-size:13px; font-weight:600; color:#2563eb;">📲 Direct UPI App Link (PhonePe / GPay)</a>', unsafe_allow_html=True)
 
@@ -636,14 +656,14 @@ elif st.session_state.current_tab == "Billing":
                         payments_db[active_user] = {
                             "utr": utr_number,
                             "amount": final_price,
-                            "coupon": "SONI (50% OFF)" if is_soni_applied else "NONE",
+                            "coupon": current_coupon if current_coupon else "NONE",
                             "app": pay_app,
                             "time": datetime.now().strftime("%Y-%m-%d %I:%M %p"),
                             "status": "pending"
                         }
                         save_json(PAYMENTS_FILE, payments_db)
 
-                        wa_msg = f"⚡ *NEW PRO PAYMENT REQUEST*\nUser: {active_user}\nAmount: ₹{final_price:.2f}\nCoupon: {'SONI (50% OFF)' if is_soni_applied else 'NONE'}\nUTR: {utr_number}\nApp: {pay_app}"
+                        wa_msg = f"⚡ *NEW PRO PAYMENT REQUEST*\nUser: {active_user}\nAmount: ₹{final_price:.2f}\nCoupon: {current_coupon if current_coupon else 'NONE'}\nUTR: {utr_number}\nApp: {pay_app}"
                         wa_link = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}"
 
                         st.success(f"Request submit ho gayi! ₹{final_price:.2f} check karke Pro unlock kar diya jayega.")
@@ -663,7 +683,7 @@ elif st.session_state.current_tab == "Billing":
 elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Owner Verification & Approval Panel")
-    st.write("Yahan check karein kisne kitna payment (₹99 ya ₹49.50) kiya hai:")
+    st.write("Yahan check karein kisne kitna payment kiya hai:")
 
     if not payments_db:
         st.info("Abhi koi pending payment nahi hai.")
