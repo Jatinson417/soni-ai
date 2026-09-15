@@ -75,54 +75,85 @@ if "user_name" not in st.session_state:
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = None
 
-# Custom Gemini Dark-Minimal CSS
+# Custom Gemini Recents Styling
 st.markdown(
     f"""
     <style>
     [data-testid="stSidebar"] {{
         background-color: #1e1f20 !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-        padding-top: 15px !important;
+        padding-top: 10px !important;
     }}
-    [data-testid="stSidebar"] * {{
-        color: #e3e3e3 !important;
-    }}
+    
     .gemini-brand {{
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 20px;
+        font-size: 22px;
+        font-weight: 500;
+        margin-bottom: 24px;
+        color: #ffffff !important;
+        letter-spacing: -0.5px;
+    }}
+
+    .recents-heading {{
+        font-size: 13px !important;
+        color: #9aa0a6 !important;
+        font-weight: 500 !important;
+        margin-top: 24px !important;
+        margin-bottom: 12px !important;
+        padding-left: 12px;
+    }}
+
+    /* Sidebar Recents Button Clean Styling */
+    div[data-testid="stSidebar"] div[data-testid="stButton"] > button {{
+        background: transparent !important;
+        border: none !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        border-radius: 20px !important;
+        padding: 8px 16px !important;
+        font-size: 14px !important;
+        font-weight: 400 !important;
+        color: #e3e3e3 !important;
+        box-shadow: none !important;
+        transition: background 0.15s ease;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }}
+
+    div[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {{
+        background: rgba(255, 255, 255, 0.07) !important;
         color: #ffffff !important;
     }}
-    .recents-label {{
-        font-size: 12px;
-        color: #8e918f !important;
-        margin-top: 25px;
-        margin-bottom: 8px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+
+    /* Selected Pill Active Style */
+    div[data-testid="stSidebar"] .active-chat-btn > button {{
+        background: #37393b !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
     }}
+
     .user-profile-bar {{
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 12px 6px;
+        padding: 12px 10px;
         border-top: 1px solid rgba(255, 255, 255, 0.08);
-        margin-top: 30px;
+        margin-top: 25px;
     }}
     .user-avatar {{
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         background: #ea4335;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
+        font-weight: 600;
         color: #ffffff !important;
-        font-size: 16px;
+        font-size: 15px;
     }}
     .auth-card {{
         max-width: 440px;
@@ -148,7 +179,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# API setup
 HARDCODED_KEY = "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".strip()
 try:
     secret_key = st.secrets.get("GROQ_API_KEY", "").strip()
@@ -165,7 +195,7 @@ You are Soni AI, styled cleanly like Gemini, created by Jatin Soni.
 Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
 Today: {CURRENT_DATE_STR}. Year: 2026.
 Rules:
-1. Always start directly with the actual answer. No drafts or thinking process.
+1. Direct answer without reasoning tokens, setup sentences, or fluff.
 2. Reply in concise natural Hinglish or English.
 3. If asked who made you, reply: "{CREATOR_REPLY}"
 """
@@ -177,7 +207,7 @@ def clean_model_output(text: str) -> str:
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- GOOGLE SIGN IN SCREEN ---
+# --- GOOGLE SIGN IN ---
 if not st.session_state.user_email:
     st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
     st.markdown("""
@@ -204,7 +234,7 @@ if not st.session_state.user_email:
                         st.error("Kripya valid Gmail address daalein!")
     st.stop()
 
-# --- LOGGED IN GEMINI-STYLE DASHBOARD ---
+# --- CHATS DATABASE ---
 u_email = st.session_state.user_email
 u_name = st.session_state.user_name
 chats_db = load_json(CHATS_FILE, {})
@@ -221,48 +251,50 @@ if not st.session_state.current_chat_id or st.session_state.current_chat_id not 
         save_json(CHATS_FILE, chats_db)
         st.session_state.current_chat_id = init_id
 
-# --- SIDEBAR (Gemini UI Layout) ---
+# --- SIDEBAR (Exact Gemini Recents Layout) ---
 with st.sidebar:
     st.markdown("""
         <div class="gemini-brand">
-            <span>✨</span> Soni AI
+            <span style="font-size: 24px;">✨</span> Soni AI
         </div>
     """, unsafe_allow_html=True)
 
-    if st.button("✏️ New chat", use_container_width=True):
-        fresh_title = f"Chat {len(chats_db[u_email]) + 1}"
+    if st.button("➕  New chat", use_container_width=True):
+        fresh_title = f"New chat {len(chats_db[u_email]) + 1}"
         chats_db[u_email][fresh_title] = []
         save_json(CHATS_FILE, chats_db)
         st.session_state.current_chat_id = fresh_title
         st.rerun()
 
-    st.markdown('<div class="recents-label">Recents</div>', unsafe_allow_html=True)
+    st.markdown('<div class="recents-heading">Recents</div>', unsafe_allow_html=True)
 
     # Recents List
     for c_title in list(chats_db[u_email].keys()):
-        is_current = (c_title == st.session_state.current_chat_id)
-        btn_label = f"💬 {c_title}" if not is_current else f"🔹 {c_title}"
-        
-        col_t, col_x = st.columns([8, 2])
-        with col_t:
-            if st.button(btn_label, key=f"btn_{c_title}", use_container_width=True):
+        is_selected = (c_title == st.session_state.current_chat_id)
+        wrap_class = "active-chat-btn" if is_selected else ""
+
+        col_title, col_del = st.columns([8.5, 1.5])
+        with col_title:
+            st.markdown(f'<div class="{wrap_class}">', unsafe_allow_html=True)
+            if st.button(c_title, key=f"chat_btn_{c_title}", use_container_width=True):
                 st.session_state.current_chat_id = c_title
                 st.rerun()
-        with col_x:
-            if st.button("✕", key=f"del_{c_title}"):
+            st.markdown('</div>', unsafe_allow_html=True)
+        with col_del:
+            if st.button("✕", key=f"del_c_{c_title}", help="Delete"):
                 del chats_db[u_email][c_title]
                 save_json(CHATS_FILE, chats_db)
                 st.session_state.current_chat_id = None
                 st.rerun()
 
-    # User Profile Pill at Bottom
-    initial_char = u_name[0].upper() if u_name else "U"
+    # User Profile Pill
+    initial_char = u_name[0].upper() if u_name else "J"
     st.markdown(f"""
         <div class="user-profile-bar">
             <div class="user-avatar">{initial_char}</div>
-            <div style="line-height: 1.2;">
-                <div style="font-weight: 600; font-size: 14px; color: #ffffff;">{u_name}</div>
-                <div style="font-size: 11px; color: #8e918f;">Pro</div>
+            <div style="line-height: 1.25; flex-grow: 1;">
+                <div style="font-weight: 500; font-size: 14px; color: #ffffff;">{u_name}</div>
+                <div style="font-size: 11px; color: #9aa0a6;">Pro</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -273,11 +305,11 @@ with st.sidebar:
         st.session_state.current_chat_id = None
         st.rerun()
 
-# --- MAIN CHAT PANEL ---
+# --- MAIN CHAT AREA ---
 curr_id = st.session_state.current_chat_id
 current_history = chats_db[u_email].get(curr_id, [])
 
-st.markdown(f"### {curr_id}")
+st.markdown(f"#### {curr_id}")
 
 for msg in current_history:
     with st.chat_message(msg["role"]):
@@ -288,13 +320,13 @@ user_input = st.chat_input("Ask Soni AI...")
 if user_input:
     clean_input = user_input.strip()
 
-    # If first message in "New chat", rename chat title like Gemini
+    # Gemini Auto-Rename on first question
     active_key = curr_id
-    if curr_id.startswith("Chat ") or curr_id == "New chat":
-        new_title = clean_input[:28] + ("..." if len(clean_input) > 28 else "")
-        chats_db[u_email][new_title] = chats_db[u_email].pop(curr_id)
-        active_key = new_title
-        st.session_state.current_chat_id = new_title
+    if curr_id.startswith("New chat") or curr_id.startswith("Chat "):
+        renamed_title = clean_input[:32].strip()
+        chats_db[u_email][renamed_title] = chats_db[u_email].pop(curr_id)
+        active_key = renamed_title
+        st.session_state.current_chat_id = renamed_title
 
     current_history.append({"role": "user", "content": clean_input})
     chats_db[u_email][active_key] = current_history
