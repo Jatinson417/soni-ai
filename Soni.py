@@ -303,11 +303,7 @@ api_key_from_secrets = st.secrets.get("GROQ_API_KEY", "")
 BACKUP_GROQ_KEY = "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"
 active_groq_key = api_key_from_secrets if api_key_from_secrets else BACKUP_GROQ_KEY
 
-@st.cache_resource
-def get_groq_client(key: str):
-    return Groq(api_key=key, timeout=20.0, max_retries=2)
-
-client = get_groq_client(active_groq_key)
+client = Groq(api_key=active_groq_key, timeout=30.0)
 
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
@@ -600,9 +596,9 @@ else:
                 bot_reply = clean_model_output(raw_reply)
 
                 if not bot_reply:
-                    bot_reply = "Main aapka sawal samajh gaya, kripya thoda aur vistaar se batayein."
+                    bot_reply = "Main samajh gaya. Aage batayein main kya madad kar sakta hoon?"
             except Exception as e:
-                bot_reply = "Service abhi busy hai. Kripya 10 second baad dobara try karein."
+                bot_reply = f"Error details: {e}"
 
         st.session_state.messages.append({"role": "assistant", "content": bot_reply})
         with st.chat_message("assistant"):
