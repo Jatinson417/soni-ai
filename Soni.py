@@ -19,6 +19,7 @@ UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
+FREE_DAILY_LIMIT = 10  # 1 din mein 10 free messages
 
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
@@ -98,10 +99,8 @@ def increment_user_chat_count(email, usage_dict):
         usage_dict[clean_email]["count"] = user_usage.get("count", 0) + 1
     save_json(USAGE_FILE, usage_dict)
 
-# Load databases
 users_db = load_json(USERS_FILE, {})
 
-# Base persistent accounts backup (server restart par bhi delete nahi honge)
 DEFAULT_PERSISTENT_USERS = {
     "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01"},
     "jatinson8489@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01"},
@@ -319,7 +318,7 @@ def clean_model_output(text: str) -> str:
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- LOGIN SCREEN (ROBUST MULTI-FORMAT COMPATIBLE) ---
+# --- LOGIN SCREEN ---
 if not st.session_state.user:
     st.markdown("""
         <div class="login-glass-card">
@@ -343,7 +342,6 @@ if not st.session_state.user:
                 in_email = st.text_input("Email", placeholder="name@gmail.com").strip().lower()
                 in_pass = st.text_input("Password", type="password").strip()
                 if st.form_submit_button("Log In", use_container_width=True):
-                    # Reload fresh users list
                     users_db = load_json(USERS_FILE, {})
                     for u_k, u_v in DEFAULT_PERSISTENT_USERS.items():
                         if u_k not in users_db:
@@ -400,7 +398,7 @@ if is_pro_user:
 elif user_payment_pending:
     plan_badge = "PENDING"
 else:
-    plan_badge = f"{chats_used_today}/100 Free"
+    plan_badge = f"{chats_used_today}/{FREE_DAILY_LIMIT} Free"
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -438,7 +436,7 @@ with st.sidebar:
                     {active_user}
                     <span class="pro-badge">{plan_badge}</span>
                 </div>
-                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited Pro' if is_pro_user else ('Approval Pending' if user_payment_pending else 'Free Tier')}</div>
+                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited Pro' if is_pro_user else f'Free ({FREE_DAILY_LIMIT} msgs/day)'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -468,8 +466,8 @@ st.markdown(f"""
             Welcome, {user_handle.capitalize()}! {'🔥 (PRO ACTIVE)' if is_pro_user else ''}
         </h3>
         <div style="font-size:13px; font-weight:600; color:#475569;">
-            Today's Usage: <span style="color:#0f172a;">{'Unlimited' if is_pro_user else f'{chats_used_today}/100 chats'}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-            Plan Status: <span style="color:#2563eb;">{'VIP Pro Tier 💎' if is_pro_user else ('⏳ Payment Under Verification' if user_payment_pending else 'Free Tier (100 Chats/Day)')}</span>
+            Today's Usage: <span style="color:#0f172a;">{'Unlimited' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} messages'}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+            Plan Status: <span style="color:#2563eb;">{'VIP Pro Tier 💎' if is_pro_user else ('⏳ Payment Under Verification' if user_payment_pending else f'Free Tier ({FREE_DAILY_LIMIT} msgs/day)')}</span>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -536,14 +534,16 @@ if st.session_state.current_tab == "Dashboard":
                 </div>
             """, unsafe_allow_html=True)
 
-    if not is_pro_user and chats_used_today >= 100:
-        st.error("🚫 **Aaj ki 100 free chats limit poori ho chuki hai!**")
+    # 10 Messages Limit Check
+    if not is_pro_user and chats_used_today >= FREE_DAILY_LIMIT:
+        st.error(f"🚫 **Aaj ki {FREE_DAILY_LIMIT} free messages limit poori ho chuki hai!**")
         st.info("💡 Unlimited chats use karne ke liye **Pro Mode** activate karein.")
         if st.button("💎 Unlock Unlimited Pro Now", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        user_input = st.chat_input(f"Ask Soni AI anything... ({'Unlimited' if is_pro_user else f'{100 - chats_used_today} left today'})")
+        remaining_chats = FREE_DAILY_LIMIT - chats_used_today
+        user_input = st.chat_input(f"Ask Soni AI anything... ({'Unlimited' if is_pro_user else f'{remaining_chats} left today'})")
 
         if user_input:
             clean_input = user_input.strip()
@@ -695,9 +695,9 @@ elif st.session_state.current_tab == "Billing":
 
     st.markdown("---")
     st.markdown("#### 📊 Account Usage Stats")
-    st.write(f"Account: **{active_user}** | Plan: **{'PRO UNLIMITED' if is_pro_user else 'FREE (100/day)'}**")
-    st.progress(1.0 if is_pro_user else min(chats_used_today / 100.0, 1.0))
-    st.caption(f"Today's Chats Used: {'Unlimited' if is_pro_user else f'{chats_used_today} / 100'}")
+    st.write(f"Account: **{active_user}** | Plan: **{'PRO UNLIMITED' if is_pro_user else f'FREE ({FREE_DAILY_LIMIT}/day)'}**")
+    st.progress(1.0 if is_pro_user else min(chats_used_today / float(FREE_DAILY_LIMIT), 1.0))
+    st.caption(f"Today's Chats Used: {'Unlimited' if is_pro_user else f'{chats_used_today} / {FREE_DAILY_LIMIT}'}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB 3: ADMIN APPROVAL PANEL (/admin 2009) ---
