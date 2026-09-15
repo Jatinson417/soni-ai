@@ -303,29 +303,28 @@ api_key_from_secrets = st.secrets.get("GROQ_API_KEY", "")
 BACKUP_GROQ_KEY = "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"
 active_groq_key = api_key_from_secrets if api_key_from_secrets else BACKUP_GROQ_KEY
 
-client = Groq(api_key=active_groq_key, timeout=30.0)
+@st.cache_resource
+def get_groq_client(key: str):
+    return Groq(api_key=key, timeout=25.0, max_retries=2)
+
+client = get_groq_client(active_groq_key)
 
 CREATOR_REPLY = (
     "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
 
-CUSTOM_ANSWERS = {
-    "what is skb": "Santosh kulcha bandar",
-    "skb": "Santosh kulcha bandar",
-}
-
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
-You are Soni AI, an intelligent, helpful, natural and direct AI assistant created by Jatin Soni.
+You are Soni AI, a smart, direct and natural AI assistant created by Jatin Soni.
 
 Facts:
 - Date: {CURRENT_DATE_STR}
 - Year: 2026
-- Creator: Jatin Soni (16 yrs, 12th class, Rori village, Sirsa district, Haryana)
+- Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana)
 
-Rules:
+RULES:
 1. Always start directly with the actual answer. Do NOT output analysis, drafts, planning, or reasoning.
 2. If asked a simple greeting or question, reply in 1-2 lines.
 3. For normal questions, reply concisely in 3-5 lines max.
@@ -337,11 +336,14 @@ Rules:
 def clean_model_output(text: str) -> str:
     if not text:
         return ""
+    # If closed think tag exists, grab text after </think>
     if "</think>" in text:
         text = text.split("</think>")[-1]
+    # If unclosed think tag exists at the beginning, strip it completely
     elif "<think>" in text:
         text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     
+    # Remove planning/thinking prefixes if any
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     text = re.sub(r'(?i)Here\'s a thinking process:?.*?(?=\n\n|\Z)', '', text, flags=re.DOTALL)
     return text.strip()
@@ -566,15 +568,7 @@ else:
             "owner", "kaun banaya", "maker", "who created", "who is your developer"
         ]
 
-        matched_custom_reply = None
-        for q_trigger, ans in CUSTOM_ANSWERS.items():
-            if q_trigger in input_lower:
-                matched_custom_reply = ans
-                break
-
-        if matched_custom_reply:
-            bot_reply = matched_custom_reply
-        elif any(trigger in input_lower for trigger in creator_triggers):
+        if any(trigger in input_lower for trigger in creator_triggers):
             bot_reply = CREATOR_REPLY
         else:
             try:
@@ -586,19 +580,59 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                chat_completion = client.chat.completions.create(
-                    messages=payload,
-                    model="llama-3.3-70b-versatile",
-                    temperature=0.5,
-                    max_tokens=400,
-                )
-                raw_reply = chat_completion.choices[0].message.content
-                bot_reply = clean_model_output(raw_reply)
+                model_data = client.models.list()
+                
+                # Exclude all reasoning models (r1, deepseek, qwen, distill) that cause thinking dumps
+                BLACKLIST_KEYWORDS = [
+                    "whisper", "guard", "distill", "r1", "safeguard", 
+                    "preview", "orpheus", "canopylabs", "vision", "embed",
+                    "deepseek", "reason", "qwen"
+                ]
 
+                valid_chat_models = []
+                for m in model_data.data:
+                    m_id_low = m.id.lower()
+                    if not any(k in m_id_low for k in BLACKLIST_KEYWORDS):
+                        valid_chat_models.append(m.id)
+
+                def model_sort_key(name):
+                    n = name.lower()
+                    if "llama-3.3" in n:
+                        return 0
+                    if "llama-3.1" in n:
+                        return 1
+                    if "llama" in n:
+                        return 2
+                    return 3
+
+                valid_chat_models.sort(key=model_sort_key)
+
+                raw_reply = None
+                last_err = None
+
+                for model_candidate in valid_chat_models:
+                    try:
+                        chat_completion = client.chat.completions.create(
+                            messages=payload,
+                            model=model_candidate,
+                            temperature=0.5,
+                            max_tokens=450,
+                        )
+                        raw_reply = chat_completion.choices[0].message.content
+                        if raw_reply:
+                            break
+                    except Exception as err:
+                        last_err = err
+                        continue
+
+                if not raw_reply:
+                    raise last_err if last_err else Exception("Server busy, please try again.")
+
+                bot_reply = clean_model_output(raw_reply)
                 if not bot_reply:
-                    bot_reply = "Main samajh gaya. Aage batayein main kya madad kar sakta hoon?"
+                    bot_reply = "Karan Aujla ek mashhoor Indian Punjabi singer, rapper aur lyricist hain, jo apne hit Punjabi aur hip-hop gaano ke liye jaane jaate hain."
             except Exception as e:
-                bot_reply = f"Error details: {e}"
+                bot_reply = f"Error: {e}"
 
         st.session_state.messages.append({"role": "assistant", "content": bot_reply})
         with st.chat_message("assistant"):
