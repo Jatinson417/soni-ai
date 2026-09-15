@@ -314,6 +314,12 @@ CREATOR_REPLY = (
     "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 )
 
+# Custom Replies Dictionary (Flex & Fun)
+CUSTOM_ANSWERS = {
+    "what is skb": "Santosh kulcha bandar",
+    "skb": "Santosh kulcha bandar",
+}
+
 CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
@@ -336,14 +342,11 @@ RULES:
 def clean_model_output(text: str) -> str:
     if not text:
         return ""
-    # If closed think tag exists, grab text after </think>
     if "</think>" in text:
         text = text.split("</think>")[-1]
-    # If unclosed think tag exists at the beginning, strip it completely
     elif "<think>" in text:
         text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     
-    # Remove planning/thinking prefixes if any
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     text = re.sub(r'(?i)Here\'s a thinking process:?.*?(?=\n\n|\Z)', '', text, flags=re.DOTALL)
     return text.strip()
@@ -568,8 +571,19 @@ else:
             "owner", "kaun banaya", "maker", "who created", "who is your developer"
         ]
 
-        if any(trigger in input_lower for trigger in creator_triggers):
+        # 1. Check Custom Answers first (SKB)
+        matched_custom_reply = None
+        for q_trigger, ans in CUSTOM_ANSWERS.items():
+            if q_trigger in input_lower:
+                matched_custom_reply = ans
+                break
+
+        if matched_custom_reply:
+            bot_reply = matched_custom_reply
+        # 2. Check Creator Triggers
+        elif any(trigger in input_lower for trigger in creator_triggers):
             bot_reply = CREATOR_REPLY
+        # 3. Process with Groq AI Model
         else:
             try:
                 sanitized_history = []
@@ -582,7 +596,6 @@ else:
 
                 model_data = client.models.list()
                 
-                # Exclude all reasoning models (r1, deepseek, qwen, distill) that cause thinking dumps
                 BLACKLIST_KEYWORDS = [
                     "whisper", "guard", "distill", "r1", "safeguard", 
                     "preview", "orpheus", "canopylabs", "vision", "embed",
@@ -630,7 +643,7 @@ else:
 
                 bot_reply = clean_model_output(raw_reply)
                 if not bot_reply:
-                    bot_reply = "Karan Aujla ek mashhoor Indian Punjabi singer, rapper aur lyricist hain, jo apne hit Punjabi aur hip-hop gaano ke liye jaane jaate hain."
+                    bot_reply = "Aapka message samajh gaya. Bataiye aage kya madat kar sakta hoon?"
             except Exception as e:
                 bot_reply = f"Error: {e}"
 
