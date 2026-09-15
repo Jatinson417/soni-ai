@@ -591,17 +591,29 @@ else:
 
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + sanitized_history
 
-                # Active Groq Models (Instant default)
-                STABLE_MODELS = [
-                    "llama-3.1-8b-instant",
-                    "llama3-8b-8192",
-                    "llama-3.3-70b-versatile"
-                ]
+                # Dynamic Model Detection - Fetch active models directly from your Groq account
+                model_data = client.models.list()
+                
+                BLACKLIST = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1"]
+                active_models = []
+                for m in model_data.data:
+                    m_id = m.id.lower()
+                    if not any(b in m_id for b in BLACKLIST):
+                        active_models.append(m.id)
+
+                def priority(name):
+                    n = name.lower()
+                    if "llama-3.1-8b" in n: return 0
+                    if "llama3-8b" in n: return 1
+                    if "llama" in n: return 2
+                    return 3
+
+                active_models.sort(key=priority)
 
                 raw_reply = None
                 last_err = None
 
-                for m_candidate in STABLE_MODELS:
+                for m_candidate in active_models:
                     try:
                         chat_completion = client.chat.completions.create(
                             messages=payload,
