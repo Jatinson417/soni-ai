@@ -221,15 +221,6 @@ st.markdown(
         font-size: 20px;
     }
 
-    .info-widget-card {
-        background: rgba(255, 255, 255, 0.75);
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 16px;
-        margin-bottom: 12px;
-        backdrop-filter: blur(8px);
-    }
-
     div[data-testid="stChatInput"] {
         border-radius: 14px !important;
         background: #ffffff !important;
@@ -332,58 +323,37 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Main Grid (Chat + Info Widgets)
-col_chat, col_widget = st.columns([7.2, 2.8])
-
-with col_chat:
-    for msg in st.session_state.messages:
-        time_tag = msg.get("time", datetime.now().strftime("%I:%M %p"))
-        if msg["role"] == "user":
-            st.markdown(f"""
-                <div style="background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; backdrop-filter: blur(8px); display: flex; align-items: flex-start; justify-content: space-between;">
-                    <div style="display: flex; align-items: flex-start; gap: 12px;">
-                        <div class="avatar-red">👤</div>
-                        <div>
-                            <div style="font-weight: 700; font-size: 14px; color: #0f172a;">User</div>
-                            <div style="font-size: 14px; color: #334155; margin-top: 2px;">{msg['content']}</div>
-                        </div>
+# --- CHAT AREA (Full Width Without Model Info Cards) ---
+for msg in st.session_state.messages:
+    time_tag = msg.get("time", datetime.now().strftime("%I:%M %p"))
+    if msg["role"] == "user":
+        st.markdown(f"""
+            <div style="background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; backdrop-filter: blur(8px); display: flex; align-items: flex-start; justify-content: space-between;">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div class="avatar-red">👤</div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 14px; color: #0f172a;">User</div>
+                        <div style="font-size: 14px; color: #334155; margin-top: 2px;">{msg['content']}</div>
                     </div>
-                    <div style="font-size: 11px; color: #94a3b8;">{time_tag} ↩</div>
                 </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-                <div style="background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; backdrop-filter: blur(8px); display: flex; align-items: flex-start; justify-content: space-between;">
-                    <div style="display: flex; align-items: flex-start; gap: 12px;">
-                        <div class="avatar-ai">🤖</div>
-                        <div>
-                            <div style="font-weight: 700; font-size: 14px; color: #0f172a;">Soni AI</div>
-                            <div style="font-size: 14px; color: #334155; margin-top: 2px;">{msg['content']}</div>
-                        </div>
-                    </div>
-                    <div style="font-size: 11px; color: #94a3b8;">{time_tag} ↩</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-    user_input = st.chat_input("Ask Soni AI anything...")
-
-with col_widget:
-    st.markdown("""
-        <div class="info-widget-card">
-            <h4 style="margin:0 0 10px 0; font-size:15px; font-weight:700; color:#0f172a;">Model Info</h4>
-            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Current model: <b>Llama-3.1-8b (Instant)</b></div>
-            <div style="font-size:12px; color:#334155; font-weight:600; margin-bottom:6px;">Gemini Pro Mode</div>
-            <div style="background:#e2e8f0; height:6px; border-radius:10px; width:100%; margin-bottom:6px;">
-                <div style="background:#3b82f6; width:65%; height:100%; border-radius:10px;"></div>
+                <div style="font-size: 11px; color: #94a3b8;">{time_tag} ↩</div>
             </div>
-            <div style="font-size:11px; color:#64748b;">Token usage: 1208 / 8192</div>
-        </div>
-        <div class="info-widget-card">
-            <h4 style="margin:0 0 8px 0; font-size:15px; font-weight:700; color:#0f172a;">Model Settings</h4>
-            <div style="font-size:12px; color:#64748b;">Parameters: Default (0.5 Temp)</div>
-            <div style="font-size:12px; color:#64748b; margin-top:4px;">Stream Speed: High-Performance</div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+            <div style="background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; backdrop-filter: blur(8px); display: flex; align-items: flex-start; justify-content: space-between;">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div class="avatar-ai">🤖</div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 14px; color: #0f172a;">Soni AI</div>
+                        <div style="font-size: 14px; color: #334155; margin-top: 2px;">{msg['content']}</div>
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: #94a3b8;">{time_tag} ↩</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+user_input = st.chat_input("Ask Soni AI anything...")
 
 # --- CHAT LOGIC ---
 if user_input:
