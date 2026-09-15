@@ -13,9 +13,11 @@ CHATS_FILE = "chats_history_database.json"
 USERS_FILE = "users_database.json"
 PROJECTS_FILE = "projects_database.json"
 USAGE_FILE = "user_usage_database.json"
+PAYMENTS_FILE = "pending_payments_database.json"
 
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&am=1.00&cu=INR"
 MY_WHATSAPP_NUMBER = "918307940340"
+ADMIN_PIN = "2009"
 
 def load_json(filepath, default):
     if os.path.exists(filepath):
@@ -65,16 +67,13 @@ def get_country_time(text: str):
         return f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai."
     return None
 
-# --- USAGE TRACKER (100 CHATS / DAY) ---
 def get_user_chat_count(email, users_dict, usage_dict):
-    # Check if Pro Mode
     user_info = users_dict.get(email, {})
     if isinstance(user_info, dict) and user_info.get("plan") == "pro":
-        return 0, True  # (Count, is_pro)
+        return 0, True
 
     today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     user_usage = usage_dict.get(email, {})
-    
     if user_usage.get("date") != today_str:
         return 0, False
     return user_usage.get("count", 0), False
@@ -92,6 +91,7 @@ users_db = load_json(USERS_FILE, {})
 chats_db = load_json(CHATS_FILE, {})
 projects_db = load_json(PROJECTS_FILE, ["AI Assistant Bot", "E-Commerce Recommender", "Customer Support Workflow"])
 usage_db = load_json(USAGE_FILE, {})
+payments_db = load_json(PAYMENTS_FILE, {})
 
 query_params = st.query_params
 
@@ -292,7 +292,7 @@ def clean_model_output(text: str) -> str:
     text = re.sub(r'(?i)^\s*(analyze user input|identify key constraints|formulate response|draft response).*?\n\n', '', text, flags=re.DOTALL)
     return text.strip()
 
-# --- LOGIN / GUEST SCREEN ---
+# --- LOGIN SCREEN ---
 if not st.session_state.user:
     st.markdown("""
         <div class="login-glass-card">
@@ -359,9 +359,15 @@ if not st.session_state.user:
 active_user = st.session_state.get("user", "guest@soniai.com")
 user_handle = active_user.split("@")[0]
 
-# Compute current limits
 chats_used_today, is_pro_user = get_user_chat_count(active_user, users_db, usage_db)
-plan_badge = "PRO" if is_pro_user else f"{chats_used_today}/100 Free"
+user_payment_pending = (active_user in payments_db and payments_db[active_user].get("status") == "pending")
+
+if is_pro_user:
+    plan_badge = "PRO"
+elif user_payment_pending:
+    plan_badge = "PENDING"
+else:
+    plan_badge = f"{chats_used_today}/100 Free"
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -399,7 +405,7 @@ with st.sidebar:
                     {active_user}
                     <span class="pro-badge">{plan_badge}</span>
                 </div>
-                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited Pro' if is_pro_user else 'Free (100 chats/day)'}</div>
+                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited Pro' if is_pro_user else ('Approval Pending' if user_payment_pending else 'Free Tier')}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -430,7 +436,7 @@ st.markdown(f"""
         </h3>
         <div style="font-size:13px; font-weight:600; color:#475569;">
             Today's Usage: <span style="color:#0f172a;">{'Unlimited' if is_pro_user else f'{chats_used_today}/100 chats'}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-            Plan Status: <span style="color:#2563eb;">{'VIP Pro Tier 💎' if is_pro_user else 'Free Tier (₹1 to Unlock Pro)'}</span>
+            Plan Status: <span style="color:#2563eb;">{'VIP Pro Tier 💎' if is_pro_user else ('⏳ Payment Under Verification' if user_payment_pending else 'Free Tier (₹1 to Unlock Pro)')}</span>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -497,7 +503,6 @@ if st.session_state.current_tab == "Dashboard":
                 </div>
             """, unsafe_allow_html=True)
 
-    # Check limit before showing chat input
     if not is_pro_user and chats_used_today >= 100:
         st.error("🚫 **Aaj ki 100 free chats limit poori ho chuki hai!**")
         st.info("💡 Unlimited chats use karne ke liye sirf **₹1 mein Pro Mode** activate karein.")
@@ -511,7 +516,11 @@ if st.session_state.current_tab == "Dashboard":
             clean_input = user_input.strip()
             now_stamp = datetime.now().strftime("%I:%M %p")
 
-            # Increment count for free tier
+            # Owner Command: /admin 2009
+            if clean_input == f"/admin {ADMIN_PIN}":
+                st.session_state.current_tab = "AdminPanel"
+                st.rerun()
+
             if not is_pro_user:
                 increment_user_chat_count(active_user, usage_db)
 
@@ -558,7 +567,7 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_reply, "time": datetime.now().strftime("%I:%M %p")})
             st.rerun()
 
-# --- TAB 2: BILLING & ₹1 PRO PLAN WITH SCANNER ---
+# --- TAB 2: BILLING & APPROVAL-BASED PRO PLAN ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro Tier (₹1 Only)")
@@ -573,36 +582,38 @@ elif st.session_state.current_tab == "Billing":
     with col_pay_form:
         st.markdown("#### ✅ Payment Verification")
         if is_pro_user:
-            st.success("🎉 **Aapka Pro Mode pehle se active hai!** Aap unlimited chats use kar sakte hain.")
+            st.success("🎉 **Aapka Pro Mode active hai!** Unlimited chats on hain.")
+        elif user_payment_pending:
+            st.warning("⏳ **Aapka payment approval pending hai!**")
+            st.info(f"UTR `{payments_db[active_user].get('utr')}` verify kiya ja raha hai. Admin approval ke baad Pro activate ho jayega.")
+            wa_msg = f"Namaste Jatin bhai! Maine ₹1 pay kar diya hai Soni AI Pro ke liye.\nUser: {active_user}\nUTR: {payments_db[active_user].get('utr')}\nKripya approve kar dein!"
+            wa_link = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}"
+            st.markdown(f'<a href="{wa_link}" target="_blank" style="display:inline-block; padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt send karein</a>', unsafe_allow_html=True)
         else:
             st.write("QR par ₹1 pay karne ke baad transaction details enter karein:")
             with st.form("form_activate_pro"):
                 utr_number = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
                 pay_app = st.selectbox("Kaunse app se pay kiya?", ["PhonePe", "Paytm", "Google Pay (GPay)", "Other UPI"])
-                submit_pro = st.form_submit_button("🚀 Activate Pro Mode Now", use_container_width=True)
+                submit_pro = st.form_submit_button("Submit For Verification 📩", use_container_width=True)
 
                 if submit_pro:
-                    if len(utr_number) >= 4:
-                        # Activate Pro in database
-                        if active_user not in users_db:
-                            users_db[active_user] = {}
-                        if isinstance(users_db[active_user], dict):
-                            users_db[active_user]["plan"] = "pro"
-                            users_db[active_user]["utr"] = utr_number
-                        else:
-                            users_db[active_user] = {"password": str(users_db[active_user]), "plan": "pro", "utr": utr_number}
-                        
-                        save_json(USERS_FILE, users_db)
+                    if len(utr_number) >= 8 and utr_number.isdigit():
+                        payments_db[active_user] = {
+                            "utr": utr_number,
+                            "app": pay_app,
+                            "time": datetime.now().strftime("%Y-%m-%d %I:%M %p"),
+                            "status": "pending"
+                        }
+                        save_json(PAYMENTS_FILE, payments_db)
 
-                        # WhatsApp notification link
-                        wa_msg = f"⚡ *NEW PRO SUBSCRIPTION*\nUser: {active_user}\nUTR: {utr_number}\nApp: {pay_app}\nAmount: ₹1"
+                        wa_msg = f"⚡ *NEW PRO PAYMENT REQUEST*\nUser: {active_user}\nUTR: {utr_number}\nApp: {pay_app}\nAmount: ₹1\nStatus: Pending Verification"
                         wa_link = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}"
 
-                        st.success("🎉 Mubarak! Aapka Pro Mode successfully activate ho gaya hai!")
+                        st.success("Request submit ho gayi! Jatin Soni ke verify karte hi Pro activate ho jayega.")
                         st.markdown(f'<a href="{wa_link}" target="_blank" style="display:inline-block; margin-top:8px; padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt confirm karein</a>', unsafe_allow_html=True)
                         st.rerun()
                     else:
-                        st.error("Kripya valid Transaction / UTR number daalein.")
+                        st.error("Kripya valid 12-digit UTR number daalein (sirf numbers)!")
 
     st.markdown("---")
     st.markdown("#### 📊 Account Usage Stats")
@@ -611,7 +622,47 @@ elif st.session_state.current_tab == "Billing":
     st.caption(f"Today's Chats Used: {'Unlimited' if is_pro_user else f'{chats_used_today} / 100'}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 3: HISTORY ---
+# --- TAB 3: ADMIN APPROVAL PANEL (Secret: /admin 2009) ---
+elif st.session_state.current_tab == "AdminPanel":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 👑 Owner Verification & Approval Panel")
+    st.write("Yahan se check karein kisne ₹1 pay kiya hai, aur genuine payment aane par **Approve** karein:")
+
+    if not payments_db:
+        st.info("Abhi koi pending payment nahi hai.")
+    else:
+        for u_email, p_info in list(payments_db.items()):
+            col_pinfo, col_pbtn1, col_pbtn2 = st.columns([6, 2, 2])
+            with col_pinfo:
+                st.markdown(f"👤 **{u_email}** | UTR: `{p_info.get('utr')}` | Via: **{p_info.get('app')}** ({p_info.get('time')})")
+            with col_pbtn1:
+                if st.button("✅ Approve Pro", key=f"appr_{u_email}"):
+                    if u_email not in users_db:
+                        users_db[u_email] = {}
+                    if isinstance(users_db[u_email], dict):
+                        users_db[u_email]["plan"] = "pro"
+                    else:
+                        users_db[u_email] = {"password": str(users_db[u_email]), "plan": "pro"}
+                    save_json(USERS_FILE, users_db)
+
+                    del payments_db[u_email]
+                    save_json(PAYMENTS_FILE, payments_db)
+                    st.success(f"{u_email} ko Pro Mode mil gaya!")
+                    st.rerun()
+            with col_pbtn2:
+                if st.button("❌ Reject (Fake)", key=f"rej_{u_email}"):
+                    del payments_db[u_email]
+                    save_json(PAYMENTS_FILE, payments_db)
+                    st.error(f"{u_email} ki request reject kar di!")
+                    st.rerun()
+            st.markdown("---")
+
+    if st.button("⬅️ Back to Dashboard"):
+        st.session_state.current_tab = "Dashboard"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- TAB 4: HISTORY ---
 elif st.session_state.current_tab == "History":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🕒 Saved Chat History")
@@ -638,7 +689,7 @@ elif st.session_state.current_tab == "History":
             st.markdown("---")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 4: PROJECTS ---
+# --- TAB 5: PROJECTS ---
 elif st.session_state.current_tab == "Projects":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 📁 My AI Projects")
@@ -666,16 +717,16 @@ elif st.session_state.current_tab == "Projects":
                 st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 5: INTEGRATIONS ---
+# --- TAB 6: INTEGRATIONS ---
 elif st.session_state.current_tab == "Integrations":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### ⚡ Integrations")
     st.success("🟢 **Groq LLM Engine:** Connected & Active")
     st.info("🟢 **SMTP Email Engine:** Connected (`smtp.gmail.com`)")
-    st.warning("🟡 **UPI Auto-Pay Webhook:** Active")
+    st.warning("🟡 **WhatsApp Support:** Ready")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 6: MARKETPLACE ---
+# --- TAB 7: MARKETPLACE ---
 elif st.session_state.current_tab == "Marketplace":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🏛️ Soni Store & Marketplace")
