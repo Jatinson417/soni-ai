@@ -16,6 +16,7 @@ PAYMENTS_FILE = "pending_payments_database.json"
 PRODUCTS_FILE = "products_database.json"
 ORDERS_FILE = "orders_database.json"
 SECRET_CHAT_FILE = "vip_secret_chat_room.json"
+COUPONS_FILE = "coupons_database.json"
 
 UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
@@ -78,6 +79,7 @@ usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
 secret_chat_db = load_json(SECRET_CHAT_FILE, [])
+coupons_db = load_json(COUPONS_FILE, {"SONIPRO": {"discount": 100, "type": "flat"}})
 
 url_user = st.query_params.get("user")
 if url_user and url_user.strip().lower() in users_db:
@@ -345,9 +347,16 @@ if not st.session_state.user:
             with st.form("form_quick_signup"):
                 reg_email = st.text_input("Email", placeholder="name@gmail.com").strip().lower()
                 reg_pass = st.text_input("Password", type="password").strip()
+                ref_code = st.text_input("Friend Referral Code (Optional)", placeholder="Ex: SoniFriend").strip()
                 if st.form_submit_button("Create Account", use_container_width=True):
                     if reg_email and reg_pass:
-                        users_db[reg_email] = {"password": reg_pass, "plan": "free", "date": datetime.now().strftime("%Y-%m-%d"), "post_allowed": False}
+                        users_db[reg_email] = {
+                            "password": reg_pass, 
+                            "plan": "free", 
+                            "date": datetime.now().strftime("%Y-%m-%d"), 
+                            "post_allowed": False,
+                            "referred_by": ref_code if ref_code else None
+                        }
                         save_json(USERS_FILE, users_db)
                         st.session_state.user = reg_email
                         st.query_params["user"] = reg_email
@@ -386,12 +395,16 @@ with st.sidebar:
         st.session_state.current_tab = "Shop"
         st.rerun()
 
+    if st.button("👥 Refer & Earn", key="btn_sb_refer"):
+        st.session_state.current_tab = "Referral"
+        st.rerun()
+
     if st.button("💳 Billing / Upgrade", key="btn_sb_bill"):
         st.session_state.current_tab = "Billing"
         st.rerun()
 
     st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:50px;">
+        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:30px;">
             <div style="font-size:22px;">👤</div>
             <div style="line-height:1.2;">
                 <div style="font-size:13px; font-weight:700;">{user_handle} <span class="pro-badge">{'PRO' if is_pro_user else 'FREE'}</span></div>
@@ -535,6 +548,20 @@ elif st.session_state.current_tab == "SecretRoom":
 
     st.markdown('</div>', unsafe_allow_html=True)
 
+# --- TAB: REFERRAL & FRIEND INVITE ---
+elif st.session_state.current_tab == "Referral":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 👥 Refer & Earn Free Pro Access")
+    st.write("Apne dosto ko Soni AI invite karein aur free rewards payein!")
+
+    ref_link = f"https://soniai.streamlit.app/?user={active_user}"
+    st.markdown(f"**Aapka Personal Referral Link:**")
+    st.code(ref_link)
+
+    st.markdown("#### 🎁 Friends Rewards:")
+    st.info("Jab aapka dost is link se sign up karega, toh aapko extra bonus messages aur Pro perks milenge!")
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # --- TAB: VIP PRO TOOLS ---
 elif st.session_state.current_tab == "VIP Tools":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
@@ -634,13 +661,32 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING ---
+# --- TAB: BILLING & COUPON CODE ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
     st.write("Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein:")
 
-    final_price = 49.00
+    base_price = 49.00
+    
+    # Coupon Code Logic
+    if "applied_coupon" not in st.session_state:
+        st.session_state.applied_coupon = None
+
+    coupon_input = st.text_input("🎟️ Have a Coupon Code?", placeholder="Enter code here...").strip().upper()
+    if st.button("Apply Coupon"):
+        if coupon_input in coupons_db:
+            st.session_state.applied_coupon = coupon_input
+            st.success(f"Coupon '{coupon_input}' applied successfully! 🎉")
+        else:
+            st.error("Invalid coupon code!")
+
+    final_price = base_price
+    if st.session_state.applied_coupon in coupons_db:
+        disc = coupons_db[st.session_state.applied_coupon].get("discount", 0)
+        final_price = max(0, base_price - disc)
+        st.info(f"Coupon Applied: **{st.session_state.applied_coupon}** (Discount: ₹{disc})")
+
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
     col_qr, col_pay_form = st.columns([4, 6])
@@ -665,7 +711,7 @@ elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Owner Verification & Control Panel")
 
-    tab_adm_pay, tab_adm_feed = st.tabs(["💳 Approve Payments", "🔒 Manage Secret Room Permissions"])
+    tab_adm_pay, tab_adm_feed, tab_adm_coup = st.tabs(["💳 Approve Payments", "🔒 Manage Secret Room Permissions", "🎟️ Manage Coupons"])
 
     with tab_adm_pay:
         st.markdown("#### Pending UTR Requests")
@@ -684,8 +730,6 @@ elif st.session_state.current_tab == "AdminPanel":
 
     with tab_adm_feed:
         st.markdown("#### ⚙️ Member Post Permissions for Secret Room")
-        st.caption("Yahan se decide karein ki kaunsa paid member Secret Room mein message type karke bhej sakta hai:")
-
         registered_users = [u for u in users_db.keys() if u not in ["guest@soniai.com", OWNER_EMAIL]]
         if not registered_users:
             st.info("Koi registered member nahi hai abhi.")
@@ -710,12 +754,26 @@ elif st.session_state.current_tab == "AdminPanel":
                             save_json(USERS_FILE, users_db)
                             st.rerun()
 
+    with tab_adm_coup:
+        st.markdown("#### 🎟️ Create New Coupon Code")
+        with st.form("create_coupon_form"):
+            new_code = st.text_input("Coupon Code Name*", placeholder="Ex: DISCOUNT50").strip().upper()
+            disc_amt = st.number_input("Discount Amount (in ₹)*", min_value=1, value=50)
+            if st.form_submit_button("Create Coupon 🚀"):
+                if new_code:
+                    coupons_db[new_code] = {"discount": int(disc_amt), "type": "flat"}
+                    save_json(COUPONS_FILE, coupons_db)
+                    st.success(f"Coupon '{new_code}' successfully created!")
+                    st.rerun()
+
         st.markdown("---")
-        st.markdown("#### 🗑️ Clear Secret Room Chat")
-        if st.button("Clear All Secret Room Messages"):
-            save_json(SECRET_CHAT_FILE, [])
-            st.success("Secret room clear ho gaya!")
-            st.rerun()
+        st.markdown("#### Active Coupons:")
+        for c_k, c_v in list(coupons_db.items()):
+            st.write(f"🎟️ **{c_k}** — ₹{c_v.get('discount')} OFF")
+            if st.button(f"Delete {c_k}", key=f"del_coup_{c_k}"):
+                del coupons_db[c_k]
+                save_json(COUPONS_FILE, coupons_db)
+                st.rerun()
 
     st.markdown("---")
     if st.button("⬅️ Back to Dashboard"):
