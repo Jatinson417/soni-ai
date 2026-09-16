@@ -26,11 +26,49 @@ FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
 PREMIUM_PRICE = 99.00
 
-CUSTOM_REPLIES = {
+# Strict Exact Match for SKB
+EXACT_CUSTOM_REPLIES = {
     "what is skb": "Santosh Kulcha Bhandar",
     "skb kya hai": "Santosh Kulcha Bhandar",
     "skb": "Santosh Kulcha Bhandar"
 }
+
+TIMEZONE_MAP = {
+    "india": ("Asia/Kolkata", "India 🇮🇳"),
+    "bharat": ("Asia/Kolkata", "India 🇮🇳"),
+    "dubai": ("Asia/Dubai", "Dubai (UAE) 🇦🇪"),
+    "uae": ("Asia/Dubai", "Dubai (UAE) 🇦🇪"),
+    "usa": ("America/New_York", "USA (New York) 🇺🇸"),
+    "america": ("America/New_York", "USA (New York) 🇺🇸"),
+    "new york": ("America/New_York", "New York 🇺🇸"),
+    "london": ("Europe/London", "London (UK) 🇬🇧"),
+    "uk": ("Europe/London", "UK 🇬🇧"),
+    "canada": ("America/Toronto", "Canada (Toronto) 🇨🇦"),
+    "australia": ("Australia/Sydney", "Australia (Sydney) 🇦🇺"),
+    "japan": ("Asia/Tokyo", "Japan 🇯🇵"),
+    "tokyo": ("Asia/Tokyo", "Tokyo 🇯🇵"),
+    "germany": ("Europe/Berlin", "Germany 🇩🇪"),
+    "singapore": ("Asia/Singapore", "Singapore 🇸🇬"),
+    "pakistan": ("Asia/Karachi", "Pakistan 🇵🇰"),
+    "saudi": ("Asia/Riyadh", "Saudi Arabia 🇸🇦"),
+}
+
+def get_country_time(text: str):
+    text_low = text.lower()
+    time_keywords = ["time", "samay", "baje", "waqt", "ghadi", "clock", "kitne baje"]
+    
+    if any(k in text_low for k in time_keywords):
+        for place, (tz_name, label) in TIMEZONE_MAP.items():
+            if place in text_low:
+                now = datetime.now(ZoneInfo(tz_name))
+                return f"Abhi **{label}** mein live time **{now.strftime('%I:%M %p')}** ho raha hai ({now.strftime('%d %b %Y')})."
+        
+        now_india = datetime.now(ZoneInfo("Asia/Kolkata"))
+        return (
+            f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai.\n\n"
+            "Kisi dusre desh ka time janne ke liye country ka naam likhein (jaise: *'Dubai time'*, *'USA time'*, *'London time'*)."
+        )
+    return None
 
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
@@ -480,17 +518,19 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "user", "content": clean_in})
 
             input_clean_norm = re.sub(r'[^\w\s]', '', clean_in.lower()).strip()
-            matched_custom = None
-            for trigger_k, trigger_v in CUSTOM_REPLIES.items():
-                norm_trig = re.sub(r'[^\w\s]', '', trigger_k.lower()).strip()
-                if norm_trig in input_clean_norm or input_clean_norm in norm_trig:
-                    matched_custom = trigger_v
-                    break
+            
+            # 1. Exact Match for SKB Only
+            matched_custom = EXACT_CUSTOM_REPLIES.get(input_clean_norm)
+
+            # 2. World Time Check
+            time_reply = get_country_time(clean_in)
 
             creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
 
             if matched_custom:
                 bot_ans = matched_custom
+            elif time_reply:
+                bot_ans = time_reply
             elif any(trig in input_clean_norm for trig in creator_triggers):
                 bot_ans = CREATOR_REPLY
             else:
