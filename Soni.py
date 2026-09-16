@@ -24,6 +24,7 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
+PREMIUM_PRICE = 99.00
 
 CUSTOM_REPLIES = {
     "what is skb": "Santosh Kulcha Bhandar",
@@ -79,7 +80,17 @@ usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
 secret_chat_db = load_json(SECRET_CHAT_FILE, [])
-coupons_db = load_json(COUPONS_FILE, {"SONIPRO": {"discount": 100, "type": "flat"}})
+
+# Default Coupons: SONI (50% off), FRIEND (90% off)
+default_coupons = {
+    "SONI": {"discount_percent": 50},
+    "FRIEND": {"discount_percent": 90}
+}
+coupons_db = load_json(COUPONS_FILE, default_coupons)
+for c_k, c_v in default_coupons.items():
+    if c_k not in coupons_db:
+        coupons_db[c_k] = c_v
+save_json(COUPONS_FILE, coupons_db)
 
 url_user = st.query_params.get("user")
 if url_user and url_user.strip().lower() in users_db:
@@ -258,7 +269,7 @@ FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
 
 @st.cache_resource
 def get_groq_client(api_token):
-    return Groq(api_key=api_token, timeout=25.0)
+    return Groq(api_token=api_token, timeout=25.0)
 
 client = get_groq_client(FINAL_API_KEY)
 
@@ -558,8 +569,8 @@ elif st.session_state.current_tab == "Referral":
     st.markdown(f"**Aapka Personal Referral Link:**")
     st.code(ref_link)
 
-    st.markdown("#### 🎁 Friends Rewards:")
-    st.info("Jab aapka dost is link se sign up karega, toh aapko extra bonus messages aur Pro perks milenge!")
+    st.markdown("#### 🎁 Friend Invite Perk:")
+    st.info("Jab aapka dost 'FRIEND' coupon use karke Pro upgrade karega, toh use 90% off milega!")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: VIP PRO TOOLS ---
@@ -661,19 +672,16 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING & COUPON CODE ---
+# --- TAB: BILLING & COUPON CODE (99 Price & SONI/FRIEND Coupons) ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein:")
+    st.write(f"Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein (Standard Price: **₹{PREMIUM_PRICE:.0f}**):")
 
-    base_price = 49.00
-    
-    # Coupon Code Logic
     if "applied_coupon" not in st.session_state:
         st.session_state.applied_coupon = None
 
-    coupon_input = st.text_input("🎟️ Have a Coupon Code?", placeholder="Enter code here...").strip().upper()
+    coupon_input = st.text_input("🎟️ Enter Coupon Code ('SONI' for 50% off, 'FRIEND' for 90% off)", placeholder="Ex: SONI or FRIEND").strip().upper()
     if st.button("Apply Coupon"):
         if coupon_input in coupons_db:
             st.session_state.applied_coupon = coupon_input
@@ -681,11 +689,12 @@ elif st.session_state.current_tab == "Billing":
         else:
             st.error("Invalid coupon code!")
 
-    final_price = base_price
+    final_price = PREMIUM_PRICE
     if st.session_state.applied_coupon in coupons_db:
-        disc = coupons_db[st.session_state.applied_coupon].get("discount", 0)
-        final_price = max(0, base_price - disc)
-        st.info(f"Coupon Applied: **{st.session_state.applied_coupon}** (Discount: ₹{disc})")
+        disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
+        final_price = PREMIUM_PRICE - (PREMIUM_PRICE * disc_pct / 100)
+        final_price = max(1.00, final_price)
+        st.info(f"Coupon Applied: **{st.session_state.applied_coupon}** ({disc_pct}% OFF)")
 
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
@@ -755,22 +764,22 @@ elif st.session_state.current_tab == "AdminPanel":
                             st.rerun()
 
     with tab_adm_coup:
-        st.markdown("#### 🎟️ Create New Coupon Code")
+        st.markdown("#### 🎟️ Create New Percentage Coupon")
         with st.form("create_coupon_form"):
-            new_code = st.text_input("Coupon Code Name*", placeholder="Ex: DISCOUNT50").strip().upper()
-            disc_amt = st.number_input("Discount Amount (in ₹)*", min_value=1, value=50)
+            new_code = st.text_input("Coupon Code Name*", placeholder="Ex: SPECIAL20").strip().upper()
+            disc_pct = st.number_input("Discount Percentage (%)*", min_value=1, max_value=100, value=50)
             if st.form_submit_button("Create Coupon 🚀"):
                 if new_code:
-                    coupons_db[new_code] = {"discount": int(disc_amt), "type": "flat"}
+                    coupons_db[new_code] = {"discount_percent": int(disc_pct)}
                     save_json(COUPONS_FILE, coupons_db)
-                    st.success(f"Coupon '{new_code}' successfully created!")
+                    st.success(f"Coupon '{new_code}' ({disc_pct}% OFF) successfully created!")
                     st.rerun()
 
         st.markdown("---")
         st.markdown("#### Active Coupons:")
         for c_k, c_v in list(coupons_db.items()):
-            st.write(f"🎟️ **{c_k}** — ₹{c_v.get('discount')} OFF")
-            if st.button(f"Delete {c_k}", key=f"del_coup_{c_k}"):
+            st.write(f"🎟️ **{c_k}** — {c_v.get('discount_percent')}% OFF")
+            if c_k not in ["SONI", "FRIEND"] and st.button(f"Delete {c_k}", key=f"del_coup_{c_k}"):
                 del coupons_db[c_k]
                 save_json(COUPONS_FILE, coupons_db)
                 st.rerun()
