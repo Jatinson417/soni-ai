@@ -22,14 +22,6 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 
-# Multiple fallback models to avoid 404
-CANDIDATE_MODELS = [
-    "llama-3.2-3b-preview",
-    "llama-3.2-11b-vision-preview",
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it"
-]
-
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
     qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_url)}"
@@ -243,10 +235,30 @@ def clean_model_output(text: str) -> str:
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     return text.strip()
 
+def get_available_groq_models():
+    """Live query to Groq API to fetch active model list dynamically"""
+    try:
+        models_data = client.models.list()
+        chat_models = []
+        for m in models_data.data:
+            m_id = m.id.lower()
+            # Ignore audio/whisper models
+            if "whisper" not in m_id and "tts" not in m_id:
+                chat_models.append(m.id)
+        return chat_models
+    except Exception:
+        return []
+
 def generate_ai_response(messages_list):
-    """Tries multiple active models sequentially to prevent 404 errors."""
-    last_err = ""
-    for model_name in CANDIDATE_MODELS:
+    """Auto-detects live models from Groq to completely eliminate 400/404 errors"""
+    live_models = get_available_groq_models()
+    
+    # Priority fallbacks if live list is empty
+    if not live_models:
+        live_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+
+    last_error = ""
+    for model_name in live_models:
         try:
             resp = client.chat.completions.create(
                 messages=messages_list,
@@ -254,9 +266,10 @@ def generate_ai_response(messages_list):
             )
             return clean_model_output(resp.choices[0].message.content)
         except Exception as e:
-            last_err = str(e)
+            last_error = str(e)
             continue
-    return f"Error connecting to AI: {last_err}"
+            
+    return f"Error connecting to AI: {last_error}"
 
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
