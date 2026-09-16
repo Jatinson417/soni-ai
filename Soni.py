@@ -210,7 +210,6 @@ st.markdown(
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     }
 
-    /* REALISTIC STADIUM SCOREBOARD */
     .stadium-board {
         position: relative;
         background: radial-gradient(circle at center, #27344f 0%, #151d2f 65%, #0b101c 100%);
@@ -221,14 +220,6 @@ st.markdown(
         box-shadow: 0 12px 40px rgba(15, 23, 42, 0.35);
         margin-bottom: 20px;
         overflow: hidden;
-    }
-    .stadium-board::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=1200&auto=format&fit=crop&q=80') center/cover no-repeat;
-        opacity: 0.15;
-        pointer-events: none;
     }
 
     .stadium-header-text {
@@ -283,7 +274,6 @@ st.markdown(
         padding: 4px 0;
     }
 
-    /* TELECAST BUTTONS */
     div.telecast-btn button {
         background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
         color: #ffffff !important;
@@ -620,7 +610,7 @@ elif st.session_state.current_tab == "Cricket Scorer":
                 ms["status"] = "Ongoing"
                 st.rerun()
 
-        # EXACT PHOTO BROADCAST SCOREBOARD
+        # EXACT PHOTO BROADCAST SCOREBOARD (ZERO-INDENTED HTML)
         balls = ms.get("balls_bowled", 0)
         overs_str = f"{balls // 6}.{balls % 6}"
         crr = (ms.get("runs", 0) / max(1, balls)) * 6 if balls > 0 else 0.0
@@ -641,50 +631,52 @@ elif st.session_state.current_tab == "Cricket Scorer":
         p_runs = ms.get("partnership_runs", 0)
         p_balls = ms.get("partnership_balls", 0)
 
-        st.markdown(f"""
-        <div class="stadium-board">
-            <div class="stadium-header-text">{ms.get('team_1', 'Team A')} vs {ms.get('team_2', 'Team B')}</div>
-            <div class="stadium-batting-text">🏏 Batting: {ms.get('batting_team', 'Team A')} {f'(Target: {ms.get("target")})' if ms.get("innings")==2 else ''}</div>
-            
-            <div style="text-align: center;">
-                <div class="badge-score-pill">
-                    <div class="badge-score-runs">{ms.get('runs', 0)} / {ms.get('wickets', 0)}</div>
-                    <div class="badge-overs-text">Overs: {overs_str} / {ms.get('total_overs', 5)} | CRR: {crr:.2f}</div>
-                </div>
-            </div>
+        t_target_str = f"(Target: {ms.get('target')})" if ms.get("innings") == 2 else ""
 
-            <div class="score-grid">
-                <div>
-                    <div class="score-row-item">
-                        <span><b>{b1_sym}{ms.get('batsman_1', 'Player 1')}</b></span>
-                        <span>{b1_runs} ({b1_b})</span>
-                    </div>
-                    <div class="score-row-item">
-                        <span><b>{b2_sym}{ms.get('batsman_2', 'Player 2')}</b></span>
-                        <span>{b2_runs} ({b2_b})</span>
-                    </div>
-                    <div class="score-row-item" style="color: #94a3b8; font-size:12px; margin-top:4px;">
-                        <span>⚾ Bowler: <b>{ms.get('bowler', 'Bowler')}</b></span>
-                        <span>{bw_wkts}/{bw_runs} ({bw_overs})</span>
-                    </div>
-                </div>
-                <div>
-                    <div class="score-row-item">
-                        <span>🤝 Partnership:</span>
-                        <span><b>{p_runs} ({p_balls})</b></span>
-                    </div>
-                    <div class="score-row-item">
-                        <span>Innings:</span>
-                        <span><b>#{ms.get('innings', 1)}</b></span>
-                    </div>
-                    <div class="score-row-item">
-                        <span>Extras:</span>
-                        <span><b>0</b></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        board_html = (
+            '<div class="stadium-board">'
+            f'<div class="stadium-header-text">{ms.get("team_1", "Team A")} vs {ms.get("team_2", "Team B")}</div>'
+            f'<div class="stadium-batting-text">🏏 Batting: {ms.get("batting_team", "Team A")} {t_target_str}</div>'
+            '<div style="text-align: center;">'
+            '<div class="badge-score-pill">'
+            f'<div class="badge-score-runs">{ms.get("runs", 0)} / {ms.get("wickets", 0)}</div>'
+            f'<div class="badge-overs-text">Overs: {overs_str} / {ms.get("total_overs", 5)} | CRR: {crr:.2f}</div>'
+            '</div>'
+            '</div>'
+            '<div class="score-grid">'
+            '<div>'
+            '<div class="score-row-item">'
+            f'<span><b>{b1_sym}{ms.get("batsman_1", "Player 1")}</b></span>'
+            f'<span>{b1_runs} ({b1_b})</span>'
+            '</div>'
+            '<div class="score-row-item">'
+            f'<span><b>{b2_sym}{ms.get("batsman_2", "Player 2")}</b></span>'
+            f'<span>{b2_runs} ({b2_b})</span>'
+            '</div>'
+            '<div class="score-row-item" style="color: #94a3b8; font-size:12px; margin-top:4px;">'
+            f'<span>⚾ Bowler: <b>{ms.get("bowler", "Bowler")}</b></span>'
+            f'<span>{bw_wkts}/{bw_runs} ({bw_overs})</span>'
+            '</div>'
+            '</div>'
+            '<div>'
+            '<div class="score-row-item">'
+            '<span>🤝 Partnership:</span>'
+            f'<span><b>{p_runs} ({p_balls})</b></span>'
+            '</div>'
+            '<div class="score-row-item">'
+            '<span>Innings:</span>'
+            f'<span><b>#{ms.get("innings", 1)}</b></span>'
+            '</div>'
+            '<div class="score-row-item">'
+            '<span>Extras:</span>'
+            '<span><b>0</b></span>'
+            '</div>'
+            '</div>'
+            '</div>'
+            '</div>'
+        )
+
+        st.markdown(board_html, unsafe_allow_html=True)
 
         # SCORING CONTROLS (MATCHING PHOTO'S BUTTONS)
         if current_status == "Ongoing":
@@ -703,7 +695,6 @@ elif st.session_state.current_tab == "Cricket Scorer":
                         ms["partnership_balls"] = ms.get("partnership_balls", 0) + 1
                         ms["awaiting_wicket"] = False
                         
-                        # Reset out batsman
                         if ms.get("striker", 1) == 1:
                             ms["batsman_1"] = f"Player {ms.get('wickets')+2}"
                             ms["batsman_1_runs"] = 0
@@ -866,21 +857,17 @@ elif st.session_state.current_tab == "Cricket Scorer":
         else:
             with st.expander(f"📁 View Saved Match History ({len(user_matches)} Matches)", expanded=True):
                 for m in user_matches:
-                    st.markdown(f"""
-                    <div class="saved-card">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-weight:700; font-size:15px;">⚔️ {m['team_1']} vs {m['team_2']}</span>
-                            <span style="font-size:12px; color:#64748b;">📅 {m['date']}</span>
-                        </div>
-                        <div style="margin-top:6px; font-size:13px; color:#334155;">
-                            <b>1st Inn:</b> {m['first_inn']} <br>
-                            <b>2nd Inn:</b> {m['second_inn']}
-                        </div>
-                        <div style="margin-top:8px; font-weight:700; color:#2563eb; font-size:14px;">
-                            🏆 Winner: {m['winner']}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    saved_html = (
+                        '<div class="saved-card">'
+                        '<div style="display:flex; justify-content:space-between; align-items:center;">'
+                        f'<span style="font-weight:700; font-size:15px;">⚔️ {m["team_1"]} vs {m["team_2"]}</span>'
+                        f'<span style="font-size:12px; color:#64748b;">📅 {m["date"]}</span>'
+                        '</div>'
+                        f'<div style="margin-top:6px; font-size:13px; color:#334155;"><b>1st Inn:</b> {m["first_inn"]} <br><b>2nd Inn:</b> {m["second_inn"]}</div>'
+                        f'<div style="margin-top:8px; font-weight:700; color:#2563eb; font-size:14px;">🏆 Winner: {m["winner"]}</div>'
+                        '</div>'
+                    )
+                    st.markdown(saved_html, unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
