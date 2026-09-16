@@ -22,6 +22,9 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 
+# Active and supported Groq model
+ACTIVE_MODEL = "llama-3.1-8b-instant"
+
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
     qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_url)}"
@@ -111,10 +114,6 @@ if "messages" not in st.session_state:
 if "applied_coupon" not in st.session_state:
     st.session_state.applied_coupon = None
 
-if "lightbox_img" not in st.session_state:
-    st.session_state.lightbox_img = None
-
-# --- THEME STYLING ---
 st.markdown(
     """
     <style>
@@ -386,7 +385,7 @@ if st.session_state.current_tab == "Dashboard":
             try:
                 resp = client.chat.completions.create(
                     messages=[{"role": "system", "content": SYSTEM_PROMPT}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]],
-                    model="llama-3.3-70b-versatile"
+                    model=ACTIVE_MODEL
                 )
                 bot_ans = clean_model_output(resp.choices[0].message.content)
             except Exception as e:
@@ -395,7 +394,7 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: VIP PRO TOOLS (EXCLUSIVE PAID FEATURE) ---
+# --- TAB: VIP PRO TOOLS ---
 elif st.session_state.current_tab == "VIP Tools":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Exclusive VIP AI Tools")
@@ -425,7 +424,7 @@ elif st.session_state.current_tab == "VIP Tools":
                 if topic:
                     with st.spinner("AI Script likh raha hai..."):
                         p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
-                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model="llama-3.3-70b-versatile")
+                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model=ACTIVE_MODEL)
                         st.success("Aapki Viral Reel Script taiyaar hai:")
                         st.markdown(clean_model_output(r.choices[0].message.content))
 
@@ -436,7 +435,7 @@ elif st.session_state.current_tab == "VIP Tools":
                 if item_name:
                     with st.spinner("Listing likh raha hai..."):
                         p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
-                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model="llama-3.3-70b-versatile")
+                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model=ACTIVE_MODEL)
                         st.success("Listing ready hai:")
                         st.markdown(clean_model_output(r.choices[0].message.content))
 
@@ -447,7 +446,7 @@ elif st.session_state.current_tab == "VIP Tools":
                 if niche:
                     with st.spinner("Bios ban rahe hain..."):
                         p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
-                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model="llama-3.3-70b-versatile")
+                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model=ACTIVE_MODEL)
                         st.markdown(clean_model_output(r.choices[0].message.content))
 
     st.markdown('</div>', unsafe_allow_html=True)
