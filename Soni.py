@@ -108,22 +108,29 @@ if "current_tab" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Match scoring in-memory session
-if "match_state" not in st.session_state:
-    st.session_state.match_state = {
-        "team_a": "Team A",
-        "team_b": "Team B",
+# --- CRICKET ENGINE INITIALIZATION ---
+def reset_cricket_match():
+    return {
+        "team_1": "Team A",
+        "team_2": "Team B",
+        "batting_team": "Team A",
+        "bowling_team": "Team B",
         "total_overs": 5,
+        "innings": 1,
         "runs": 0,
         "wickets": 0,
-        "overs_bowled": 0.0,
-        "batsman_1": "Player 1",
-        "batsman_1_runs": 0,
-        "batsman_2": "Player 2",
-        "batsman_2_runs": 0,
-        "bowler": "Bowler 1",
-        "bowler_wickets": 0
+        "balls_bowled": 0,
+        "batsman_1": "Player 1", "batsman_1_runs": 0,
+        "batsman_2": "Player 2", "batsman_2_runs": 0,
+        "bowler": "Bowler 1", "bowler_wickets": 0,
+        "target": 0,
+        "status": "Ongoing", # Ongoing, Innings Break, Finished
+        "winner": "",
+        "awaiting_wicket": False
     }
+
+if "match_state" not in st.session_state:
+    st.session_state.match_state = reset_cricket_match()
 
 st.markdown(
     """
@@ -215,11 +222,27 @@ st.markdown(
     }
 
     .score-runs {
-        font-size: 42px;
-        font-weight: 800;
+        font-size: 48px;
+        font-weight: 900;
         color: #38bdf8;
         line-height: 1;
         margin: 10px 0;
+    }
+
+    .winner-box {
+        background: linear-gradient(135deg, #f59e0b, #fbbf24);
+        color: #000;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
+        animation: popup 0.5s ease-out forwards;
+    }
+
+    @keyframes popup {
+        0% { transform: scale(0.8); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
     }
 
     .shop-product-card {
@@ -445,15 +468,14 @@ if st.session_state.current_tab == "Dashboard":
 # --- TAB: PRO CRICKET SCORER (PAID FEATURE) ---
 elif st.session_state.current_tab == "Cricket Scorer":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 🏏 Soni Pro Cricket Live Scorer & Match Manager")
-    st.write("Gali, turf aur tournament matches ka live digital scoreboard, run rate aur 1-click WhatsApp match poster.")
-
+    st.markdown("### 🏏 Soni Pro Cricket Live Scorer")
+    
     if not is_pro_user:
         st.warning("🔒 **Yeh Feature Sirf Pro Plan Members ke liye Unlock Hai!**")
         st.markdown("""
-        * 📊 **Live Ball-by-Ball Scorecard:** Runs, Wickets aur Over rate instant calculation.
-        * 🏆 **AI Man of the Match & Commentary:** AI match ka post-match analysis banata hai.
-        * 📲 **WhatsApp Match Summary Card:** Ek click par poora match score WhatsApp group par share karein.
+        * 🏆 **Tournament & Box Cricket Scoring:** Live scorecard with Target chases.
+        * 🎯 **Smart Wickets & Auto-Innings:** Catch/LBW detection aur auto 2nd-innings switch.
+        * 📲 **WhatsApp Poster Share:** Ek click mein group par scorecard.
         """)
         if st.button("💎 Unlock Pro Cricket Scorer (Upgrade to Pro)", use_container_width=True):
             st.session_state.current_tab = "Billing"
@@ -461,90 +483,167 @@ elif st.session_state.current_tab == "Cricket Scorer":
     else:
         ms = st.session_state.match_state
 
+        def check_match_status():
+            if ms["status"] == "Finished": return
+            if ms["innings"] == 1:
+                if ms["balls_bowled"] >= ms["total_overs"] * 6 or ms["wickets"] >= 10:
+                    ms["status"] = "Innings Break"
+                    ms["target"] = ms["runs"] + 1
+            elif ms["innings"] == 2:
+                if ms["runs"] >= ms["target"]:
+                    ms["status"] = "Finished"
+                    ms["winner"] = ms["batting_team"]
+                elif ms["balls_bowled"] >= ms["total_overs"] * 6 or ms["wickets"] >= 10:
+                    ms["status"] = "Finished"
+                    if ms["runs"] == ms["target"] - 1:
+                        ms["winner"] = "Tie"
+                    else:
+                        ms["winner"] = ms["bowling_team"]
+
+        # SHOW WINNER TROPHY IF FINISHED
+        if ms["status"] == "Finished":
+            if ms["winner"] == "Tie":
+                win_text = "Match Tied! 🤝"
+            else:
+                win_text = f"🏆 {ms['winner']} Won the Match! 🎉"
+            
+            st.markdown(f"""
+                <div class="winner-box">
+                    <h1 style="font-size:50px; margin:0;">🏆</h1>
+                    <h2 style="margin-top:10px; font-weight:800;">{win_text}</h2>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        # SHOW INNINGS BREAK
+        elif ms["status"] == "Innings Break":
+            st.info(f"**Innings Break!** {ms['batting_team']} scored {ms['runs']}/{ms['wickets']}.")
+            st.success(f"🎯 **Target for {ms['bowling_team']}: {ms['target']} Runs in {ms['total_overs']} Overs.**")
+            if st.button("▶️ Start 2nd Innings", use_container_width=True):
+                ms["batting_team"], ms["bowling_team"] = ms["bowling_team"], ms["batting_team"]
+                ms["runs"] = 0
+                ms["wickets"] = 0
+                ms["balls_bowled"] = 0
+                ms["innings"] = 2
+                ms["status"] = "Ongoing"
+                st.rerun()
+
+        # SCOREBOARD DISPLAY
+        overs_formatted = f"{ms['balls_bowled'] // 6}.{ms['balls_bowled'] % 6}"
+        crr = (ms['runs'] / max(1, ms['balls_bowled'])) * 6 if ms['balls_bowled'] > 0 else 0
+
+        target_html = f"<div style='margin-top:10px; color:#fcd34d; font-size:16px; font-weight:700;'>Target: {ms['target']}</div>" if ms["innings"] == 2 else ""
+
         st.markdown(f"""
             <div class="scoreboard-box">
-                <div style="font-size:18px; font-weight:700; color:#94a3b8;">{ms['team_a']} vs {ms['team_b']} ({ms['total_overs']} Overs Match)</div>
+                <div style="font-size:18px; font-weight:700; color:#94a3b8;">{ms['team_1']} vs {ms['team_2']} - Inning {ms['innings']}</div>
+                <div style="font-size:22px; font-weight:800; color:#fff; margin-top:8px;">🏏 Batting: {ms['batting_team']}</div>
                 <div class="score-runs">{ms['runs']} / {ms['wickets']}</div>
-                <div style="font-size:15px; font-weight:600;">Overs: {ms['overs_bowled']:.1f} / {ms['total_overs']} | Current Run Rate: {(ms['runs'] / max(0.1, ms['overs_bowled'])):.2f}</div>
-                <div style="margin-top:12px; font-size:13px; color:#cbd5e1;">
-                    🏏 Batting: <b>{ms['batsman_1']}</b> ({ms['batsman_1_runs']}*) | <b>{ms['batsman_2']}</b> ({ms['batsman_2_runs']}*) <br>
-                    ⚾ Bowling: <b>{ms['bowler']}</b> ({ms['bowler_wickets']} Wickets)
+                <div style="font-size:15px; font-weight:600;">Overs: {overs_formatted} / {ms['total_overs']} | CRR: {crr:.2f}</div>
+                {target_html}
+                <div style="margin-top:14px; font-size:14px; color:#cbd5e1;">
+                    🏏 <b>{ms['batsman_1']}</b> ({ms['batsman_1_runs']}*) | <b>{ms['batsman_2']}</b> ({ms['batsman_2_runs']}*) <br>
+                    ⚾ <b>{ms['bowler']}</b> ({ms['bowler_wickets']} Wickets)
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-        col_b1, col_b2, col_b3, col_b4, col_b5, col_b6 = st.columns(6)
-        with col_b1:
-            if st.button("➕ 1 Run", use_container_width=True):
-                ms["runs"] += 1
-                ms["batsman_1_runs"] += 1
-                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
-                st.rerun()
-        with col_b2:
-            if st.button("➕ 2 Runs", use_container_width=True):
-                ms["runs"] += 2
-                ms["batsman_1_runs"] += 2
-                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
-                st.rerun()
-        with col_b3:
-            if st.button("🔥 FOUR (4)", use_container_width=True):
-                ms["runs"] += 4
-                ms["batsman_1_runs"] += 4
-                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
-                st.rerun()
-        with col_b4:
-            if st.button("🚀 SIX (6)", use_container_width=True):
-                ms["runs"] += 6
-                ms["batsman_1_runs"] += 6
-                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
-                st.rerun()
-        with col_b5:
-            if st.button("🔴 OUT (W)", use_container_width=True):
-                ms["wickets"] += 1
-                ms["bowler_wickets"] += 1
-                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
-                st.rerun()
-        with col_b6:
-            if st.button("⚪ Dot Ball", use_container_width=True):
-                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
-                st.rerun()
+        # SCORING BUTTONS (Only if ongoing)
+        if ms["status"] == "Ongoing":
+            if ms["awaiting_wicket"]:
+                st.warning("⚠️ **Wicket Kese Aaya? (Select Wicket Type)**")
+                cw1, cw2, cw3, cw4, cw5 = st.columns(5)
+                wicket_types = ["🎯 Bowled", "🧤 Catch", "🦵 LBW", "🏃 Run Out", "⚡ Stumped"]
+                cols = [cw1, cw2, cw3, cw4, cw5]
+                
+                for i, w_type in enumerate(wicket_types):
+                    if cols[i].button(w_type, use_container_width=True):
+                        ms["wickets"] += 1
+                        if "Run Out" not in w_type:
+                            ms["bowler_wickets"] += 1
+                        ms["balls_bowled"] += 1
+                        ms["awaiting_wicket"] = False
+                        check_match_status()
+                        st.rerun()
+            else:
+                col_b1, col_b2, col_b3, col_b4, col_b5, col_b6 = st.columns(6)
+                with col_b1:
+                    if st.button("➕ 1 Run", use_container_width=True):
+                        ms["runs"] += 1
+                        ms["batsman_1_runs"] += 1
+                        ms["balls_bowled"] += 1
+                        check_match_status()
+                        st.rerun()
+                with col_b2:
+                    if st.button("➕ 2 Runs", use_container_width=True):
+                        ms["runs"] += 2
+                        ms["batsman_1_runs"] += 2
+                        ms["balls_bowled"] += 1
+                        check_match_status()
+                        st.rerun()
+                with col_b3:
+                    if st.button("🔥 FOUR (4)", use_container_width=True):
+                        ms["runs"] += 4
+                        ms["batsman_1_runs"] += 4
+                        ms["balls_bowled"] += 1
+                        check_match_status()
+                        st.rerun()
+                with col_b4:
+                    if st.button("🚀 SIX (6)", use_container_width=True):
+                        ms["runs"] += 6
+                        ms["batsman_1_runs"] += 6
+                        ms["balls_bowled"] += 1
+                        check_match_status()
+                        st.rerun()
+                with col_b5:
+                    if st.button("🔴 OUT (W)", use_container_width=True):
+                        ms["awaiting_wicket"] = True
+                        st.rerun()
+                with col_b6:
+                    if st.button("⚪ Dot Ball", use_container_width=True):
+                        ms["balls_bowled"] += 1
+                        check_match_status()
+                        st.rerun()
 
         st.markdown("---")
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.markdown("#### ⚙️ Edit Teams & Players")
             with st.form("form_edit_match"):
-                ms["team_a"] = st.text_input("Batting Team Name", value=ms["team_a"])
-                ms["team_b"] = st.text_input("Bowling Team Name", value=ms["team_b"])
-                ms["total_overs"] = st.number_input("Total Match Overs", min_value=1, max_value=50, value=ms["total_overs"])
-                ms["batsman_1"] = st.text_input("Striker Batsman", value=ms["batsman_1"])
-                ms["batsman_2"] = st.text_input("Non-Striker Batsman", value=ms["batsman_2"])
-                ms["bowler"] = st.text_input("Current Bowler", value=ms["bowler"])
-                if st.form_submit_button("Update Match Info 🔄", use_container_width=True):
+                team1 = st.text_input("Team 1 Name", value=ms["team_1"])
+                team2 = st.text_input("Team 2 Name", value=ms["team_2"])
+                t_overs = st.number_input("Total Match Overs", min_value=1, max_value=50, value=ms["total_overs"])
+                b1 = st.text_input("Striker Batsman", value=ms["batsman_1"])
+                b2 = st.text_input("Non-Striker Batsman", value=ms["batsman_2"])
+                bw = st.text_input("Current Bowler", value=ms["bowler"])
+                if st.form_submit_button("Update Details 🔄", use_container_width=True):
+                    ms["team_1"], ms["team_2"], ms["total_overs"] = team1, team2, t_overs
+                    # If match hasn't started changing team names updates batting/bowling
+                    if ms["balls_bowled"] == 0 and ms["innings"] == 1:
+                        ms["batting_team"], ms["bowling_team"] = team1, team2
+                    ms["batsman_1"], ms["batsman_2"], ms["bowler"] = b1, b2, bw
                     st.success("Details updated!")
                     st.rerun()
 
         with col_m2:
-            st.markdown("#### 📲 Share Scorecard On WhatsApp")
+            st.markdown("#### 📲 Share Scorecard")
+            target_str = f"🎯 Target: {ms['target']}\n" if ms["innings"] == 2 else ""
+            win_str = f"\n🏆 *{ms['winner']} Won The Match!*" if ms["status"] == "Finished" else ""
+            
             wa_score_text = (
-                f"🏏 *LIVE MATCH SCORECARD*\n"
-                f"⚔️ *{ms['team_a']} vs {ms['team_b']}*\n\n"
-                f"📊 *Score:* {ms['runs']}/{ms['wickets']} in {ms['overs_bowled']:.1f} ov\n"
-                f"📈 *Run Rate:* {(ms['runs'] / max(0.1, ms['overs_bowled'])):.2f}\n\n"
-                f"👤 *{ms['batsman_1']}:* {ms['batsman_1_runs']} runs*\n"
-                f"👤 *{ms['batsman_2']}:* {ms['batsman_2_runs']} runs*\n"
-                f"⚾ *{ms['bowler']}:* {ms['bowler_wickets']} Wickets\n\n"
-                f"⚡ *Scored via Soni AI Cricket Manager*"
+                f"🏏 *LIVE MATCH UPDATE*\n"
+                f"⚔️ *{ms['team_1']} vs {ms['team_2']}*\n\n"
+                f"Batting: *{ms['batting_team']}*\n"
+                f"📊 *Score:* {ms['runs']}/{ms['wickets']} in {overs_formatted} ov\n"
+                f"📈 *Run Rate:* {crr:.2f}\n"
+                f"{target_str}"
+                f"{win_str}\n\n"
+                f"⚡ *Powered by Soni AI*"
             )
             share_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(wa_score_text)}"
-            st.markdown(f'<a href="{share_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#25D366; color:white; border-radius:12px; text-decoration:none; font-weight:bold; margin-top:20px;">📲 WhatsApp Group Par Score Share Karein</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{share_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#25D366; color:white; border-radius:12px; text-decoration:none; font-weight:bold; margin-top:20px;">📲 Share on WhatsApp</a>', unsafe_allow_html=True)
             
-            if st.button("🔄 Reset Match (Start New Match)", use_container_width=True):
-                st.session_state.match_state = {
-                    "team_a": "Team A", "team_b": "Team B", "total_overs": 5, "runs": 0,
-                    "wickets": 0, "overs_bowled": 0.0, "batsman_1": "Player 1", "batsman_1_runs": 0,
-                    "batsman_2": "Player 2", "batsman_2_runs": 0, "bowler": "Bowler 1", "bowler_wickets": 0
-                }
+            if st.button("🔄 Reset / New Match", use_container_width=True):
+                st.session_state.match_state = reset_cricket_match()
                 st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
