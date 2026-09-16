@@ -5,21 +5,18 @@ import json
 import os
 import re
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
 
 BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
 UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
-UPI_ID = "8307940340@ptyes"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
-OWNER_EMAIL = "sonijatin177@gmail.com"
 
 ORDERS_FILE = "orders_database.json"
 PRODUCTS_FILE = "products_database.json"
+GROUP_CHAT_FILE = "wa_group_chats.json"
 USERS_FILE = "users_database.json"
-WA_GROUP_FILE = "whatsapp_group_chats.json"
 
 def load_orders():
     if os.path.exists(ORDERS_FILE):
@@ -54,60 +51,41 @@ def save_all_products(products_list):
     with open(PRODUCTS_FILE, "w") as f:
         json.dump(products_list, f, indent=4)
 
-def load_json(file_p, default_v):
-    if os.path.exists(file_p):
+def load_json(path, default):
+    if os.path.exists(path):
         try:
-            with open(file_p, "r") as f:
+            with open(path, "r") as f:
                 return json.load(f)
         except:
-            return default_v
-    return default_v
+            return default
+    return default
 
-def save_json(file_p, data):
-    with open(file_p, "w") as f:
+def save_json(path, data):
+    with open(path, "w") as f:
         json.dump(data, f, indent=4)
 
 users_db = load_json(USERS_FILE, {
-    "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "post_allowed": True}
+    "sonijatin177@gmail.com": {"plan": "pro", "post_allowed": True}
 })
-wa_chats = load_json(WA_GROUP_FILE, [])
+group_chats = load_json(GROUP_CHAT_FILE, [])
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
-if "show_group" not in st.session_state:
-    st.session_state.show_group = False
 if "admin_authenticated" not in st.session_state:
     st.session_state.admin_authenticated = False
 if "lightbox_img" not in st.session_state:
     st.session_state.lightbox_img = None
-
-# Auto-Persistent Login via Query Params (Refresh hone par logout nahi hoga)
-url_user = st.query_params.get("user")
-if url_user and url_user.strip().lower() in users_db:
-    st.session_state.logged_in_user = url_user.strip().lower()
-elif "logged_in_user" not in st.session_state:
-    st.session_state.logged_in_user = None
+if "current_user" not in st.session_state:
+    st.session_state.current_user = st.query_params.get("user", "guest@soniai.com").strip().lower()
 
 query_params = st.query_params
 if query_params.get("action") == "toggle_shop":
     st.session_state.show_shop = not st.session_state.show_shop
-    st.session_state.show_group = False
     st.query_params.clear()
-    if st.session_state.logged_in_user:
-        st.query_params["user"] = st.session_state.logged_in_user
     st.rerun()
 
-if query_params.get("action") == "toggle_group":
-    st.session_state.show_group = not st.session_state.show_group
-    st.session_state.show_shop = False
-    st.query_params.clear()
-    if st.session_state.logged_in_user:
-        st.query_params["user"] = st.session_state.logged_in_user
-    st.rerun()
-
-# ORIGINAL CSS & THEME (100% MATCH)
 st.markdown(
     f"""
     <style>
@@ -216,22 +194,6 @@ st.markdown(
         transform: scale(1.05);
     }}
 
-    .group-btn-link {{
-        background: rgba(0, 0, 0, 0.75);
-        color: #25d366 !important;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none !important;
-        border: 1px solid rgba(37, 211, 102, 0.5);
-        backdrop-filter: blur(8px);
-        display: inline-block;
-    }}
-    .group-btn-link:hover {{
-        transform: scale(1.05);
-    }}
-
     h1, h2, h3, p {{
         color: #ffffff;
     }}
@@ -298,38 +260,25 @@ st.markdown(
         margin-bottom: 12px;
     }}
 
-    /* WhatsApp Group Feed Styling */
-    .wa-chat-container {{
-        background: rgba(11, 20, 26, 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(12px);
-        border-radius: 18px;
-        padding: 16px;
-        max-height: 480px;
-        overflow-y: auto;
-        margin-bottom: 14px;
+    .lightbox-overlay {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        backdrop-filter: blur(10px);
     }}
-    .wa-bubble-owner {{
-        background: #005c4b;
-        color: #ffffff;
-        padding: 8px 12px;
-        border-radius: 10px 10px 0px 10px;
-        margin-left: auto;
-        margin-bottom: 8px;
-        max-width: 82%;
-        font-size: 13px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }}
-    .wa-bubble-member {{
-        background: #202c33;
-        color: #ffffff;
-        padding: 8px 12px;
-        border-radius: 10px 10px 10px 0px;
-        margin-right: auto;
-        margin-bottom: 8px;
-        max-width: 82%;
-        font-size: 13px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    .lightbox-content {{
+        max-width: 90%;
+        max-height: 85vh;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        border: 2px solid rgba(255,255,255,0.2);
     }}
 
     .admin-card-box {{
@@ -365,9 +314,6 @@ st.markdown(
         <a href="/?action=toggle_shop" target="_self" class="shop-btn-link">
             🛍️ Soni Shop
         </a>
-        <a href="/?action=toggle_group" target="_self" class="group-btn-link">
-            👥 VIP Group
-        </a>
     </div>
     """,
     unsafe_allow_html=True
@@ -390,18 +336,21 @@ CREATOR_REPLY = (
 )
 
 CUSTOM_ANSWERS = {
-    "what is skb": "Santosh Kulcha Bhandar",
-    "skb": "Santosh Kulcha Bhandar",
-    "skb kya hai": "Santosh Kulcha Bhandar"
+    "what is skb": "Santosh kulcha bandar",
+    "skb": "Santosh kulcha bandar",
+    "skb kya hai": "Santosh kulcha bandar"
 }
 
-CURRENT_DATE_STR = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %B %Y")
+CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
 
 SYSTEM_PROMPT = f"""
 You are Soni AI, created by Jatin Soni.
 Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
-Today's Date: {CURRENT_DATE_STR}.
-Rules: Direct, concise answers in Hindi/Hinglish/English. No internal thinking tags or drafts.
+Today: {CURRENT_DATE_STR}
+Rules:
+1. Always start directly with the actual answer. No thinking, reasoning, or draft tags.
+2. Short, crisp responses.
+3. If asked who made you, answer: "{CREATOR_REPLY}"
 """
 
 def clean_model_output(text: str) -> str:
@@ -410,154 +359,83 @@ def clean_model_output(text: str) -> str:
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     return text.strip()
 
-# ================= 1. ADMIN PANEL =================
+if st.session_state.lightbox_img:
+    img_url = st.session_state.lightbox_img
+    st.markdown(f"""
+        <div class="lightbox-overlay" onclick="window.location.reload();">
+            <div style="text-align: center; position: relative;">
+                <img src="{img_url}" class="lightbox-content"><br>
+                <span style="color: #bbb; font-size: 13px; display: block; margin-top: 12px;">(Band karne ke liye click karein)</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# Admin Panel
 if st.session_state.admin_authenticated:
     col_adm_title, col_adm_close = st.columns([7, 3])
     with col_adm_title:
         st.markdown("## 👑 Secret Owner Control Panel")
     with col_adm_close:
-        if st.button("❌ Close Admin"):
+        if st.button("❌ Close Admin", key="btn_close_admin"):
             st.session_state.admin_authenticated = False
             st.rerun()
 
-    tab_orders, tab_add_prod, tab_group_perms = st.tabs(["📦 Orders", "➕ List Product", "👥 Group Permissions"])
+    tab_orders, tab_add_prod, tab_perms = st.tabs(["📦 Orders", "➕ Add Product", "👥 Group Permissions"])
 
     with tab_orders:
         all_orders = load_orders()
         if not all_orders:
-            st.info("Abhi tak koi naya order nahi aaya hai.")
+            st.info("Koi orders nahi hain.")
         else:
-            st.success(f"Total Orders: {len(all_orders)}")
             for idx, ord_data in enumerate(all_orders):
                 st.markdown(f"""
                 <div class="admin-card-box">
                     <b>Order #{idx + 1}</b><br>
                     📦 <b>Item:</b> {ord_data['item']} (₹{ord_data['price']})<br>
                     👤 <b>Customer:</b> {ord_data['name']} | 📞 <b>Phone:</b> {ord_data['phone']}<br>
-                    🏠 <b>Address:</b> {ord_data['address']}<br>
-                    💳 <b>Payment:</b> {ord_data['payment']}
+                    🏠 <b>Address:</b> {ord_data['address']}
                 </div>
                 """, unsafe_allow_html=True)
 
     with tab_add_prod:
-        with st.form("form_add_item"):
+        with st.form("form_add_new_prod"):
             p_name = st.text_input("Product Name*")
-            p_price = st.number_input("Price*", min_value=1, value=299)
+            p_price = st.number_input("Price (in ₹)*", min_value=1, value=299)
             p_img = st.text_input("Image URL*")
-            if st.form_submit_button("Shop Mein List Karein 🚀"):
+            if st.form_submit_button("List Item 🚀"):
                 if p_name and p_img:
-                    prods = load_products()
-                    prods.append({"id": int(os.urandom(3).hex(), 16), "name": p_name, "price": int(p_price), "img": p_img})
-                    save_all_products(prods)
-                    st.success("Item add ho gaya!")
+                    cur_prods = load_products()
+                    cur_prods.append({"id": int(os.urandom(3).hex(), 16), "name": p_name, "price": int(p_price), "img": p_img})
+                    save_all_products(cur_prods)
+                    st.success("Product listed!")
                     st.rerun()
 
-    with tab_group_perms:
-        st.markdown("#### WhatsApp Group - Allow/Revoke Post Permission")
-        for u_email, u_data in list(users_db.items()):
-            if u_email == OWNER_EMAIL: continue
-            can_p = u_data.get("post_allowed", False)
-            c1, c2 = st.columns([6, 4])
-            with c1:
-                st.write(f"👤 **{u_email}** — `{'CAN POST' if can_p else 'READ ONLY'}`")
-            with c2:
-                if can_p:
-                    if st.button(f"Revoke", key=f"rev_{u_email}"):
-                        users_db[u_email]["post_allowed"] = False
-                        save_json(USERS_FILE, users_db)
-                        st.rerun()
-                else:
-                    if st.button(f"Allow", key=f"alw_{u_email}"):
-                        users_db[u_email]["post_allowed"] = True
-                        save_json(USERS_FILE, users_db)
-                        st.rerun()
+    with tab_perms:
+        st.markdown("#### Manage User Permissions")
+        target_email = st.text_input("User Email:", placeholder="user@gmail.com").strip().lower()
+        c_a1, c_a2 = st.columns(2)
+        with c_a1:
+            if st.button("Make Pro Member 💎"):
+                if target_email:
+                    if target_email not in users_db: users_db[target_email] = {}
+                    users_db[target_email]["plan"] = "pro"
+                    save_json(USERS_FILE, users_db)
+                    st.success(f"{target_email} is now Pro!")
+        with c_a2:
+            if st.button("Allow Group Post Permission ✅"):
+                if target_email:
+                    if target_email not in users_db: users_db[target_email] = {}
+                    users_db[target_email]["post_allowed"] = True
+                    save_json(USERS_FILE, users_db)
+                    st.success(f"{target_email} can now send messages in group!")
 
-# ================= 2. WHATSAPP VIP GROUP VIEW =================
-elif st.session_state.show_group:
-    col_gh, col_gb = st.columns([7, 3])
-    with col_gh:
-        st.markdown("## 👥 WhatsApp VIP Group")
-    with col_gb:
-        if st.button("⬅️ Back to Chat", key="btn_back_from_grp"):
-            st.session_state.show_group = False
-            st.rerun()
-
-    current_u = st.session_state.logged_in_user
-    u_info = users_db.get(current_u, {}) if current_u else {}
-    is_pro = (u_info.get("plan") == "pro") or (current_u == OWNER_EMAIL)
-
-    if not current_u:
-        st.markdown("""
-            <div style="background:rgba(0,0,0,0.6); padding:20px; border-radius:15px; text-align:center; border:1px solid rgba(255,255,255,0.2);">
-                <p>WhatsApp Group sirf registered Pro members ke liye hai.</p>
-            </div>
-        """, unsafe_allow_html=True)
-        with st.form("form_quick_login_grp"):
-            lg_em = st.text_input("Email:").strip().lower()
-            lg_pw = st.text_input("Password:", type="password").strip()
-            if st.form_submit_button("Log In"):
-                if lg_em in users_db and (users_db[lg_em].get("password") == lg_pw or lg_pw == "admin"):
-                    st.session_state.logged_in_user = lg_em
-                    st.query_params["user"] = lg_em
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials!")
-    elif not is_pro:
-        st.error("🚫 **Access Denied:** Yeh group sirf Pro/Paid members ke liye hai. Free users iski chats nahi dekh sakte.")
-        st.image(UPI_QR_URL, width=180, caption="Scan & Pay ₹49 to Join Group")
-        st.markdown(f"**UPI ID:** `{UPI_ID}`")
-    else:
-        # PAID/PRO USERS: CHAT DEKH SAKTE HAIN
-        is_owner = (current_u == OWNER_EMAIL)
-        can_post = is_owner or u_info.get("post_allowed", False)
-
-        st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
-        if not wa_chats:
-            st.markdown("<p style='text-align:center; color:#888;'>Group mein abhi koi messages nahi hain.</p>", unsafe_allow_html=True)
-        for msg in wa_chats:
-            s_name = msg.get("name", "Member")
-            text = msg.get("text", "")
-            t_str = msg.get("time", "")
-            is_adm = msg.get("is_owner", False)
-
-            b_class = "wa-bubble-owner" if is_adm else "wa-bubble-member"
-            tag_color = "#25d366" if is_adm else "#00e5ff"
-            role_label = "👑 Admin" if is_adm else "👤 Member"
-
-            st.markdown(f"""
-                <div class="{b_class}">
-                    <div style="font-size:11px; font-weight:bold; color:{tag_color};">{s_name} ({role_label})</div>
-                    <div>{text}</div>
-                    <div style="font-size:9px; color:#bbb; text-align:right;">{t_str}</div>
-                </div>
-            """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # SIRF OWNER YA PERMISSION WALE POST KAR SAKTE HAIN
-        if can_post:
-            with st.form("form_send_wa_msg", clear_on_submit=True):
-                g_text = st.text_input("Message likhein:", placeholder="Type a message...")
-                if st.form_submit_button("Send 🚀"):
-                    if g_text.strip():
-                        now_t = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
-                        wa_chats.append({
-                            "name": "Jatin Soni" if is_owner else current_u.split("@")[0],
-                            "is_owner": is_owner,
-                            "text": g_text.strip(),
-                            "time": now_t
-                        })
-                        save_json(WA_GROUP_FILE, wa_chats)
-                        st.rerun()
-        else:
-            st.info("🔒 **Only Admins can send messages:** Aap sabhi messages padh sakte hain, lekin bolne ki permission sirf Owner aur approved members ko hai.")
-
-# ================= 3. SONI STORE VIEW =================
+# Store Window
 elif st.session_state.show_shop:
     col_head, col_back = st.columns([7, 3])
     with col_head:
         st.markdown("## 🛍️ Soni Store")
     with col_back:
-        if st.button("⬅️ Back to Chat"):
+        if st.button("⬅️ Back to Chat", key="btn_back_to_chat"):
             st.session_state.show_shop = False
             st.rerun()
 
@@ -573,7 +451,7 @@ elif st.session_state.show_shop:
                 <div class="shop-product-price">₹{prod['price']}</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button(f"🛒 Buy Now", key=f"b_{prod['id']}"):
+            if st.button("🛒 Buy Now", key=f"buy_btn_{prod['id']}"):
                 st.session_state.selected_product = prod
                 st.rerun()
 
@@ -582,28 +460,27 @@ elif st.session_state.show_shop:
         st.markdown("---")
         st.markdown(f"### 📦 Checkout: {item['name']} (₹{item['price']})")
         with st.form("order_checkout_form"):
-            c_name = st.text_input("Aapka Naam*")
-            c_phone = st.text_input("Mobile Number*")
-            c_addr = st.text_area("Delivery Address*")
-            payment_mode = st.radio("Payment Mode*", ["Cash on Delivery (COD)", "Pay Online (UPI)"])
+            cust_name = st.text_input("Name*")
+            cust_phone = st.text_input("Mobile*")
+            cust_address = st.text_area("Address*")
+            payment_mode = st.radio("Payment*", ["COD", "UPI"])
             if st.form_submit_button("Confirm Order 🚀"):
-                if c_name and c_phone and c_addr:
+                if cust_name and cust_phone and cust_address:
                     orders = load_orders()
-                    orders.append({"item": item["name"], "price": item["price"], "name": c_name, "phone": c_phone, "address": c_addr, "payment": payment_mode})
+                    orders.append({"item": item["name"], "price": item["price"], "name": cust_name, "phone": cust_phone, "address": cust_address, "payment": payment_mode})
                     save_all_orders(orders)
                     st.success("Order Confirm ho gaya! 🎉")
-                    msg = f"🛒 *NEW ORDER*\nItem: {item['name']}\nPrice: ₹{item['price']}\nName: {c_name}\nPhone: {c_phone}\nAddress: {c_addr}"
-                    wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(msg)}"
-                    st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block; text-align:center; padding:10px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt bhejein</a>', unsafe_allow_html=True)
+                    wa_msg = f"🛒 *NEW ORDER*\nItem: {item['name']}\nPrice: ₹{item['price']}\nName: {cust_name}\nPhone: {cust_phone}\nAddress: {cust_address}"
+                    st.markdown(f'<a href="https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}" target="_blank" style="padding:10px; background:#25D366; color:white; border-radius:10px; text-decoration:none; display:block; text-align:center;">📲 WhatsApp par Order Bhejein</a>', unsafe_allow_html=True)
                     st.session_state.selected_product = None
 
-# ================= 4. MAIN AI CHAT (ORIGINAL SCREEN) =================
+# Original Chat Area
 else:
     col_c1, col_c2 = st.columns([7, 3])
     with col_c1:
         st.write("Aapka personal AI Assistant!")
     with col_c2:
-        if st.button("🧹 Clear Chat"):
+        if st.button("🧹 Clear Chat", key="btn_clear_chat"):
             st.session_state.messages = []
             st.rerun()
 
@@ -612,9 +489,11 @@ else:
             st.markdown(message["content"])
 
     user_input = st.chat_input("Ask Soni AI anything...")
+
     if user_input:
         clean_input = user_input.strip()
 
+        # Admin trigger
         if clean_input == f"/admin {ADMIN_PIN}":
             st.session_state.admin_authenticated = True
             st.rerun()
@@ -624,18 +503,55 @@ else:
             st.markdown(user_input)
 
         input_lower = clean_input.lower()
-        creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
+        curr_user = st.session_state.current_user
+        u_info = users_db.get(curr_user, {})
+        is_pro = (u_info.get("plan") == "pro") or (curr_user == "sonijatin177@gmail.com")
+        is_owner = (curr_user == "sonijatin177@gmail.com")
+        can_post = is_owner or u_info.get("post_allowed", False)
 
-        matched_custom_reply = None
-        for q_trig, ans in CUSTOM_ANSWERS.items():
-            if q_trig in input_lower:
-                matched_custom_reply = ans
-                break
+        # 1. VIEW WHATSAPP GROUP CHAT
+        if input_lower in ["/group", "open group", "group chat", "private chat"]:
+            if not is_pro:
+                bot_reply = "🔒 **Access Denied!** WhatsApp Group chat sirf Pro/Paid members dekh sakte hain. Upgrade karne ke liye mujhe WhatsApp par message karein."
+            else:
+                if not group_chats:
+                    bot_reply = "👥 **VIP WhatsApp Group**\n\nAbhi group mein koi messages nahi hain."
+                else:
+                    feed_text = "👥 **VIP WhatsApp Group Messages:**\n\n"
+                    for g in group_chats[-10:]:
+                        badge = "👑 Owner" if g.get("is_owner") else "👤 Member"
+                        feed_text += f"• **{g.get('name')} ({badge})**: {g.get('text')} *(🕒 {g.get('time')})*\n"
+                    feed_text += "\n*(Message bhejne ke liye likhein: `/send <aapka message>`)*"
+                    bot_reply = feed_text
 
-        if matched_custom_reply:
-            bot_reply = matched_custom_reply
-        elif any(trig in input_lower for trig in creator_triggers):
+        # 2. SEND MESSAGE IN WHATSAPP GROUP
+        elif input_lower.startswith("/send "):
+            msg_to_send = clean_input[6:].strip()
+            if not is_pro:
+                bot_reply = "🔒 Sirf Paid members hi group access kar sakte hain."
+            elif not can_post:
+                bot_reply = "🔒 **Permission Required:** Aap messages padh sakte hain, lekin message bhejne ki permission sirf Owner ya approved members ke paas hai."
+            else:
+                now_str = datetime.now().strftime("%I:%M %p")
+                sender_title = "Jatin Soni" if is_owner else curr_user.split("@")[0]
+                group_chats.append({
+                    "name": sender_title,
+                    "is_owner": is_owner,
+                    "text": msg_to_send,
+                    "time": now_str
+                })
+                save_json(GROUP_CHAT_FILE, group_chats)
+                bot_reply = f"✅ Group mein message post ho gaya: *\"{msg_to_send}\"*"
+
+        # 3. CUSTOM ANSWERS (SKB)
+        elif any(trig in input_lower for trig in CUSTOM_ANSWERS):
+            bot_reply = "Santosh kulcha bandar"
+
+        # 4. CREATOR TRIGGERS
+        elif any(trig in input_lower for trig in ["kisne banaya", "who made you", "developer", "creator", "owner", "maker"]):
             bot_reply = CREATOR_REPLY
+
+        # 5. NORMAL GROQ AI
         else:
             try:
                 chat_completion = client.chat.completions.create(
