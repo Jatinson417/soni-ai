@@ -26,7 +26,6 @@ FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
 PREMIUM_PRICE = 49.00
 
-# Exact matches only for SKB
 EXACT_SKB_QUERIES = ["what is skb", "skb kya hai", "skb"]
 
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
@@ -473,7 +472,7 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: VIP SECRET ROOM (PAID USERS ONLY) ---
+# --- TAB: VIP SECRET ROOM ---
 elif st.session_state.current_tab == "SecretRoom":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🔒 VIP Secret Room (Private Channel)")
@@ -523,7 +522,7 @@ elif st.session_state.current_tab == "SecretRoom":
                         save_json(SECRET_CHAT_FILE, secret_chat_db)
                         st.rerun()
         else:
-            st.info("👀 **Read-Only Mode:** Aap sabhi messages padh sakte hain. Lekin message bhejne ka haq sirf Owner ya permission wale verified members ko hai. Permission lene ke liye Owner ko WhatsApp karein:")
+            st.info("👀 **Read-Only Mode:** Aap sabhi messages padh sakte hain. Lekin message bhejne ka haq sirf Owner ya permission wale verified members ko hai.")
             wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, maine Pro liya hai ({active_user}). Please mujhe VIP Secret Room mein message post karne ki permission dedo.')}"
             st.markdown(f'<a href="{wa_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:13px;">📲 WhatsApp Permission Request</a>', unsafe_allow_html=True)
 
@@ -548,7 +547,7 @@ elif st.session_state.current_tab == "VIP Tools":
 
         if "Reels" in tool_choice:
             st.markdown("#### 🎬 Instagram Reels Script Generator")
-            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
+            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips")
             if st.button("Generate Viral Script 🚀"):
                 if topic:
                     with st.spinner("AI Script likh raha hai..."):
@@ -559,7 +558,7 @@ elif st.session_state.current_tab == "VIP Tools":
 
         elif "E-commerce" in tool_choice:
             st.markdown("#### 📦 E-Commerce Description Generator")
-            item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery, soft fabric")
+            item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery")
             if st.button("Generate Professional Listing 🚀"):
                 if item_name:
                     with st.spinner("Listing likh raha hai..."):
@@ -686,7 +685,7 @@ elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Owner Verification & Control Panel")
 
-    tab_adm_pay, tab_adm_feed = st.tabs(["💳 Approve Payments", "🔒 Manage Secret Room Permissions"])
+    tab_adm_pay, tab_adm_feed, tab_adm_coup = st.tabs(["💳 Approve Payments", "🔒 Secret Room Permissions", "🎟️ Manage Coupons"])
 
     with tab_adm_pay:
         st.markdown("#### Pending UTR Requests")
@@ -705,8 +704,6 @@ elif st.session_state.current_tab == "AdminPanel":
 
     with tab_adm_feed:
         st.markdown("#### ⚙️ Member Post Permissions for Secret Room")
-        st.caption("Yahan se decide karein ki kaunsa paid member Secret Room mein message type karke bhej sakta hai:")
-
         registered_users = [u for u in users_db.keys() if u not in ["guest@soniai.com", OWNER_EMAIL]]
         if not registered_users:
             st.info("Koi registered member nahi hai abhi.")
@@ -734,9 +731,39 @@ elif st.session_state.current_tab == "AdminPanel":
         st.markdown("---")
         st.markdown("#### 🗑️ Clear Secret Room Chat")
         if st.button("Clear All Secret Room Messages"):
-            save_json(SECRET_CHAT_FILE, [])
+            save_json(SECRET_FILE, []) if 'SECRET_FILE' in locals() else save_json(SECRET_CHAT_FILE, [])
             st.success("Secret room clear ho gaya!")
             st.rerun()
+
+    with tab_adm_coup:
+        st.markdown("#### 🎟️ Create New Coupon")
+        with st.form("create_coupon_form"):
+            new_code = st.text_input("Coupon Code (Ex: FESTIVAL50)*", placeholder="Type code here...").strip().upper()
+            new_disc = st.number_input("Discount Percentage (%)*", min_value=1, max_value=100, value=50, step=1)
+            if st.form_submit_button("Create Coupon 🚀", use_container_width=True):
+                if new_code:
+                    coupons_db[new_code] = {"discount_percent": int(new_disc)}
+                    save_json(COUPONS_FILE, coupons_db)
+                    st.success(f"Coupon **{new_code}** ({new_disc}% OFF) successfully ban gaya!")
+                    st.rerun()
+                else:
+                    st.error("Kripya valid coupon code daalein!")
+
+        st.markdown("---")
+        st.markdown("#### 🗑️ Existing Coupons List")
+        if not coupons_db:
+            st.info("Koi active coupon nahi hai.")
+        else:
+            for c_code, c_data in list(coupons_db.items()):
+                c_col1, c_col2 = st.columns([7, 3])
+                with c_col1:
+                    st.write(f"🎟️ **{c_code}** — Discount: **{c_data.get('discount_percent')}%**")
+                with c_col2:
+                    if st.button(f"Delete", key=f"del_coup_{c_code}"):
+                        del coupons_db[c_code]
+                        save_json(COUPONS_FILE, coupons_db)
+                        st.success(f"Coupon {c_code} hata diya gaya!")
+                        st.rerun()
 
     st.markdown("---")
     if st.button("⬅️ Back to Dashboard"):
