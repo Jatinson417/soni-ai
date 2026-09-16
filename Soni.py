@@ -393,7 +393,7 @@ with st.sidebar:
         st.session_state.current_tab = "Dashboard"
         st.rerun()
 
-    if st.button("🔒 VIP Secret Room", key="btn_sb_secret"):
+    if st.button("🔒 VIP Room", key="btn_sb_secret"):
         st.session_state.current_tab = "SecretRoom"
         st.rerun()
 
@@ -502,14 +502,14 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: VIP SECRET ROOM ---
+# --- TAB: VIP ROOM ---
 elif st.session_state.current_tab == "SecretRoom":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 🔒 VIP Secret Room (Private Channel)")
+    st.markdown("### 🔒 VIP Room (Private Channel)")
 
     if not is_pro_user:
         st.error("🚫 **Access Denied!** Yeh private chat room sirf Paid/Pro members ke liye hai. Free users iski chats nahi dekh sakte.")
-        if st.button("💎 Upgrade to Pro & Unlock Secret Room", use_container_width=True):
+        if st.button("💎 Upgrade to Pro & Unlock VIP Room", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
@@ -538,7 +538,7 @@ elif st.session_state.current_tab == "SecretRoom":
 
         if has_post_permission:
             with st.form("form_secret_chat_msg", clear_on_submit=True):
-                s_input = st.text_input("Write a message to the secret room:", placeholder="Type message here...")
+                s_input = st.text_input("Write a message to the VIP room:", placeholder="Type message here...")
                 if st.form_submit_button("Send Message 🚀", use_container_width=True):
                     if s_input.strip():
                         now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b, %I:%M %p")
@@ -553,7 +553,7 @@ elif st.session_state.current_tab == "SecretRoom":
                         st.rerun()
         else:
             st.info("👀 **Read-Only Mode:** Aap sabhi messages padh sakte hain. Lekin message bhejne ka haq sirf Owner ya permission wale verified members ko hai:")
-            wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, maine Pro liya hai ({active_user}). Please mujhe VIP Secret Room mein message post karne ki permission dedo.')}"
+            wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, maine Pro liya hai ({active_user}). Please mujhe VIP Room mein message post karne ki permission dedo.')}"
             st.markdown(f'<a href="{wa_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:13px;">📲 WhatsApp Permission Request</a>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -562,14 +562,14 @@ elif st.session_state.current_tab == "SecretRoom":
 elif st.session_state.current_tab == "Referral":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👥 Refer & Earn Free Pro Access")
-    st.write("Apne dosto ko Soni AI invite karein aur special discount paayein!")
+    st.write("Apne dosto ko Soni AI invite karein!")
 
     ref_link = f"https://soniai.streamlit.app/?user={active_user}"
     st.markdown(f"**Aapka Personal Referral Link:**")
     st.code(ref_link)
 
-    st.markdown("#### 🎁 Exclusive Friend Perk:")
-    st.info("⚠️ **Note:** Yeh special discount sabhi ke liye nahi hai! Sirf aapke invited dosto ke paas 'FRIEND' coupon code (90% off) use karne ka special access hoga.")
+    st.markdown("#### 🎁 Referral Program:")
+    st.info("Apne dosto ke sath link share karein.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: VIP PRO TOOLS ---
@@ -671,35 +671,29 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING & COUPON CODE (₹99 Standard Price & Secret Coupons) ---
+# --- TAB: BILLING & COUPON CODE (Completely Clean) ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write(f"Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein (Standard Price: **₹{PREMIUM_PRICE:.0f}**):")
+    st.write(f"Unlimited Chats + VIP Room + ₹100 Store Discount pane ke liye Pro activate karein (Price: **₹{PREMIUM_PRICE:.0f}**):")
 
     if "applied_coupon" not in st.session_state:
         st.session_state.applied_coupon = None
 
-    st.markdown("""
-        <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px;">
-            ⚠️ <b>Note:</b> Special coupon codes (jaise 'SONI' 50% off ya 'FRIEND' 90% off) sabhi ke liye public nahi hain. Agar aapke paas secret code hai toh niche enter karein.
-        </div>
-    """, unsafe_allow_html=True)
-
-    coupon_input = st.text_input("🎟️ Enter Secret Coupon Code", placeholder="Ex: SONI or FRIEND").strip().upper()
+    coupon_input = st.text_input("🎟️ Enter Coupon Code", placeholder="Enter code...").strip().upper()
     if st.button("Apply Coupon"):
         if coupon_input in coupons_db:
             st.session_state.applied_coupon = coupon_input
-            st.success(f"Secret Coupon '{coupon_input}' applied successfully! 🎉")
+            st.success("Coupon applied successfully! 🎉")
         else:
-            st.error("Invalid coupon code! Yeh code sabhi ke liye available nahi hai.")
+            st.error("Invalid coupon code!")
 
     final_price = PREMIUM_PRICE
     if st.session_state.applied_coupon in coupons_db:
         disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
         final_price = PREMIUM_PRICE - (PREMIUM_PRICE * disc_pct / 100)
         final_price = max(1.00, final_price)
-        st.info(f"Secret Coupon Applied: **{st.session_state.applied_coupon}** ({disc_pct}% OFF)")
+        st.info(f"Coupon Applied ({disc_pct}% OFF)")
 
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
@@ -709,7 +703,7 @@ elif st.session_state.current_tab == "Billing":
         st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
-            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Secret Room unlocked hain.")
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Room unlocked hain.")
         else:
             with st.form("pro_utr_form"):
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
@@ -725,7 +719,7 @@ elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Owner Verification & Control Panel")
 
-    tab_adm_pay, tab_adm_feed, tab_adm_coup = st.tabs(["💳 Approve Payments", "🔒 Manage Secret Room Permissions", "🎟️ Manage Coupons"])
+    tab_adm_pay, tab_adm_feed, tab_adm_coup = st.tabs(["💳 Approve Payments", "🔒 Manage VIP Room Permissions", "🎟️ Manage Coupons"])
 
     with tab_adm_pay:
         st.markdown("#### Pending UTR Requests")
@@ -743,7 +737,7 @@ elif st.session_state.current_tab == "AdminPanel":
                 st.rerun()
 
     with tab_adm_feed:
-        st.markdown("#### ⚙️ Member Post Permissions for Secret Room")
+        st.markdown("#### ⚙️ Member Post Permissions for VIP Room")
         registered_users = [u for u in users_db.keys() if u not in ["guest@soniai.com", OWNER_EMAIL]]
         if not registered_users:
             st.info("Koi registered member nahi hai abhi.")
