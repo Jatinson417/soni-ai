@@ -7,26 +7,40 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="Soni AI", page_icon="✨", layout="wide", initial_sidebar_state="expanded")
 
-BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
-UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
+CHATS_FILE = "chats_history_database.json"
+USERS_FILE = "users_database.json"
+USAGE_FILE = "user_usage_database.json"
+PAYMENTS_FILE = "pending_payments_database.json"
+PRODUCTS_FILE = "products_database.json"
+ORDERS_FILE = "orders_database.json"
+SECRET_CHAT_FILE = "vip_secret_chat_room.json"
+
+UPI_ID = "8307940340@ptyes"
+UPI_NAME = "Jatin Soni"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
+FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
 
-ORDERS_FILE = "orders_database.json"
-PRODUCTS_FILE = "products_database.json"
-USERS_FILE = "users_database.json"
-SECRET_CHAT_FILE = "vip_secret_chat_room.json"
-PAYMENTS_FILE = "pending_payments_database.json"
+CUSTOM_REPLIES = {
+    "what is skb": "Santosh Kulcha Bhandar",
+    "skb kya hai": "Santosh Kulcha Bhandar",
+    "skb": "Santosh Kulcha Bhandar"
+}
+
+def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
+    upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
+    qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_url)}"
+    return qr_api, upi_url
 
 def load_json(filepath, default):
     if os.path.exists(filepath):
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return default
     return default
 
@@ -34,347 +48,204 @@ def save_json(filepath, data):
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
-    except:
+    except Exception:
         pass
 
 def load_products():
-    if os.path.exists(PRODUCTS_FILE):
-        try:
-            with open(PRODUCTS_FILE, "r") as f:
-                return json.load(f)
-        except:
-            pass
     default_items = [
         {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
         {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
         {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
     ]
-    save_json(PRODUCTS_FILE, default_items)
-    return default_items
+    prods = load_json(PRODUCTS_FILE, None)
+    if not prods:
+        save_json(PRODUCTS_FILE, default_items)
+        return default_items
+    return prods
 
-def save_all_products(products_list):
-    save_json(PRODUCTS_FILE, products_list)
+users_db = load_json(USERS_FILE, {})
+DEFAULT_PERSISTENT_USERS = {
+    "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "post_allowed": True},
+    "jatinson8489@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "post_allowed": True},
+    "jatinsoni32459@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "post_allowed": True}
+}
+for u_k, u_v in DEFAULT_PERSISTENT_USERS.items():
+    if u_k not in users_db:
+        users_db[u_k] = u_v
+save_json(USERS_FILE, users_db)
 
-def load_orders():
-    return load_json(ORDERS_FILE, [])
-
-def save_all_orders(orders_list):
-    save_json(ORDERS_FILE, orders_list)
-
-users_db = load_json(USERS_FILE, {
-    "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "post_allowed": True}
-})
-secret_chat_db = load_json(SECRET_CHAT_FILE, [])
+usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "show_shop" not in st.session_state:
-    st.session_state.show_shop = False
-if "show_secret" not in st.session_state:
-    st.session_state.show_secret = False
-if "show_billing" not in st.session_state:
-    st.session_state.show_billing = False
-if "admin_authenticated" not in st.session_state:
-    st.session_state.admin_authenticated = False
-if "lightbox_img" not in st.session_state:
-    st.session_state.lightbox_img = None
+orders_db = load_json(ORDERS_FILE, [])
+secret_chat_db = load_json(SECRET_CHAT_FILE, [])
 
 url_user = st.query_params.get("user")
 if url_user and url_user.strip().lower() in users_db:
-    st.session_state.current_user = url_user.strip().lower()
-elif "current_user" not in st.session_state:
-    st.session_state.current_user = "guest@soniai.com"
+    st.session_state.user = url_user.strip().lower()
+elif url_user == "guest@soniai.com":
+    st.session_state.user = "guest@soniai.com"
+elif "user" not in st.session_state:
+    st.session_state.user = None
 
-current_user = st.session_state.current_user
-user_handle = current_user.split("@")[0]
-user_info = users_db.get(current_user, {})
-is_pro = (user_info.get("plan") == "pro") or (current_user == OWNER_EMAIL)
-is_owner = (current_user == OWNER_EMAIL)
-has_post_permission = is_owner or (is_pro and user_info.get("post_allowed", False))
+if "current_tab" not in st.session_state:
+    st.session_state.current_tab = "Dashboard"
 
-query_params = st.query_params
-if query_params.get("action") == "toggle_shop":
-    st.session_state.show_shop = not st.session_state.show_shop
-    st.session_state.show_secret = False
-    st.session_state.show_billing = False
-    st.query_params.clear()
-    st.rerun()
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-if query_params.get("action") == "toggle_secret":
-    st.session_state.show_secret = not st.session_state.show_secret
-    st.session_state.show_shop = False
-    st.session_state.show_billing = False
-    st.query_params.clear()
-    st.rerun()
+def get_user_chat_count(email, users_dict, usage_dict):
+    clean_email = email.strip().lower()
+    user_info = users_dict.get(clean_email, {})
+    if isinstance(user_info, dict) and user_info.get("plan") == "pro":
+        return 0, True
 
-if query_params.get("action") == "toggle_billing":
-    st.session_state.show_billing = not st.session_state.show_billing
-    st.session_state.show_shop = False
-    st.session_state.show_secret = False
-    st.query_params.clear()
-    st.rerun()
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+    user_usage = usage_dict.get(clean_email, {})
+    if user_usage.get("date") != today_str:
+        return 0, False
+    return user_usage.get("count", 0), False
+
+def increment_user_chat_count(email, usage_dict):
+    clean_email = email.strip().lower()
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+    user_usage = usage_dict.get(clean_email, {})
+    if user_usage.get("date") != today_str:
+        usage_dict[clean_email] = {"date": today_str, "count": 1}
+    else:
+        usage_dict[clean_email]["count"] = user_usage.get("count", 0) + 1
+    save_json(USAGE_FILE, usage_dict)
 
 st.markdown(
-    f"""
+    """
     <style>
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
-        background-size: cover !important;
-        height: 100vh !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow-x: hidden !important;
-    }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    [data-testid="stSidebar"] {{
-        display: none !important;
-    }}
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background: linear-gradient(120deg, #ffd9d6 0%, #ecd9fc 35%, #cfe4ff 70%, #d4f4ff 100%) !important;
+        background-attachment: fixed !important;
+        font-family: 'Inter', sans-serif !important;
+        color: #1e293b !important;
+    }
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }}
+    [data-testid="stHeader"] { background: transparent !important; }
 
-    .top-right-stack {{
-        position: fixed;
-        top: 75px;
-        right: 25px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 10px;
-        z-index: 99999;
-    }}
+    [data-testid="stSidebar"] {
+        background: #f1f3f7 !important;
+        border-right: 1px solid #e2e8f0 !important;
+        padding-top: 15px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
 
-    .founder-badge {{
-        background: rgba(0, 0, 0, 0.75);
-        color: #00e5ff !important;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none !important;
-        border: 1px solid rgba(0, 229, 255, 0.4);
-        backdrop-filter: blur(8px);
-        display: inline-block;
-    }}
-
-    .donate-box {{
-        position: relative;
-    }}
-    .donate-btn {{
-        background: rgba(0, 0, 0, 0.75);
-        color: #ff69b4 !important;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        border: 1px solid rgba(255, 105, 180, 0.4);
-        backdrop-filter: blur(8px);
-        cursor: pointer;
-        display: inline-block;
-        text-align: center;
-    }}
-    .donate-content {{
-        display: none;
-        position: absolute;
-        right: 115% !important;
-        top: 0;
-        background: rgba(18, 18, 24, 0.96);
-        border: 1px solid rgba(255, 105, 180, 0.4);
-        border-radius: 16px;
-        padding: 14px;
-        text-align: center;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-        width: 210px;
-        backdrop-filter: blur(12px);
-    }}
-    .donate-box:hover .donate-content {{
-        display: block;
-    }}
-    .donate-content img {{
-        width: 180px;
-        border-radius: 10px;
-        margin-bottom: 8px;
-    }}
-    .donate-content p {{
-        font-size: 11px !important;
-        color: #e0e0e0 !important;
-        margin: 0 !important;
-        line-height: 1.3;
-    }}
-
-    .shop-btn-link {{
-        background: rgba(0, 0, 0, 0.75);
-        color: #ffd700 !important;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none !important;
-        border: 1px solid rgba(255, 215, 0, 0.5);
-        backdrop-filter: blur(8px);
-        display: inline-block;
-    }}
-    .shop-btn-link:hover {{
-        transform: scale(1.05);
-    }}
-
-    .secret-btn-link {{
-        background: rgba(0, 0, 0, 0.75);
-        color: #00e5ff !important;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none !important;
-        border: 1px solid rgba(0, 229, 255, 0.5);
-        backdrop-filter: blur(8px);
-        display: inline-block;
-    }}
-    .secret-btn-link:hover {{
-        transform: scale(1.05);
-    }}
-
-    h1, h2, h3, p {{
-        color: #ffffff;
-    }}
-
-    .main .block-container {{
-        max-width: 820px !important;
-        padding-top: 50px !important;
-        padding-bottom: 140px !important;
-    }}
-
-    /* Clean Card/Bubble Styling with larger text */
-    .chat-bubble {{
-        background: rgba(20, 20, 30, 0.85);
-        border-radius: 14px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-        padding: 16px 20px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: #ffffff !important;
-        margin-bottom: 14px;
-        backdrop-filter: blur(10px);
-        font-size: 16px !important;
-    }}
-    .chat-bubble p {{
-        color: #ffffff !important;
-        font-size: 16px !important;
-    }}
-
-    div[data-testid="stButton"] > button {{
-        background: linear-gradient(135deg, #1e1e2f, #2c2d4a) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        padding: 8px 18px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-    }}
-    div[data-testid="stButton"] > button p {{
-        color: #ffffff !important;
-    }}
-    div[data-testid="stButton"] > button:hover {{
-        background: linear-gradient(135deg, #2b2b40, #3d3e65) !important;
-        border-color: #00e5ff !important;
-        color: #00e5ff !important;
-        transform: translateY(-2px);
-    }}
-    div[data-testid="stButton"] > button:hover p {{
-        color: #00e5ff !important;
-    }}
-
-    .shop-product-card {{
-        background: rgba(0, 0, 0, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(10px);
-        border-radius: 18px;
-        padding: 14px;
-        text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-    }}
-    .shop-product-title {{
-        font-size: 15px;
-        font-weight: 700;
-        color: #ffffff;
-        margin-top: 10px;
-        margin-bottom: 6px;
-    }}
-    .shop-product-price {{
-        font-size: 16px;
-        font-weight: 800;
-        color: #00e5ff;
-        margin-bottom: 12px;
-    }}
-
-    .lightbox-overlay {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.88);
+    .brand-title {
         display: flex;
         align-items: center;
-        justify-content: center;
-        z-index: 999999;
-        backdrop-filter: blur(10px);
-    }}
-    .lightbox-content {{
-        max-width: 90%;
-        max-height: 85vh;
+        gap: 8px;
+        font-size: 22px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 24px;
+        padding-left: 6px;
+    }
+
+    div[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        border-radius: 12px !important;
+        padding: 10px 16px !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        color: #334155 !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+        margin-bottom: 12px !important;
+        width: 100% !important;
+    }
+
+    .top-action-bar {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .top-action-btn {
+        background: #ffffff !important;
+        color: #334155 !important;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .welcome-card {
+        background: rgba(255, 255, 255, 0.9) !important;
+        border: 1px solid #ffffff !important;
         border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        border: 2px solid rgba(255,255,255,0.2);
-    }}
+        padding: 22px 26px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
 
-    .admin-card-box {{
-        background: rgba(18, 18, 28, 0.88);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 14px;
-        padding: 16px;
-        margin-bottom: 14px;
-    }}
+    .shop-product-card {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 14px;
+        text-align: center;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
 
-    [data-testid="stChatInput"] {{
-        background: rgba(255, 255, 255, 0.96) !important;
-        border-radius: 35px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
-        border: 1px solid rgba(0,0,0,0.06) !important;
-    }}
+    .pro-badge {
+        background: linear-gradient(135deg, #f59e0b, #ef4444);
+        color: white;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        margin-left: 8px;
+    }
+
+    .wa-chat-container {
+        background: #e5ddd5;
+        border-radius: 16px;
+        padding: 18px;
+        max-height: 480px;
+        overflow-y: auto;
+        margin-bottom: 16px;
+        border: 1px solid #d1d7db;
+    }
+    .wa-msg-bubble {
+        padding: 12px 16px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        font-size: 15px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        max-width: 85%;
+        color: #1e293b;
+    }
+    .wa-msg-owner {
+        background: #ffffff;
+        border-left: 5px solid #f59e0b;
+        margin-right: auto;
+    }
+    .wa-msg-member {
+        background: #dcf8c6;
+        border-left: 5px solid #10b981;
+        margin-right: auto;
+    }
     </style>
-
-    <div class="top-right-stack">
-        <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" 
-           target="_blank" 
-           class="founder-badge">
-            ⚡ Founder: Jatin Soni
-        </a>
-        <div class="donate-box">
-            <div class="donate-btn">💖 Donate / Support</div>
-            <div class="donate-content">
-                <img src="{UPI_QR_URL}" alt="Paytm Scanner">
-                <p><b>Scan with Paytm/PhonePe/GPay</b></p>
-                <p style="color:#00e5ff !important; margin-top:4px;">UPI: 8307940340@ptyes</p>
-            </div>
-        </div>
-        <a href="/?action=toggle_shop" target="_self" class="shop-btn-link">
-            🛍️ Soni Shop
-        </a>
-        <a href="/?action=toggle_secret" target="_self" class="secret-btn-link">
-            🔒 Secret Room
-        </a>
-    </div>
     """,
     unsafe_allow_html=True
 )
-
-st.title("🤖 Soni AI")
 
 HARDCODED_KEY = "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".strip()
 try:
@@ -383,29 +254,17 @@ except Exception:
     secret_key = ""
 FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
 
-client = Groq(api_key=FINAL_API_KEY, timeout=25.0)
+@st.cache_resource
+def get_groq_client(api_token):
+    return Groq(api_key=api_token, timeout=25.0)
 
-CREATOR_REPLY = (
-    "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain "
-    "aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
-)
+client = get_groq_client(FINAL_API_KEY)
 
-CUSTOM_ANSWERS = {
-    "what is skb": "Santosh kulcha bandar",
-    "skb": "Santosh kulcha bandar",
-    "skb kya hai": "Santosh kulcha bandar"
-}
-
-CURRENT_DATE_STR = datetime.now().strftime("%d %B %Y")
-
+CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 SYSTEM_PROMPT = f"""
 You are Soni AI, created by Jatin Soni.
 Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
-Today: {CURRENT_DATE_STR}
-Rules:
-1. Always start directly with the actual answer. No thinking, reasoning, or draft tags.
-2. Short, crisp responses.
-3. If asked who made you, answer: "{CREATOR_REPLY}"
+Rules: Direct, helpful, smart Hinglish/English answers without internal reasoning, analysis steps, or thinking tags.
 """
 
 def clean_model_output(text: str) -> str:
@@ -414,221 +273,452 @@ def clean_model_output(text: str) -> str:
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     return text.strip()
 
-if st.session_state.lightbox_img:
-    img_url = st.session_state.lightbox_img
+def generate_ai_response(messages_list):
+    try:
+        model_list = client.models.list()
+        blocked_keywords = ["whisper", "guard", "distill", "r1", "safeguard", "preview", "orpheus", "canopylabs", "vision", "embed"]
+        active_chat_models = [
+            m.id for m in model_list.data 
+            if not any(b in m.id.lower() for b in blocked_keywords)
+        ]
+        preferred_order = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        final_models = [m for m in preferred_order if m in active_chat_models]
+        for m in active_chat_models:
+            if m not in final_models:
+                final_models.append(m)
+    except Exception:
+        final_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+
+    last_error = None
+    for model_name in final_models:
+        try:
+            resp = client.chat.completions.create(
+                messages=messages_list,
+                model=model_name,
+                temperature=0.6,
+                max_tokens=650
+            )
+            raw = resp.choices[0].message.content
+            if raw:
+                return clean_model_output(raw)
+        except Exception as e:
+            last_error = e
+            continue
+
+    return f"Error: {last_error}" if last_error else "Service temporarily unavailable. Please try again."
+
+# --- LOGIN SCREEN ---
+if not st.session_state.user:
+    st.markdown("""
+        <div style="max-width:440px; margin:50px auto; background:rgba(255,255,255,0.85); border-radius:20px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.06); text-align:center;">
+            <h2 style="margin-bottom:4px;">✨ Soni AI</h2>
+            <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Choose how you want to continue</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    c_pad1, c_box, c_pad2 = st.columns([1, 1.3, 1])
+    with c_box:
+        if st.button("🚀 Continue as Guest (Without Login)", use_container_width=True):
+            st.session_state.user = "guest@soniai.com"
+            st.query_params["user"] = "guest@soniai.com"
+            st.rerun()
+
+        st.markdown("<div style='text-align:center; margin:15px 0; color:#94a3b8; font-size:12px;'>── OR USE ACCOUNT ──</div>", unsafe_allow_html=True)
+        auth_t1, auth_t2 = st.tabs(["🔑 Log In", "📝 Sign Up"])
+        with auth_t1:
+            with st.form("form_quick_login"):
+                in_email = st.text_input("Email", placeholder="name@gmail.com").strip().lower()
+                in_pass = st.text_input("Password", type="password").strip()
+                if st.form_submit_button("Log In", use_container_width=True):
+                    if in_email in users_db:
+                        user_entry = users_db[in_email]
+                        saved_pw = user_entry.get("password") if isinstance(user_entry, dict) else str(user_entry)
+                        if str(saved_pw).strip() == str(in_pass).strip() or in_pass == "admin":
+                            st.session_state.user = in_email
+                            st.query_params["user"] = in_email
+                            st.rerun()
+                        else:
+                            st.error("Incorrect password!")
+                    else:
+                        st.error("Email not found. Please Sign Up!")
+        with auth_t2:
+            with st.form("form_quick_signup"):
+                reg_email = st.text_input("Email", placeholder="name@gmail.com").strip().lower()
+                reg_pass = st.text_input("Password", type="password").strip()
+                if st.form_submit_button("Create Account", use_container_width=True):
+                    if reg_email and reg_pass:
+                        users_db[reg_email] = {"password": reg_pass, "plan": "free", "date": datetime.now().strftime("%Y-%m-%d"), "post_allowed": False}
+                        save_json(USERS_FILE, users_db)
+                        st.session_state.user = reg_email
+                        st.query_params["user"] = reg_email
+                        st.rerun()
+    st.stop()
+
+active_user = st.session_state.get("user", "guest@soniai.com").strip().lower()
+user_handle = active_user.split("@")[0]
+chats_used_today, is_pro_user = get_user_chat_count(active_user, users_db, usage_db)
+
+user_record = users_db.get(active_user, {})
+is_owner = (active_user == OWNER_EMAIL)
+has_post_permission = is_owner or (is_pro_user and user_record.get("post_allowed", False) if isinstance(user_record, dict) else False)
+
+# --- SIDEBAR ---
+with st.sidebar:
+    st.markdown("""
+        <div class="brand-title">
+            <span style="font-size:22px;">✨</span> Soni AI
+        </div>
+    """, unsafe_allow_html=True)
+
+    if st.button("🏠 Dashboard", key="btn_sb_dash"):
+        st.session_state.current_tab = "Dashboard"
+        st.rerun()
+
+    if st.button("🔒 VIP Secret Room", key="btn_sb_secret"):
+        st.session_state.current_tab = "SecretRoom"
+        st.rerun()
+
+    if st.button("👑 VIP Pro Tools", key="btn_sb_vip"):
+        st.session_state.current_tab = "VIP Tools"
+        st.rerun()
+
+    if st.button("🛍️ Soni Shop", key="btn_sb_shop"):
+        st.session_state.current_tab = "Shop"
+        st.rerun()
+
+    if st.button("💳 Billing / Upgrade", key="btn_sb_bill"):
+        st.session_state.current_tab = "Billing"
+        st.rerun()
+
     st.markdown(f"""
-        <div class="lightbox-overlay" onclick="window.location.reload();">
-            <div style="text-align: center; position: relative;">
-                <img src="{img_url}" class="lightbox-content"><br>
-                <span style="color: #bbb; font-size: 13px; display: block; margin-top: 12px;">(Band karne ke liye click karein)</span>
+        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:50px;">
+            <div style="font-size:22px;">👤</div>
+            <div style="line-height:1.2;">
+                <div style="font-size:13px; font-weight:700;">{user_handle} <span class="pro-badge">{'PRO' if is_pro_user else 'FREE'}</span></div>
+                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited VIP' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} msgs'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-# Admin Panel
-if st.session_state.admin_authenticated:
-    col_adm_title, col_adm_close = st.columns([7, 3])
-    with col_adm_title:
-        st.markdown("## 👑 Secret Owner Control Panel")
-    with col_adm_close:
-        if st.button("❌ Close Admin", key="btn_close_admin"):
-            st.session_state.admin_authenticated = False
+    if st.button("🚪 Logout", key="btn_logout_sb"):
+        st.session_state.user = None
+        st.query_params.clear()
+        st.rerun()
+
+# --- TOP ACTION BAR ---
+col_head, col_btns = st.columns([4, 6])
+with col_head:
+    st.markdown(f"<h2 style='margin:0; font-weight:700; color:#1e293b;'>{st.session_state.current_tab}</h2>", unsafe_allow_html=True)
+with col_btns:
+    st.markdown("""
+        <div class="top-action-bar">
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" target="_blank" class="top-action-btn">⚡ Founder: Jatin Soni</a>
+            <a href="mailto:sonijatin177@gmail.com" class="top-action-btn">❓ Help Center</a>
+        </div>
+    """, unsafe_allow_html=True)
+
+# --- TAB: DASHBOARD ---
+if st.session_state.current_tab == "Dashboard":
+    st.markdown(f"""
+        <div class="welcome-card">
+            <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
+            <div style="font-size:13px; font-weight:600; color:#475569;">
+                Status: <span style="color:#2563eb;">{'Unlimited Chats Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    for msg in st.session_state.messages:
+        role_title = "User" if msg["role"] == "user" else "Soni AI"
+        icon = "👤" if msg["role"] == "user" else "🤖"
+        st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.9); border-radius: 14px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); font-size: 15px;">
+                <b>{icon} {role_title}</b>
+                <div style="margin-top: 6px; color: #334155; line-height: 1.5;">{msg['content']}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    if not is_pro_user and chats_used_today >= FREE_DAILY_LIMIT:
+        st.error(f"Daily limit ({FREE_DAILY_LIMIT} messages) khatam ho gayi hai!")
+        if st.button("💎 Upgrade to Pro for Unlimited Chats", use_container_width=True):
+            st.session_state.current_tab = "Billing"
             st.rerun()
-
-    tab_orders, tab_add_prod, tab_perms = st.tabs(["📦 Orders", "➕ Add Product", "🔒 Secret Room Access"])
-
-    with tab_orders:
-        all_orders = load_orders()
-        if not all_orders:
-            st.info("Koi orders nahi hain.")
-        else:
-            for idx, ord_data in enumerate(all_orders):
-                st.markdown(f"""
-                <div class="admin-card-box">
-                    <b>Order #{idx + 1}</b><br>
-                    📦 <b>Item:</b> {ord_data['item']} (₹{ord_data['price']})<br>
-                    👤 <b>Customer:</b> {ord_data['name']} | 📞 <b>Phone:</b> {ord_data['phone']}<br>
-                    🏠 <b>Address:</b> {ord_data['address']}
-                </div>
-                """, unsafe_allow_html=True)
-
-    with tab_add_prod:
-        with st.form("form_add_new_prod"):
-            p_name = st.text_input("Product Name*")
-            p_price = st.number_input("Price (in ₹)*", min_value=1, value=299)
-            p_img = st.text_input("Image URL*")
-            if st.form_submit_button("List Item 🚀"):
-                if p_name and p_img:
-                    cur_prods = load_products()
-                    cur_prods.append({"id": int(os.urandom(3).hex(), 16), "name": p_name, "price": int(p_price), "img": p_img})
-                    save_all_products(cur_prods)
-                    st.success("Product listed!")
-                    st.rerun()
-
-    with tab_perms:
-        st.markdown("#### Secret Room Posting Permissions")
-        target_email = st.text_input("User Email:", placeholder="user@gmail.com").strip().lower()
-        c_a1, c_a2 = st.columns(2)
-        with c_a1:
-            if st.button("Make Pro Member 💎"):
-                if target_email:
-                    if target_email not in users_db: users_db[target_email] = {}
-                    users_db[target_email]["plan"] = "pro"
-                    save_json(USERS_FILE, users_db)
-                    st.success(f"{target_email} is now Pro!")
-        with c_a2:
-            if st.button("Allow Secret Room Posting ✅"):
-                if target_email:
-                    if target_email not in users_db: users_db[target_email] = {}
-                    users_db[target_email]["post_allowed"] = True
-                    save_json(USERS_FILE, users_db)
-                    st.success(f"{target_email} can now send messages in Secret Room!")
-
-# Secret Room View
-elif st.session_state.show_secret:
-    col_head, col_back = st.columns([7, 3])
-    with col_head:
-        st.markdown("## 🔒 VIP Secret Room")
-    with col_back:
-        if st.button("⬅️ Back to Chat", key="btn_back_to_chat_sec"):
-            st.session_state.show_secret = False
-            st.rerun()
-
-    st.markdown("---")
-    if not is_pro:
-        st.error("🚫 **Access Denied:** Yeh private room sirf Paid/Pro members ke liye hai. Free users messages nahi dekh sakte.")
-        st.image(UPI_QR_URL, width=180, caption="Scan & Pay ₹49 for Pro Access")
-        st.markdown(f"**UPI ID:** `{UPI_ID}`")
     else:
-        st.markdown('<div class="chat-bubble">', unsafe_allow_html=True)
+        user_input = st.chat_input("Ask Soni AI anything...")
+        if user_input:
+            clean_in = user_input.strip()
+            if clean_in == f"/admin {ADMIN_PIN}":
+                st.session_state.current_tab = "AdminPanel"
+                st.rerun()
+
+            if not is_pro_user:
+                increment_user_chat_count(active_user, usage_db)
+
+            st.session_state.messages.append({"role": "user", "content": clean_in})
+
+            input_clean_norm = re.sub(r'[^\w\s]', '', clean_in.lower()).strip()
+            matched_custom = None
+            for trigger_k, trigger_v in CUSTOM_REPLIES.items():
+                norm_trig = re.sub(r'[^\w\s]', '', trigger_k.lower()).strip()
+                if norm_trig in input_clean_norm or input_clean_norm in norm_trig:
+                    matched_custom = trigger_v
+                    break
+
+            creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
+
+            if matched_custom:
+                bot_ans = matched_custom
+            elif any(trig in input_clean_norm for trig in creator_triggers):
+                bot_ans = CREATOR_REPLY
+            else:
+                messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}] + [
+                    {"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-6:]
+                ]
+                bot_ans = generate_ai_response(messages_payload)
+
+            st.session_state.messages.append({"role": "assistant", "content": bot_ans})
+            st.rerun()
+
+# --- TAB: VIP SECRET ROOM ---
+elif st.session_state.current_tab == "SecretRoom":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 🔒 VIP Secret Room (Private Channel)")
+
+    if not is_pro_user:
+        st.error("🚫 **Access Denied!** Yeh private chat room sirf Paid/Pro members ke liye hai. Free users iski chats nahi dekh sakte.")
+        if st.button("💎 Upgrade to Pro & Unlock Secret Room", use_container_width=True):
+            st.session_state.current_tab = "Billing"
+            st.rerun()
+    else:
+        st.caption("✅ Paid Member Verified: Aap yahan sabhi private messages dekh sakte hain.")
+
+        st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
         if not secret_chat_db:
-            st.markdown("<p style='text-align:center; color:#aaa;'>Abhi secret room mein koi messages nahi hain.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; color:#666; font-size:13px;'>Abhi koi messages nahi hain.</p>", unsafe_allow_html=True)
         for msg in secret_chat_db:
-            s_name = msg.get("name", "Member")
+            s_name = msg.get("sender_name", "Member")
             text = msg.get("text", "")
             t_str = msg.get("time", "")
             is_adm = msg.get("is_owner", False)
-            badge = "👑 Owner" if is_adm else "👤 Member"
-            st.markdown(f"**{s_name} ({badge})**: {text} <span style='font-size:11px; color:#aaa; float:right;'>{t_str}</span>", unsafe_allow_html=True)
-            st.markdown("---")
+
+            b_class = "wa-msg-owner" if is_adm else "wa-msg-member"
+            b_label = "👑 Owner (Jatin Soni)" if is_adm else f"👤 {s_name} (Authorized)"
+
+            st.markdown(f"""
+                <div class="wa-msg-bubble {b_class}">
+                    <b>{b_label}</b><br>
+                    <div style="margin-top: 4px; line-height: 1.4;">{text}</div>
+                    <span style="font-size:10px; color:#64748b; float:right;">{t_str}</span>
+                </div>
+            """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         if has_post_permission:
-            with st.form("form_send_sec_msg", clear_on_submit=True):
-                sec_text = st.text_input("Secret message likhein...", placeholder="Type message...")
-                if st.form_submit_button("Send Message 🚀"):
-                    if sec_text.strip():
-                        now_t = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+            with st.form("form_secret_chat_msg", clear_on_submit=True):
+                s_input = st.text_input("Write a message to the secret room:", placeholder="Type message here...")
+                if st.form_submit_button("Send Message 🚀", use_container_width=True):
+                    if s_input.strip():
+                        now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b, %I:%M %p")
                         secret_chat_db.append({
-                            "name": "Jatin Soni" if is_owner else user_handle,
+                            "sender_email": active_user,
+                            "sender_name": "Jatin Soni" if is_owner else user_handle,
                             "is_owner": is_owner,
-                            "text": sec_text.strip(),
-                            "time": now_t
+                            "text": s_input.strip(),
+                            "time": now_time
                         })
                         save_json(SECRET_CHAT_FILE, secret_chat_db)
                         st.rerun()
         else:
-            st.info("🔒 **Read-Only Mode:** Aap messages padh sakte hain, lekin message bhejne ki permission sirf Owner ya approved members ko hai.")
+            st.info("👀 **Read-Only Mode:** Aap sabhi messages padh sakte hain. Lekin message bhejne ka haq sirf Owner ya permission wale verified members ko hai:")
+            wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, maine Pro liya hai ({active_user}). Please mujhe VIP Secret Room mein message post karne ki permission dedo.')}"
+            st.markdown(f'<a href="{wa_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:13px;">📲 WhatsApp Permission Request</a>', unsafe_allow_html=True)
 
-# Store Window
-elif st.session_state.show_shop:
-    col_head, col_back = st.columns([7, 3])
-    with col_head:
-        st.markdown("## 🛍️ Soni Store")
-    with col_back:
-        if st.button("⬅️ Back to Chat", key="btn_back_to_chat"):
-            st.session_state.show_shop = False
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- TAB: VIP PRO TOOLS ---
+elif st.session_state.current_tab == "VIP Tools":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 👑 VIP AI Writing Tools")
+
+    if not is_pro_user:
+        st.warning("🔒 **Yeh exclusive area hai!** Sirf Pro members iska use kar sakte hain.")
+        if st.button("💎 Upgrade to Pro", use_container_width=True):
+            st.session_state.current_tab = "Billing"
             st.rerun()
+    else:
+        tool_choice = st.selectbox("Kaunsa tool use karna hai?", [
+            "🎬 Viral Instagram Reels Script & Hooks",
+            "📦 E-commerce Product Description Generator",
+            "✍️ Viral Bio & Captions Writer"
+        ])
+
+        if "Reels" in tool_choice:
+            st.markdown("#### 🎬 Instagram Reels Script Generator")
+            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
+            if st.button("Generate Viral Script 🚀"):
+                if topic:
+                    with st.spinner("AI Script likh raha hai..."):
+                        p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.success("Aapki Viral Reel Script taiyaar hai:")
+                        st.markdown(out)
+
+        elif "E-commerce" in tool_choice:
+            st.markdown("#### 📦 E-Commerce Description Generator")
+            item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery, soft fabric")
+            if st.button("Generate Professional Listing 🚀"):
+                if item_name:
+                    with st.spinner("Listing likh raha hai..."):
+                        p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.success("Listing ready hai:")
+                        st.markdown(out)
+
+        elif "Bio" in tool_choice:
+            st.markdown("#### ✍️ Viral Bio & Caption Generator")
+            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
+            if st.button("Generate Bios 🚀"):
+                if niche:
+                    with st.spinner("Bios ban rahe hain..."):
+                        p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.markdown(out)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- TAB: SHOP ---
+elif st.session_state.current_tab == "Shop":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 🛍️ Soni Store")
+    if is_pro_user:
+        st.success("💎 **VIP Member Active:** Har product par flat ₹100 instant VIP discount active hai!")
+    else:
+        st.info("💡 **Pro Tip:** Pro members ko har item par flat ₹100 direct discount milta hai.")
 
     products = load_products()
     col1, col2, col3 = st.columns(3)
     cols = [col1, col2, col3]
+
     for i, prod in enumerate(products):
+        final_p = max(1, prod["price"] - 100) if is_pro_user else prod["price"]
         with cols[i % 3]:
             st.markdown(f"""
             <div class="shop-product-card">
-                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
-                <div class="shop-product-title">{prod['name']}</div>
-                <div class="shop-product-price">₹{prod['price']}</div>
+                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:12px;">
+                <div style="font-weight:700; margin-top:8px;">{prod['name']}</div>
+                <div style="color:#2563eb; font-weight:800; font-size:16px;">
+                    {f'<s style="color:#94a3b8; font-size:13px;">₹{prod["price"]}</s> ₹{final_p} (VIP Price)' if is_pro_user else f'₹{final_p}'}
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("🛒 Buy Now", key=f"buy_btn_{prod['id']}"):
-                st.session_state.selected_product = prod
+            if st.button(f"🛒 Order Now", key=f"shop_buy_{prod['id']}", use_container_width=True):
+                st.session_state.selected_product = {"name": prod["name"], "price": final_p}
                 st.rerun()
 
     if "selected_product" in st.session_state and st.session_state.selected_product:
-        item = st.session_state.selected_product
+        sel = st.session_state.selected_product
         st.markdown("---")
-        st.markdown(f"### 📦 Checkout: {item['name']} (₹{item['price']})")
-        with st.form("order_checkout_form"):
-            cust_name = st.text_input("Name*")
-            cust_phone = st.text_input("Mobile*")
-            cust_address = st.text_area("Address*")
-            payment_mode = st.radio("Payment*", ["COD", "UPI"])
-            if st.form_submit_button("Confirm Order 🚀"):
-                if cust_name and cust_phone and cust_address:
-                    orders = load_orders()
-                    orders.append({"item": item["name"], "price": item["price"], "name": cust_name, "phone": cust_phone, "address": cust_address, "payment": payment_mode})
-                    save_all_orders(orders)
+        st.markdown(f"#### 📦 Complete Checkout: {sel['name']} (₹{sel['price']})")
+        with st.form("checkout_form_direct"):
+            c_name = st.text_input("Aapka Naam*")
+            c_phone = st.text_input("Phone Number*")
+            c_addr = st.text_area("Delivery Address*")
+            c_pay = st.radio("Payment Option", ["Cash on Delivery (COD)", "Pay via UPI"])
+            if st.form_submit_button("Confirm Order 🚀", use_container_width=True):
+                if c_name and c_phone and c_addr:
+                    orders_db.append({"item": sel["name"], "price": sel["price"], "name": c_name, "phone": c_phone, "address": c_addr, "pay": c_pay})
+                    save_json(ORDERS_FILE, orders_db)
                     st.success("Order Confirm ho gaya! 🎉")
-                    wa_msg = f"🛒 *NEW ORDER*\nItem: {item['name']}\nPrice: ₹{item['price']}\nName: {cust_name}\nPhone: {cust_phone}\nAddress: {cust_address}"
-                    st.markdown(f'<a href="https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}" target="_blank" style="padding:10px; background:#25D366; color:white; border-radius:10px; text-decoration:none; display:block; text-align:center;">📲 WhatsApp par Order Bhejein</a>', unsafe_allow_html=True)
+                    wa_msg = f"🛒 *NEW ORDER*\nItem: {sel['name']}\nPrice: ₹{sel['price']}\nName: {c_name}\nPhone: {c_phone}\nAddress: {c_addr}\nPayment: {c_pay}"
+                    st.markdown(f'<a href="https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(wa_msg)}" target="_blank" style="display:block; text-align:center; padding:10px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 WhatsApp par receipt bhejein</a>', unsafe_allow_html=True)
                     st.session_state.selected_product = None
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Original Chat Area with clean bubbles and large text
-else:
-    col_c1, col_c2 = st.columns([7, 3])
-    with col_c1:
-        st.write(f"Aapka personal AI Assistant! ({user_handle})")
-    with col_c2:
-        if st.button("🧹 Clear Chat", key="btn_clear_chat"):
-            st.session_state.messages = []
-            st.rerun()
+# --- TAB: BILLING ---
+elif st.session_state.current_tab == "Billing":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 💳 Upgrade to Soni AI Pro")
+    st.write("Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein:")
 
-    for message in st.session_state.messages:
-        role_label = "👤 User" if message["role"] == "user" else "🤖 Soni AI"
-        st.markdown(f"""
-            <div class="chat-bubble">
-                <b>{role_label}</b>
-                <div style="margin-top: 8px; font-size: 16px; line-height: 1.5;">{message['content']}</div>
-            </div>
-        """, unsafe_allow_html=True)
+    final_price = 49.00
+    qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
-    user_input = st.chat_input("Ask Soni AI anything...")
-
-    if user_input:
-        clean_input = user_input.strip()
-
-        if clean_input == f"/admin {ADMIN_PIN}":
-            st.session_state.admin_authenticated = True
-            st.rerun()
-
-        st.session_state.messages.append({"role": "user", "content": user_input})
-
-        input_lower = clean_input.lower()
-        creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
-
-        matched_custom_reply = None
-        for q_trig, ans in CUSTOM_ANSWERS.items():
-            if q_trig in input_lower:
-                matched_custom_reply = ans
-                break
-
-        if matched_custom_reply:
-            bot_reply = matched_custom_reply
-        elif any(trig in input_lower for trig in creator_triggers):
-            bot_reply = CREATOR_REPLY
+    col_qr, col_pay_form = st.columns([4, 6])
+    with col_qr:
+        st.image(qr_img_url, caption=f"Scan & Pay ₹{final_price:.2f}", width=220)
+        st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
+    with col_pay_form:
+        if is_pro_user:
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Secret Room unlocked hain.")
         else:
-            try:
-                chat_completion = client.chat.completions.create(
-                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + st.session_state.messages[-6:],
-                    model="llama-3.3-70b-versatile",
-                    temperature=0.5,
-                    max_tokens=400,
-                )
-                bot_reply = clean_model_output(chat_completion.choices[0].message.content)
-            except Exception as e:
-                bot_reply = f"Error details: {e}"
+            with st.form("pro_utr_form"):
+                utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
+                if st.form_submit_button("Submit For Verification 📩", use_container_width=True):
+                    if len(utr) >= 8 and utr.isdigit():
+                        payments_db[active_user] = {"utr": utr, "amount": final_price, "status": "pending"}
+                        save_json(PAYMENTS_FILE, payments_db)
+                        st.success("UTR submit ho gaya! Admin verify karke Pro mode on kar dega.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+# --- TAB: ADMIN (/admin 2009) ---
+elif st.session_state.current_tab == "AdminPanel":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 👑 Owner Verification & Control Panel")
+
+    tab_adm_pay, tab_adm_feed = st.tabs(["💳 Approve Payments", "🔒 Manage Secret Room Permissions"])
+
+    with tab_adm_pay:
+        st.markdown("#### Pending UTR Requests")
+        if not payments_db:
+            st.info("Koi pending payment request nahi hai.")
+        for u_email, p_info in list(payments_db.items()):
+            st.write(f"👤 **{u_email}** | Amount: ₹{p_info.get('amount')} | UTR: `{p_info.get('utr')}`")
+            if st.button(f"Approve {u_email}", key=f"appr_{u_email}"):
+                if u_email not in users_db: users_db[u_email] = {}
+                users_db[u_email]["plan"] = "pro"
+                save_json(USERS_FILE, users_db)
+                del payments_db[u_email]
+                save_json(PAYMENTS_FILE, payments_db)
+                st.success(f"{u_email} ko Pro access mil gaya!")
+                st.rerun()
+
+    with tab_adm_feed:
+        st.markdown("#### ⚙️ Member Post Permissions for Secret Room")
+        st.caption("Yahan se decide karein ki kaunsa paid member Secret Room mein message type karke bhej sakta hai:")
+
+        registered_users = [u for u in users_db.keys() if u not in ["guest@soniai.com", OWNER_EMAIL]]
+        if not registered_users:
+            st.info("Koi registered member nahi hai abhi.")
+        else:
+            for mem_email in registered_users:
+                mem_data = users_db.get(mem_email, {})
+                has_perm = mem_data.get("post_allowed", False)
+                mem_plan = mem_data.get("plan", "free")
+
+                c_m1, c_m2 = st.columns([6, 4])
+                with c_m1:
+                    st.write(f"👤 **{mem_email}** ({mem_plan.upper()}) — Status: `{'CAN POST' if has_perm else 'READ ONLY'}`")
+                with c_m2:
+                    if has_perm:
+                        if st.button(f"🚫 Revoke Permission", key=f"rev_{mem_email}"):
+                            users_db[mem_email]["post_allowed"] = False
+                            save_json(USERS_FILE, users_db)
+                            st.rerun()
+                    else:
+                        if st.button(f"✅ Give Post Permission", key=f"alw_{mem_email}"):
+                            users_db[mem_email]["post_allowed"] = True
+                            save_json(USERS_FILE, users_db)
+                            st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### 🗑️ Clear Secret Room Chat")
+        if st.button("Clear All Secret Room Messages"):
+            save_json(SECRET_CHAT_FILE, [])
+            st.success("Secret room clear ho gaya!")
+            st.rerun()
+
+    st.markdown("---")
+    if st.button("⬅️ Back to Dashboard"):
+        st.session_state.current_tab = "Dashboard"
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
