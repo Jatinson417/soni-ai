@@ -7,16 +7,7 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-st.set_page_config(page_title="Soni AI", page_icon="🤖", layout="wide", initial_sidebar_state="expanded")
-
-BG_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
-UPI_QR_URL = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=8307940340@ptyes&pn=Jatin%20Soni&cu=INR"
-UPI_ID = "8307940340@ptyes"
-UPI_NAME = "Jatin Soni"
-MY_WHATSAPP_NUMBER = "918307940340"
-ADMIN_PIN = "2009"
-FREE_DAILY_LIMIT = 50
-OWNER_EMAIL = "sonijatin177@gmail.com"
+st.set_page_config(page_title="Soni AI", page_icon="✨", layout="wide", initial_sidebar_state="expanded")
 
 CHATS_FILE = "chats_history_database.json"
 USERS_FILE = "users_database.json"
@@ -25,6 +16,13 @@ PAYMENTS_FILE = "pending_payments_database.json"
 PRODUCTS_FILE = "products_database.json"
 ORDERS_FILE = "orders_database.json"
 SECRET_CHAT_FILE = "vip_secret_chat_room.json"
+
+UPI_ID = "8307940340@ptyes"
+UPI_NAME = "Jatin Soni"
+MY_WHATSAPP_NUMBER = "918307940340"
+ADMIN_PIN = "2009"
+FREE_DAILY_LIMIT = 50
+OWNER_EMAIL = "sonijatin177@gmail.com"
 
 CUSTOM_REPLIES = {
     "what is skb": "Santosh Kulcha Bhandar",
@@ -81,7 +79,6 @@ payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
 secret_chat_db = load_json(SECRET_CHAT_FILE, [])
 
-# Persistent Login Check
 url_user = st.query_params.get("user")
 if url_user and url_user.strip().lower() in users_db:
     st.session_state.user = url_user.strip().lower()
@@ -119,144 +116,131 @@ def increment_user_chat_count(email, usage_dict):
     save_json(USAGE_FILE, usage_dict)
 
 st.markdown(
-    f"""
+    """
     <style>
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background: url("{BG_IMAGE_URL}") no-repeat center center fixed !important;
-        background-size: cover !important;
-        height: 100vh !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow-x: hidden !important;
-        color: #ffffff !important;
-    }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    [data-testid="stSidebar"] {{
-        background: rgba(10, 10, 18, 0.88) !important;
-        backdrop-filter: blur(14px) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
-        padding-top: 20px !important;
-    }}
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background: linear-gradient(120deg, #ffd9d6 0%, #ecd9fc 35%, #cfe4ff 70%, #d4f4ff 100%) !important;
+        background-attachment: fixed !important;
+        font-family: 'Inter', sans-serif !important;
+        color: #1e293b !important;
+    }
 
-    header, [data-testid="stHeader"], footer, [data-testid="stBottom"], [data-testid="stBottom"] > div {{
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }}
+    [data-testid="stHeader"] { background: transparent !important; }
 
-    .brand-title {{
-        font-size: 24px;
-        font-weight: 800;
-        color: #00e5ff;
-        margin-bottom: 24px;
-        padding-left: 8px;
+    [data-testid="stSidebar"] {
+        background: #f1f3f7 !important;
+        border-right: 1px solid #e2e8f0 !important;
+        padding-top: 15px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
+
+    .brand-title {
         display: flex;
         align-items: center;
         gap: 8px;
-    }}
+        font-size: 22px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 24px;
+        padding-left: 6px;
+    }
 
-    div[data-testid="stSidebar"] div[data-testid="stButton"] > button {{
-        background: rgba(255, 255, 255, 0.06) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    div[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
         text-align: left !important;
         justify-content: flex-start !important;
         border-radius: 12px !important;
         padding: 10px 16px !important;
         font-size: 14px !important;
-        font-weight: 600 !important;
-        color: #ffffff !important;
-        margin-bottom: 10px !important;
+        font-weight: 500 !important;
+        color: #334155 !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+        margin-bottom: 12px !important;
         width: 100% !important;
-        backdrop-filter: blur(8px);
-    }}
-    div[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {{
-        background: rgba(0, 229, 255, 0.2) !important;
-        border-color: #00e5ff !important;
-        color: #00e5ff !important;
-    }}
+    }
 
-    .top-action-bar {{
+    .top-action-bar {
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
         margin-bottom: 20px;
-    }}
-    .founder-badge {{
-        background: rgba(0, 0, 0, 0.75);
-        color: #00e5ff !important;
-        padding: 6px 14px;
-        border-radius: 20px;
+    }
+    .top-action-btn {
+        background: #ffffff !important;
+        color: #334155 !important;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 8px 16px;
         font-size: 13px;
         font-weight: 600;
         text-decoration: none !important;
-        border: 1px solid rgba(0, 229, 255, 0.4);
-        backdrop-filter: blur(8px);
-    }}
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
 
-    .glass-card {{
-        background: rgba(15, 15, 25, 0.78) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 18px;
+    .welcome-card {
+        background: rgba(255, 255, 255, 0.9) !important;
+        border: 1px solid #ffffff !important;
+        border-radius: 16px;
         padding: 22px 26px;
-        margin-bottom: 20px;
-        backdrop-filter: blur(12px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    }}
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
 
-    [data-testid="stChatMessage"] {{
-        background-color: rgba(255, 255, 255, 0.93) !important;
-        border-radius: 14px;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-    }}
-    [data-testid="stChatMessage"] p {{
-        color: #111111 !important;
-    }}
-
-    [data-testid="stChatInput"] {{
-        background: rgba(255, 255, 255, 0.96) !important;
-        border-radius: 35px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3) !important;
-        border: 1px solid rgba(0,0,0,0.1) !important;
-    }}
-
-    .shop-product-card {{
-        background: rgba(0, 0, 0, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        backdrop-filter: blur(12px);
-        border-radius: 18px;
+    .shop-product-card {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
         padding: 14px;
         text-align: center;
-        margin-bottom: 20px;
-    }}
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
 
-    .secret-chat-box {{
-        background: rgba(10, 10, 18, 0.85);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+    .pro-badge {
+        background: linear-gradient(135deg, #f59e0b, #ef4444);
+        color: white;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        margin-left: 8px;
+    }
+
+    .wa-chat-container {
+        background: #e5ddd5;
         border-radius: 16px;
         padding: 18px;
-        max-height: 460px;
+        max-height: 480px;
         overflow-y: auto;
         margin-bottom: 16px;
-    }}
-    .msg-bubble-owner {{
-        background: rgba(255, 215, 0, 0.15);
-        border-left: 4px solid #ffd700;
-        padding: 10px 14px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        color: #fff;
-    }}
-    .msg-bubble-member {{
-        background: rgba(0, 229, 255, 0.15);
-        border-left: 4px solid #00e5ff;
-        padding: 10px 14px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        color: #fff;
-    }}
+        border: 1px solid #d1d7db;
+    }
+    .wa-msg-bubble {
+        padding: 12px 16px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        max-width: 80%;
+    }
+    .wa-msg-owner {
+        background: #ffffff;
+        border-left: 5px solid #f59e0b;
+        margin-right: auto;
+    }
+    .wa-msg-member {
+        background: #dcf8c6;
+        border-left: 5px solid #10b981;
+        margin-right: auto;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -279,7 +263,7 @@ CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class
 SYSTEM_PROMPT = f"""
 You are Soni AI, created by Jatin Soni.
 Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
-Rules: Direct, helpful, concise Hinglish/English answers without internal reasoning or thinking tags.
+Rules: Direct, helpful, smart Hinglish/English answers without internal reasoning, analysis steps, or thinking tags.
 """
 
 def clean_model_output(text: str) -> str:
@@ -310,8 +294,8 @@ def generate_ai_response(messages_list):
             resp = client.chat.completions.create(
                 messages=messages_list,
                 model=model_name,
-                temperature=0.5,
-                max_tokens=550
+                temperature=0.6,
+                max_tokens=650
             )
             raw = resp.choices[0].message.content
             if raw:
@@ -320,25 +304,25 @@ def generate_ai_response(messages_list):
             last_error = e
             continue
 
-    return f"Error: {last_error}" if last_error else "Server busy hai, kripya thodi der baad try karein."
+    return f"Error: {last_error}" if last_error else "Service temporarily unavailable. Please try again."
 
-# --- LOGIN MODAL (DARK THEME) ---
+# --- LOGIN SCREEN ---
 if not st.session_state.user:
     st.markdown("""
-        <div style="max-width:440px; margin:70px auto; background:rgba(18, 18, 28, 0.9); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:30px; backdrop-filter:blur(15px); text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.6);">
-            <h2 style="color:#00e5ff; margin-bottom:4px;">🤖 Soni AI</h2>
-            <p style="color:#bbb; font-size:14px; margin-bottom:20px;">Apna account choose karein</p>
+        <div style="max-width:440px; margin:50px auto; background:rgba(255,255,255,0.85); border-radius:20px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.06); text-align:center;">
+            <h2 style="margin-bottom:4px;">✨ Soni AI</h2>
+            <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Choose how you want to continue</p>
         </div>
     """, unsafe_allow_html=True)
 
-    c_pad1, c_box, c_pad2 = st.columns([1, 1.4, 1])
+    c_pad1, c_box, c_pad2 = st.columns([1, 1.3, 1])
     with c_box:
-        if st.button("🚀 Continue as Guest (Bina Login)", use_container_width=True):
+        if st.button("🚀 Continue as Guest (Without Login)", use_container_width=True):
             st.session_state.user = "guest@soniai.com"
             st.query_params["user"] = "guest@soniai.com"
             st.rerun()
 
-        st.markdown("<div style='text-align:center; margin:15px 0; color:#888; font-size:12px;'>── YA ACCOUNT LOGIN KAREIN ──</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; margin:15px 0; color:#94a3b8; font-size:12px;'>── OR USE ACCOUNT ──</div>", unsafe_allow_html=True)
         auth_t1, auth_t2 = st.tabs(["🔑 Log In", "📝 Sign Up"])
         with auth_t1:
             with st.form("form_quick_login"):
@@ -355,7 +339,7 @@ if not st.session_state.user:
                         else:
                             st.error("Incorrect password!")
                     else:
-                        st.error("Email nahi mila. Kripya Sign Up karein!")
+                        st.error("Email not found. Please Sign Up!")
         with auth_t2:
             with st.form("form_quick_signup"):
                 reg_email = st.text_input("Email", placeholder="name@gmail.com").strip().lower()
@@ -377,15 +361,15 @@ user_record = users_db.get(active_user, {})
 is_owner = (active_user == OWNER_EMAIL)
 has_post_permission = is_owner or (is_pro_user and user_record.get("post_allowed", False) if isinstance(user_record, dict) else False)
 
-# --- SIDEBAR (DARK THEME) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.markdown("""
         <div class="brand-title">
-            <span>🤖</span> Soni AI
+            <span style="font-size:22px;">✨</span> Soni AI
         </div>
     """, unsafe_allow_html=True)
 
-    if st.button("🏠 AI Chat", key="btn_sb_dash"):
+    if st.button("🏠 Dashboard", key="btn_sb_dash"):
         st.session_state.current_tab = "Dashboard"
         st.rerun()
 
@@ -401,14 +385,17 @@ with st.sidebar:
         st.session_state.current_tab = "Shop"
         st.rerun()
 
-    if st.button("💳 Upgrade to Pro", key="btn_sb_bill"):
+    if st.button("💳 Billing / Upgrade", key="btn_sb_bill"):
         st.session_state.current_tab = "Billing"
         st.rerun()
 
     st.markdown(f"""
-        <div style="padding:14px 8px; border-top:1px solid rgba(255,255,255,0.15); margin-top:50px;">
-            <div style="font-size:14px; font-weight:700; color:#00e5ff;">👤 {user_handle}</div>
-            <div style="font-size:12px; color:#aaa; margin-top:3px;">Status: <b style="color:{'#ffd700' if is_pro_user else '#00e5ff'};">{'PRO MEMBER' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} Used'}</b></div>
+        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:50px;">
+            <div style="font-size:22px;">👤</div>
+            <div style="line-height:1.2;">
+                <div style="font-size:13px; font-weight:700;">{user_handle} <span class="pro-badge">{'PRO' if is_pro_user else 'FREE'}</span></div>
+                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited VIP' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} msgs'}</div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -418,51 +405,57 @@ with st.sidebar:
         st.rerun()
 
 # --- TOP ACTION BAR ---
-col_head, col_btns = st.columns([5, 5])
+col_head, col_btns = st.columns([4, 6])
 with col_head:
-    st.markdown(f"<h2 style='margin:0; font-weight:700; color:#ffffff;'>{st.session_state.current_tab}</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='margin:0; font-weight:700; color:#1e293b;'>{st.session_state.current_tab}</h2>", unsafe_allow_html=True)
 with col_btns:
     st.markdown("""
         <div class="top-action-bar">
-            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" target="_blank" class="founder-badge">⚡ Founder: Jatin Soni</a>
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sonijatin177@gmail.com" target="_blank" class="top-action-btn">⚡ Founder: Jatin Soni</a>
+            <a href="mailto:sonijatin177@gmail.com" class="top-action-btn">❓ Help Center</a>
         </div>
     """, unsafe_allow_html=True)
 
-# --- TAB: DASHBOARD (ORIGINAL DARK AI CHAT) ---
+# --- TAB: DASHBOARD ---
 if st.session_state.current_tab == "Dashboard":
-    col_c1, col_c2 = st.columns([7, 3])
-    with col_c1:
-        st.markdown(f"**Welcome, {user_handle.capitalize()}!** {'💎 (Pro Member)' if is_pro_user else ''}")
-    with col_c2:
-        if st.button("🧹 Clear Chat", key="btn_clear_chat"):
-            st.session_state.messages = []
-            st.rerun()
+    st.markdown(f"""
+        <div class="welcome-card">
+            <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
+            <div style="font-size:13px; font-weight:600; color:#475569;">
+                Status: <span style="color:#2563eb;">{'Unlimited Chats Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    for msg in st.session_state.messages:
+        role_title = "User" if msg["role"] == "user" else "Soni AI"
+        icon = "👤" if msg["role"] == "user" else "🤖"
+        st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.9); border-radius: 14px; padding: 12px 18px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <b>{icon} {role_title}</b>
+                <div style="margin-top: 4px; color: #334155;">{msg['content']}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
     if not is_pro_user and chats_used_today >= FREE_DAILY_LIMIT:
-        st.error(f"Daily free limit ({FREE_DAILY_LIMIT} messages) poori ho gayi hai!")
+        st.error(f"Daily limit ({FREE_DAILY_LIMIT} messages) khatam ho gayi hai!")
         if st.button("💎 Upgrade to Pro for Unlimited Chats", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
         user_input = st.chat_input("Ask Soni AI anything...")
         if user_input:
-            clean_input = user_input.strip()
-            if clean_input == f"/admin {ADMIN_PIN}":
+            clean_in = user_input.strip()
+            if clean_in == f"/admin {ADMIN_PIN}":
                 st.session_state.current_tab = "AdminPanel"
                 st.rerun()
 
             if not is_pro_user:
                 increment_user_chat_count(active_user, usage_db)
 
-            st.session_state.messages.append({"role": "user", "content": clean_input})
-            with st.chat_message("user"):
-                st.markdown(clean_input)
+            st.session_state.messages.append({"role": "user", "content": clean_in})
 
-            input_clean_norm = re.sub(r'[^\w\s]', '', clean_input.lower()).strip()
+            input_clean_norm = re.sub(r'[^\w\s]', '', clean_in.lower()).strip()
             matched_custom = None
             for trigger_k, trigger_v in CUSTOM_REPLIES.items():
                 norm_trig = re.sub(r'[^\w\s]', '', trigger_k.lower()).strip()
@@ -473,59 +466,61 @@ if st.session_state.current_tab == "Dashboard":
             creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
 
             if matched_custom:
-                bot_reply = matched_custom
+                bot_ans = matched_custom
             elif any(trig in input_clean_norm for trig in creator_triggers):
-                bot_reply = CREATOR_REPLY
+                bot_ans = CREATOR_REPLY
             else:
                 messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}] + [
                     {"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-6:]
                 ]
-                bot_reply = generate_ai_response(messages_payload)
+                bot_ans = generate_ai_response(messages_payload)
 
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-            with st.chat_message("assistant"):
-                st.markdown(bot_reply)
-
+            st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: VIP SECRET ROOM (DARK GLASSROOM) ---
+# --- TAB: VIP SECRET ROOM (PAID USERS ONLY) ---
 elif st.session_state.current_tab == "SecretRoom":
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🔒 VIP Secret Room (Private Channel)")
 
+    # 1. FREE USERS CANNOT VIEW
     if not is_pro_user:
-        st.error("🚫 **Access Denied!** Yeh room sirf Paid/Pro members ke liye hai. Free users iski chats nahi dekh sakte.")
-        st.write("VIP chats dekhne ke liye account upgrade karein:")
-        if st.button("💎 Upgrade to Pro & Unlock Room", use_container_width=True):
+        st.error("🚫 **Access Denied!** Yeh private chat room sirf Paid/Pro members ke liye hai. Free users iski chats nahi dekh sakte.")
+        st.markdown("""
+            Agar aapko VIP chats dekhni hain toh apna account Pro mein upgrade karein:
+        """)
+        if st.button("💎 Upgrade to Pro & Unlock Secret Room", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        st.caption("✅ Paid Member Verified: Aap sabhi private messages padh sakte hain.")
+        # 2. PAID USERS CAN VIEW ALL CHATS
+        st.caption("✅ Paid Member Verified: Aap yahan sabhi private messages dekh sakte hain.")
 
-        st.markdown('<div class="secret-chat-box">', unsafe_allow_html=True)
+        st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
         if not secret_chat_db:
-            st.markdown("<p style='text-align:center; color:#888;'>Abhi koi messages nahi hain.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; color:#666; font-size:13px;'>Abhi koi messages nahi hain.</p>", unsafe_allow_html=True)
         for msg in secret_chat_db:
             s_name = msg.get("sender_name", "Member")
             text = msg.get("text", "")
             t_str = msg.get("time", "")
             is_adm = msg.get("is_owner", False)
 
-            b_class = "msg-bubble-owner" if is_adm else "msg-bubble-member"
-            b_label = "👑 Owner (Jatin Soni)" if is_adm else f"👤 {s_name}"
+            b_class = "wa-msg-owner" if is_adm else "wa-msg-member"
+            b_label = "👑 Owner (Jatin Soni)" if is_adm else f"👤 {s_name} (Authorized)"
 
             st.markdown(f"""
-                <div class="{b_class}">
+                <div class="wa-msg-bubble {b_class}">
                     <b>{b_label}</b><br>
                     {text}<br>
-                    <span style="font-size:10px; color:#aaa; float:right;">{t_str}</span>
+                    <span style="font-size:10px; color:#64748b; float:right;">{t_str}</span>
                 </div>
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # 3. ONLY OWNER OR PERMITTED MEMBERS CAN POST
         if has_post_permission:
             with st.form("form_secret_chat_msg", clear_on_submit=True):
-                s_input = st.text_input("Secret message type karein:", placeholder="Type here...")
+                s_input = st.text_input("Write a message to the secret room:", placeholder="Type message here...")
                 if st.form_submit_button("Send Message 🚀", use_container_width=True):
                     if s_input.strip():
                         now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b, %I:%M %p")
@@ -539,69 +534,71 @@ elif st.session_state.current_tab == "SecretRoom":
                         save_json(SECRET_CHAT_FILE, secret_chat_db)
                         st.rerun()
         else:
-            st.info("👀 **Read-Only Mode:** Aap sabhi messages padh sakte hain. Message bhej sirf Owner ya permitted members hi sakte hain. Permission ke liye Owner ko WhatsApp karein:")
-            wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, maine Pro liya hai ({active_user}). Please mujhe VIP Secret Room mein message permission dedo.')}"
-            st.markdown(f'<a href="{wa_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 Request Permission on WhatsApp</a>', unsafe_allow_html=True)
+            st.info("👀 **Read-Only Mode:** Aap sabhi messages padh sakte hain. Lekin message bhejne ka haq sirf Owner ya permission wale verified members ko hai. Permission lene ke liye Owner ko WhatsApp karein:")
+            wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, maine Pro liya hai ({active_user}). Please mujhe VIP Secret Room mein message post karne ki permission dedo.')}"
+            st.markdown(f'<a href="{wa_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:13px;">📲 WhatsApp Permission Request</a>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: VIP PRO TOOLS ---
 elif st.session_state.current_tab == "VIP Tools":
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 VIP AI Writing Tools")
 
     if not is_pro_user:
-        st.warning("🔒 **Locked:** Yeh tools sirf Pro members ke liye hain.")
+        st.warning("🔒 **Yeh exclusive area hai!** Sirf Pro members iska use kar sakte hain.")
         if st.button("💎 Upgrade to Pro", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        tool_choice = st.selectbox("Tool select karein:", [
+        tool_choice = st.selectbox("Kaunsa tool use karna hai?", [
             "🎬 Viral Instagram Reels Script & Hooks",
             "📦 E-commerce Product Description Generator",
             "✍️ Viral Bio & Captions Writer"
         ])
 
         if "Reels" in tool_choice:
-            st.markdown("#### 🎬 Instagram Reels Script")
-            topic = st.text_input("Reel ka topic:", placeholder="Ex: Fast bowling technique / Business tips")
+            st.markdown("#### 🎬 Instagram Reels Script Generator")
+            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
             if st.button("Generate Viral Script 🚀"):
                 if topic:
-                    with st.spinner("AI likh raha hai..."):
-                        p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook and CTA in Hinglish."
+                    with st.spinner("AI Script likh raha hai..."):
+                        p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
                         out = generate_ai_response([{"role": "user", "content": p}])
+                        st.success("Aapki Viral Reel Script taiyaar hai:")
                         st.markdown(out)
 
         elif "E-commerce" in tool_choice:
-            st.markdown("#### 📦 E-Commerce Description")
-            item_name = st.text_input("Product details:", placeholder="Ex: Cotton short kurti, breathable fabric")
+            st.markdown("#### 📦 E-Commerce Description Generator")
+            item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery, soft fabric")
             if st.button("Generate Professional Listing 🚀"):
                 if item_name:
-                    with st.spinner("AI listing create kar raha hai..."):
-                        p = f"Write a Meesho/Amazon product title, 5 bullet points, and description for: '{item_name}' in Hinglish."
+                    with st.spinner("Listing likh raha hai..."):
+                        p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
                         out = generate_ai_response([{"role": "user", "content": p}])
+                        st.success("Listing ready hai:")
                         st.markdown(out)
 
         elif "Bio" in tool_choice:
-            st.markdown("#### ✍️ Viral Bio Generator")
-            niche = st.text_input("Aapki niche/category:", placeholder="Ex: Cricket / Fitness")
+            st.markdown("#### ✍️ Viral Bio & Caption Generator")
+            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
             if st.button("Generate Bios 🚀"):
                 if niche:
-                    with st.spinner("Bios create ho rahe hain..."):
-                        p = f"Generate 5 viral Instagram bios with emojis and CTA for niche: '{niche}'."
+                    with st.spinner("Bios ban rahe hain..."):
+                        p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
                         out = generate_ai_response([{"role": "user", "content": p}])
                         st.markdown(out)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: SHOP ---
+# --- TAB: SHOP (WITH VIP DISCOUNT) ---
 elif st.session_state.current_tab == "Shop":
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🛍️ Soni Store")
     if is_pro_user:
-        st.success("💎 **VIP Active:** Har product par flat ₹100 instant VIP discount!")
+        st.success("💎 **VIP Member Active:** Har product par flat ₹100 instant VIP discount active hai!")
     else:
-        st.info("💡 **Tip:** Pro members ko har item par flat ₹100 direct discount milta hai.")
+        st.info("💡 **Pro Tip:** Pro members ko har item par flat ₹100 direct discount milta hai.")
 
     products = load_products()
     col1, col2, col3 = st.columns(3)
@@ -613,20 +610,20 @@ elif st.session_state.current_tab == "Shop":
             st.markdown(f"""
             <div class="shop-product-card">
                 <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:12px;">
-                <div style="font-weight:700; margin-top:8px; color:#fff;">{prod['name']}</div>
-                <div style="color:#00e5ff; font-weight:800; font-size:16px;">
-                    {f'<s style="color:#888; font-size:13px;">₹{prod["price"]}</s> ₹{final_p}' if is_pro_user else f'₹{final_p}'}
+                <div style="font-weight:700; margin-top:8px;">{prod['name']}</div>
+                <div style="color:#2563eb; font-weight:800; font-size:16px;">
+                    {f'<s style="color:#94a3b8; font-size:13px;">₹{prod["price"]}</s> ₹{final_p} (VIP Price)' if is_pro_user else f'₹{final_p}'}
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button(f"🛒 Buy Now", key=f"shop_buy_{prod['id']}", use_container_width=True):
+            if st.button(f"🛒 Order Now", key=f"shop_buy_{prod['id']}", use_container_width=True):
                 st.session_state.selected_product = {"name": prod["name"], "price": final_p}
                 st.rerun()
 
     if "selected_product" in st.session_state and st.session_state.selected_product:
         sel = st.session_state.selected_product
         st.markdown("---")
-        st.markdown(f"#### 📦 Checkout: {sel['name']} (₹{sel['price']})")
+        st.markdown(f"#### 📦 Complete Checkout: {sel['name']} (₹{sel['price']})")
         with st.form("checkout_form_direct"):
             c_name = st.text_input("Aapka Naam*")
             c_phone = st.text_input("Phone Number*")
@@ -642,11 +639,11 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING (PRO UPGRADE) ---
+# --- TAB: BILLING ---
 elif st.session_state.current_tab == "Billing":
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + VIP Secret Room Access + ₹100 Store Discount:")
+    st.write("Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein:")
 
     final_price = 49.00
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
@@ -657,7 +654,7 @@ elif st.session_state.current_tab == "Billing":
         st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
-            st.success("🎉 **Pro Active Hai!** Aap unlimited chat aur Secret Room use kar sakte hain.")
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Secret Room unlocked hain.")
         else:
             with st.form("pro_utr_form"):
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
@@ -665,20 +662,20 @@ elif st.session_state.current_tab == "Billing":
                     if len(utr) >= 8 and utr.isdigit():
                         payments_db[active_user] = {"utr": utr, "amount": final_price, "status": "pending"}
                         save_json(PAYMENTS_FILE, payments_db)
-                        st.success("UTR submit ho gaya! Admin jald verify karke activate kar dega.")
+                        st.success("UTR submit ho gaya! Admin verify karke Pro mode on kar dega.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: ADMIN (/admin 2009) ---
 elif st.session_state.current_tab == "AdminPanel":
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Owner Verification & Control Panel")
 
     tab_adm_pay, tab_adm_feed = st.tabs(["💳 Approve Payments", "🔒 Manage Secret Room Permissions"])
 
     with tab_adm_pay:
-        st.markdown("#### Pending Payment Requests")
+        st.markdown("#### Pending UTR Requests")
         if not payments_db:
-            st.info("Koi pending payment nahi hai.")
+            st.info("Koi pending payment request nahi hai.")
         for u_email, p_info in list(payments_db.items()):
             st.write(f"👤 **{u_email}** | Amount: ₹{p_info.get('amount')} | UTR: `{p_info.get('utr')}`")
             if st.button(f"Approve {u_email}", key=f"appr_{u_email}"):
@@ -691,10 +688,12 @@ elif st.session_state.current_tab == "AdminPanel":
                 st.rerun()
 
     with tab_adm_feed:
-        st.markdown("#### ⚙️ Secret Room Member Permissions")
+        st.markdown("#### ⚙️ Member Post Permissions for Secret Room")
+        st.caption("Yahan se decide karein ki kaunsa paid member Secret Room mein message type karke bhej sakta hai:")
+
         registered_users = [u for u in users_db.keys() if u not in ["guest@soniai.com", OWNER_EMAIL]]
         if not registered_users:
-            st.info("Koi registered member nahi hai.")
+            st.info("Koi registered member nahi hai abhi.")
         else:
             for mem_email in registered_users:
                 mem_data = users_db.get(mem_email, {})
@@ -703,27 +702,28 @@ elif st.session_state.current_tab == "AdminPanel":
 
                 c_m1, c_m2 = st.columns([6, 4])
                 with c_m1:
-                    st.write(f"👤 **{mem_email}** ({mem_plan.upper()}) — Post: `{'ALLOWED' if has_perm else 'READ ONLY'}`")
+                    st.write(f"👤 **{mem_email}** ({mem_plan.upper()}) — Status: `{'CAN POST' if has_perm else 'READ ONLY'}`")
                 with c_m2:
                     if has_perm:
-                        if st.button(f"🚫 Revoke", key=f"rev_{mem_email}"):
+                        if st.button(f"🚫 Revoke Permission", key=f"rev_{mem_email}"):
                             users_db[mem_email]["post_allowed"] = False
                             save_json(USERS_FILE, users_db)
                             st.rerun()
                     else:
-                        if st.button(f"✅ Allow", key=f"alw_{mem_email}"):
+                        if st.button(f"✅ Give Post Permission", key=f"alw_{mem_email}"):
                             users_db[mem_email]["post_allowed"] = True
                             save_json(USERS_FILE, users_db)
                             st.rerun()
 
         st.markdown("---")
-        if st.button("Clear Secret Room Chat"):
+        st.markdown("#### 🗑️ Clear Secret Room Chat")
+        if st.button("Clear All Secret Room Messages"):
             save_json(SECRET_CHAT_FILE, [])
-            st.success("Chat clear ho gayi!")
+            st.success("Secret room clear ho gaya!")
             st.rerun()
 
     st.markdown("---")
-    if st.button("⬅️ Back to AI Chat"):
+    if st.button("⬅️ Back to Dashboard"):
         st.session_state.current_tab = "Dashboard"
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
