@@ -4,6 +4,7 @@ import urllib.parse
 import json
 import os
 import re
+import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -423,7 +424,7 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: AI MEDIA STUDIO (ACTUAL PIC & VIDEO GENERATION) ---
+# --- TAB: AI MEDIA STUDIO (PIC & VIDEO) ---
 elif st.session_state.current_tab == "Media Studio":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🎨 AI Media Studio (Generate Real Pictures & Videos)")
@@ -462,19 +463,36 @@ elif st.session_state.current_tab == "Media Studio":
         with media_tab2:
             st.markdown("#### 🎬 Real AI Video (.MP4) Generator")
             st.write("Apna scene likhein aur AI aapko direct MP4 video generate karke dega:")
-            vid_prompt = st.text_input("Video scene describe karein", placeholder="Ex: A futuristic astronaut walking on Mars with red sand and glowing stars")
+            vid_prompt = st.text_input("Video scene describe karein", placeholder="Ex: Running cheetah in savana, high speed camera 4k")
             
             if st.button("Generate Real AI Video 🎥", use_container_width=True):
                 if vid_prompt.strip():
-                    with st.spinner("AI video generate kar raha hai (isme 15-20 seconds lag sakte hain)..."):
+                    with st.spinner("AI video frames render kar raha hai (isme 15-25 seconds lagte hain)..."):
                         clean_vid_p = urllib.parse.quote(vid_prompt.strip())
-                        video_stream_url = f"https://image.pollinations.ai/prompt/{clean_vid_p}?model=flux-video&nologo=true"
+                        video_target_url = f"https://image.pollinations.ai/prompt/{clean_vid_p}?model=flux-video&nologo=true"
                         
-                        st.success("Video successfully ban gayi hai! 🎉")
-                        st.video(video_stream_url)
-                        st.markdown(f'<a href="{video_stream_url}" target="_blank" download="ai_video.mp4" style="display:block; text-align:center; padding:12px; background:#10b981; color:white; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">⬇️ Download MP4 Video</a>', unsafe_allow_html=True)
+                        try:
+                            # Backend check to verify video stream
+                            res = requests.get(video_target_url, timeout=45)
+                            if res.status_code == 200 and len(res.content) > 5000:
+                                st.success("Video successfully render ho gayi hai! 🎉")
+                                st.video(res.content)
+                                st.download_button(
+                                    label="⬇️ Download MP4 Video",
+                                    data=res.content,
+                                    file_name="soni_ai_video.mp4",
+                                    mime="video/mp4",
+                                    use_container_width=True
+                                )
+                            else:
+                                st.warning("Video generation server thoda busy hai. AI prompt direction dekhne ke liye generate ho raha hai:")
+                                out = generate_ai_response([{"role": "user", "content": f"Create ultra detailed scene prompt and camera prompt for: {vid_prompt}"}])
+                                st.markdown(out)
+                        except Exception as e:
+                            st.info("Video server par traffic zyada hone ke kaaran video direct link ke zariye kholi ja rahi hai:")
+                            st.markdown(f'<a href="{video_target_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#10b981; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">🌐 Click Here To Open / Save Video</a>', unsafe_allow_html=True)
                 else:
-                    st.error("Kripya video banane ke liye description likhein!")
+                    st.error("Kripya video scene describe karein!")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
