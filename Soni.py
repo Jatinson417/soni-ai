@@ -216,7 +216,12 @@ try:
 except Exception:
     secret_key = ""
 FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
-client = Groq(api_key=FINAL_API_KEY, timeout=25.0)
+
+@st.cache_resource
+def get_groq_client(api_token):
+    return Groq(api_key=api_token, timeout=25.0)
+
+client = get_groq_client(FINAL_API_KEY)
 
 CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
 SYSTEM_PROMPT = f"""
@@ -232,21 +237,21 @@ def clean_model_output(text: str) -> str:
     return text.strip()
 
 def generate_ai_response(messages_list):
-    try:
-        resp = client.chat.completions.create(
-            messages=messages_list,
-            model="llama-3.1-8b-instant"
-        )
-        return clean_model_output(resp.choices[0].message.content)
-    except Exception:
+    active_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    for model_name in active_models:
         try:
             resp = client.chat.completions.create(
                 messages=messages_list,
-                model="llama-3.2-3b-preview"
+                model=model_name,
+                temperature=0.6,
+                max_tokens=650
             )
-            return clean_model_output(resp.choices[0].message.content)
-        except Exception as e:
-            return f"Error: {e}"
+            raw = resp.choices[0].message.content
+            if raw:
+                return clean_model_output(raw)
+        except Exception:
+            continue
+    return "Server par load zyada hai, kripya thodi der baad dobara try karein."
 
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
@@ -395,7 +400,7 @@ if st.session_state.current_tab == "Dashboard":
                 bot_ans = CREATOR_REPLY
             else:
                 messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}] + [
-                    {"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]
+                    {"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-6:]
                 ]
                 bot_ans = generate_ai_response(messages_payload)
 
