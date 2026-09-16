@@ -108,7 +108,7 @@ if "current_tab" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- CRICKET ENGINE INITIALIZATION ---
+# --- CRICKET ENGINE INITIALIZATION WITH AUTO-MIGRATION ---
 def reset_cricket_match():
     return {
         "team_1": "Team A",
@@ -129,7 +129,8 @@ def reset_cricket_match():
         "awaiting_wicket": False
     }
 
-if "match_state" not in st.session_state:
+# Fix KeyError: If session has old match structure, reset it cleanly
+if "match_state" not in st.session_state or not isinstance(st.session_state.match_state, dict) or "status" not in st.session_state.match_state:
     st.session_state.match_state = reset_cricket_match()
 
 st.markdown(
@@ -237,12 +238,6 @@ st.markdown(
         text-align: center;
         margin-bottom: 20px;
         box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
-        animation: popup 0.5s ease-out forwards;
-    }
-
-    @keyframes popup {
-        0% { transform: scale(0.8); opacity: 0; }
-        100% { transform: scale(1); opacity: 1; }
     }
 
     .shop-product-card {
@@ -465,7 +460,7 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: PRO CRICKET SCORER (PAID FEATURE) ---
+# --- TAB: PRO CRICKET SCORER (SAFE KEY GUARDS) ---
 elif st.session_state.current_tab == "Cricket Scorer":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🏏 Soni Pro Cricket Live Scorer")
@@ -484,28 +479,40 @@ elif st.session_state.current_tab == "Cricket Scorer":
         ms = st.session_state.match_state
 
         def check_match_status():
-            if ms["status"] == "Finished": return
-            if ms["innings"] == 1:
-                if ms["balls_bowled"] >= ms["total_overs"] * 6 or ms["wickets"] >= 10:
+            status = ms.get("status", "Ongoing")
+            if status == "Finished": return
+            
+            inn = ms.get("innings", 1)
+            t_overs = ms.get("total_overs", 5)
+            balls = ms.get("balls_bowled", 0)
+            wkts = ms.get("wickets", 0)
+            r = ms.get("runs", 0)
+            tgt = ms.get("target", 0)
+
+            if inn == 1:
+                if balls >= t_overs * 6 or wkts >= 10:
                     ms["status"] = "Innings Break"
-                    ms["target"] = ms["runs"] + 1
-            elif ms["innings"] == 2:
-                if ms["runs"] >= ms["target"]:
+                    ms["target"] = r + 1
+            elif inn == 2:
+                if r >= tgt:
                     ms["status"] = "Finished"
-                    ms["winner"] = ms["batting_team"]
-                elif ms["balls_bowled"] >= ms["total_overs"] * 6 or ms["wickets"] >= 10:
+                    ms["winner"] = ms.get("batting_team", "Team 2")
+                elif balls >= t_overs * 6 or wkts >= 10:
                     ms["status"] = "Finished"
-                    if ms["runs"] == ms["target"] - 1:
+                    if r == tgt - 1:
                         ms["winner"] = "Tie"
                     else:
-                        ms["winner"] = ms["bowling_team"]
+                        ms["winner"] = ms.get("bowling_team", "Team 1")
+
+        current_status = ms.get("status", "Ongoing")
 
         # SHOW WINNER TROPHY IF FINISHED
-        if ms["status"] == "Finished":
-            if ms["winner"] == "Tie":
+        if current_status == "Finished":
+            win_team = ms.get("winner", "")
+            if win_team == "Tie":
                 win_text = "Match Tied! 🤝"
             else:
-                win_text = f"🏆 {ms['winner']} Won the Match! 🎉"
+                win_text = f"🏆 {win_team} Won the Match! 🎉"
             
             st.markdown(f"""
                 <div class="winner-box">
@@ -515,11 +522,11 @@ elif st.session_state.current_tab == "Cricket Scorer":
             """, unsafe_allow_html=True)
         
         # SHOW INNINGS BREAK
-        elif ms["status"] == "Innings Break":
-            st.info(f"**Innings Break!** {ms['batting_team']} scored {ms['runs']}/{ms['wickets']}.")
-            st.success(f"🎯 **Target for {ms['bowling_team']}: {ms['target']} Runs in {ms['total_overs']} Overs.**")
+        elif current_status == "Innings Break":
+            st.info(f"**Innings Break!** {ms.get('batting_team')} scored {ms.get('runs')}/{ms.get('wickets')}.")
+            st.success(f"🎯 **Target for {ms.get('bowling_team')}: {ms.get('target')} Runs in {ms.get('total_overs')} Overs.**")
             if st.button("▶️ Start 2nd Innings", use_container_width=True):
-                ms["batting_team"], ms["bowling_team"] = ms["bowling_team"], ms["batting_team"]
+                ms["batting_team"], ms["bowling_team"] = ms.get("bowling_team"), ms.get("batting_team")
                 ms["runs"] = 0
                 ms["wickets"] = 0
                 ms["balls_bowled"] = 0
@@ -528,28 +535,29 @@ elif st.session_state.current_tab == "Cricket Scorer":
                 st.rerun()
 
         # SCOREBOARD DISPLAY
-        overs_formatted = f"{ms['balls_bowled'] // 6}.{ms['balls_bowled'] % 6}"
-        crr = (ms['runs'] / max(1, ms['balls_bowled'])) * 6 if ms['balls_bowled'] > 0 else 0
+        balls = ms.get("balls_bowled", 0)
+        overs_formatted = f"{balls // 6}.{balls % 6}"
+        crr = (ms.get("runs", 0) / max(1, balls)) * 6 if balls > 0 else 0
 
-        target_html = f"<div style='margin-top:10px; color:#fcd34d; font-size:16px; font-weight:700;'>Target: {ms['target']}</div>" if ms["innings"] == 2 else ""
+        target_html = f"<div style='margin-top:10px; color:#fcd34d; font-size:16px; font-weight:700;'>Target: {ms.get('target', 0)}</div>" if ms.get("innings", 1) == 2 else ""
 
         st.markdown(f"""
             <div class="scoreboard-box">
-                <div style="font-size:18px; font-weight:700; color:#94a3b8;">{ms['team_1']} vs {ms['team_2']} - Inning {ms['innings']}</div>
-                <div style="font-size:22px; font-weight:800; color:#fff; margin-top:8px;">🏏 Batting: {ms['batting_team']}</div>
-                <div class="score-runs">{ms['runs']} / {ms['wickets']}</div>
-                <div style="font-size:15px; font-weight:600;">Overs: {overs_formatted} / {ms['total_overs']} | CRR: {crr:.2f}</div>
+                <div style="font-size:18px; font-weight:700; color:#94a3b8;">{ms.get('team_1', 'Team A')} vs {ms.get('team_2', 'Team B')} - Inning {ms.get('innings', 1)}</div>
+                <div style="font-size:22px; font-weight:800; color:#fff; margin-top:8px;">🏏 Batting: {ms.get('batting_team', 'Team A')}</div>
+                <div class="score-runs">{ms.get('runs', 0)} / {ms.get('wickets', 0)}</div>
+                <div style="font-size:15px; font-weight:600;">Overs: {overs_formatted} / {ms.get('total_overs', 5)} | CRR: {crr:.2f}</div>
                 {target_html}
                 <div style="margin-top:14px; font-size:14px; color:#cbd5e1;">
-                    🏏 <b>{ms['batsman_1']}</b> ({ms['batsman_1_runs']}*) | <b>{ms['batsman_2']}</b> ({ms['batsman_2_runs']}*) <br>
-                    ⚾ <b>{ms['bowler']}</b> ({ms['bowler_wickets']} Wickets)
+                    🏏 <b>{ms.get('batsman_1', 'P1')}</b> ({ms.get('batsman_1_runs', 0)}*) | <b>{ms.get('batsman_2', 'P2')}</b> ({ms.get('batsman_2_runs', 0)}*) <br>
+                    ⚾ <b>{ms.get('bowler', 'Bowler')}</b> ({ms.get('bowler_wickets', 0)} Wickets)
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-        # SCORING BUTTONS (Only if ongoing)
-        if ms["status"] == "Ongoing":
-            if ms["awaiting_wicket"]:
+        # SCORING BUTTONS
+        if current_status == "Ongoing":
+            if ms.get("awaiting_wicket", False):
                 st.warning("⚠️ **Wicket Kese Aaya? (Select Wicket Type)**")
                 cw1, cw2, cw3, cw4, cw5 = st.columns(5)
                 wicket_types = ["🎯 Bowled", "🧤 Catch", "🦵 LBW", "🏃 Run Out", "⚡ Stumped"]
@@ -557,10 +565,10 @@ elif st.session_state.current_tab == "Cricket Scorer":
                 
                 for i, w_type in enumerate(wicket_types):
                     if cols[i].button(w_type, use_container_width=True):
-                        ms["wickets"] += 1
+                        ms["wickets"] = ms.get("wickets", 0) + 1
                         if "Run Out" not in w_type:
-                            ms["bowler_wickets"] += 1
-                        ms["balls_bowled"] += 1
+                            ms["bowler_wickets"] = ms.get("bowler_wickets", 0) + 1
+                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
                         ms["awaiting_wicket"] = False
                         check_match_status()
                         st.rerun()
@@ -568,30 +576,30 @@ elif st.session_state.current_tab == "Cricket Scorer":
                 col_b1, col_b2, col_b3, col_b4, col_b5, col_b6 = st.columns(6)
                 with col_b1:
                     if st.button("➕ 1 Run", use_container_width=True):
-                        ms["runs"] += 1
-                        ms["batsman_1_runs"] += 1
-                        ms["balls_bowled"] += 1
+                        ms["runs"] = ms.get("runs", 0) + 1
+                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 1
+                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
                         check_match_status()
                         st.rerun()
                 with col_b2:
                     if st.button("➕ 2 Runs", use_container_width=True):
-                        ms["runs"] += 2
-                        ms["batsman_1_runs"] += 2
-                        ms["balls_bowled"] += 1
+                        ms["runs"] = ms.get("runs", 0) + 2
+                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 2
+                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
                         check_match_status()
                         st.rerun()
                 with col_b3:
                     if st.button("🔥 FOUR (4)", use_container_width=True):
-                        ms["runs"] += 4
-                        ms["batsman_1_runs"] += 4
-                        ms["balls_bowled"] += 1
+                        ms["runs"] = ms.get("runs", 0) + 4
+                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 4
+                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
                         check_match_status()
                         st.rerun()
                 with col_b4:
                     if st.button("🚀 SIX (6)", use_container_width=True):
-                        ms["runs"] += 6
-                        ms["batsman_1_runs"] += 6
-                        ms["balls_bowled"] += 1
+                        ms["runs"] = ms.get("runs", 0) + 6
+                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 6
+                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
                         check_match_status()
                         st.rerun()
                 with col_b5:
@@ -600,7 +608,7 @@ elif st.session_state.current_tab == "Cricket Scorer":
                         st.rerun()
                 with col_b6:
                     if st.button("⚪ Dot Ball", use_container_width=True):
-                        ms["balls_bowled"] += 1
+                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
                         check_match_status()
                         st.rerun()
 
@@ -609,16 +617,15 @@ elif st.session_state.current_tab == "Cricket Scorer":
         with col_m1:
             st.markdown("#### ⚙️ Edit Teams & Players")
             with st.form("form_edit_match"):
-                team1 = st.text_input("Team 1 Name", value=ms["team_1"])
-                team2 = st.text_input("Team 2 Name", value=ms["team_2"])
-                t_overs = st.number_input("Total Match Overs", min_value=1, max_value=50, value=ms["total_overs"])
-                b1 = st.text_input("Striker Batsman", value=ms["batsman_1"])
-                b2 = st.text_input("Non-Striker Batsman", value=ms["batsman_2"])
-                bw = st.text_input("Current Bowler", value=ms["bowler"])
+                team1 = st.text_input("Team 1 Name", value=ms.get("team_1", "Team A"))
+                team2 = st.text_input("Team 2 Name", value=ms.get("team_2", "Team B"))
+                t_overs = st.number_input("Total Match Overs", min_value=1, max_value=50, value=ms.get("total_overs", 5))
+                b1 = st.text_input("Striker Batsman", value=ms.get("batsman_1", "Player 1"))
+                b2 = st.text_input("Non-Striker Batsman", value=ms.get("batsman_2", "Player 2"))
+                bw = st.text_input("Current Bowler", value=ms.get("bowler", "Bowler 1"))
                 if st.form_submit_button("Update Details 🔄", use_container_width=True):
                     ms["team_1"], ms["team_2"], ms["total_overs"] = team1, team2, t_overs
-                    # If match hasn't started changing team names updates batting/bowling
-                    if ms["balls_bowled"] == 0 and ms["innings"] == 1:
+                    if ms.get("balls_bowled", 0) == 0 and ms.get("innings", 1) == 1:
                         ms["batting_team"], ms["bowling_team"] = team1, team2
                     ms["batsman_1"], ms["batsman_2"], ms["bowler"] = b1, b2, bw
                     st.success("Details updated!")
@@ -626,14 +633,14 @@ elif st.session_state.current_tab == "Cricket Scorer":
 
         with col_m2:
             st.markdown("#### 📲 Share Scorecard")
-            target_str = f"🎯 Target: {ms['target']}\n" if ms["innings"] == 2 else ""
-            win_str = f"\n🏆 *{ms['winner']} Won The Match!*" if ms["status"] == "Finished" else ""
+            target_str = f"🎯 Target: {ms.get('target', 0)}\n" if ms.get("innings", 1) == 2 else ""
+            win_str = f"\n🏆 *{ms.get('winner')} Won The Match!*" if current_status == "Finished" else ""
             
             wa_score_text = (
                 f"🏏 *LIVE MATCH UPDATE*\n"
-                f"⚔️ *{ms['team_1']} vs {ms['team_2']}*\n\n"
-                f"Batting: *{ms['batting_team']}*\n"
-                f"📊 *Score:* {ms['runs']}/{ms['wickets']} in {overs_formatted} ov\n"
+                f"⚔️ *{ms.get('team_1')} vs {ms.get('team_2')}*\n\n"
+                f"Batting: *{ms.get('batting_team')}*\n"
+                f"📊 *Score:* {ms.get('runs', 0)}/{ms.get('wickets', 0)} in {overs_formatted} ov\n"
                 f"📈 *Run Rate:* {crr:.2f}\n"
                 f"{target_str}"
                 f"{win_str}\n\n"
