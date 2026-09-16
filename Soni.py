@@ -15,7 +15,7 @@ USAGE_FILE = "user_usage_database.json"
 PAYMENTS_FILE = "pending_payments_database.json"
 PRODUCTS_FILE = "products_database.json"
 ORDERS_FILE = "orders_database.json"
-BROADCAST_CHAT_FILE = "vip_community_chat.json"
+SECRET_CHAT_FILE = "vip_secret_chat_room.json"
 
 UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
@@ -77,7 +77,7 @@ save_json(USERS_FILE, users_db)
 usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
-community_chat_db = load_json(BROADCAST_CHAT_FILE, [])
+secret_chat_db = load_json(SECRET_CHAT_FILE, [])
 
 url_user = st.query_params.get("user")
 if url_user and url_user.strip().lower() in users_db:
@@ -217,28 +217,28 @@ st.markdown(
     .wa-chat-container {
         background: #e5ddd5;
         border-radius: 16px;
-        padding: 16px;
-        max-height: 460px;
+        padding: 18px;
+        max-height: 480px;
         overflow-y: auto;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
         border: 1px solid #d1d7db;
     }
     .wa-msg-bubble {
-        padding: 10px 14px;
+        padding: 12px 16px;
         border-radius: 12px;
-        margin-bottom: 10px;
-        font-size: 13px;
+        margin-bottom: 12px;
+        font-size: 14px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        max-width: 85%;
+        max-width: 80%;
     }
     .wa-msg-owner {
         background: #ffffff;
-        border-left: 4px solid #f59e0b;
+        border-left: 5px solid #f59e0b;
         margin-right: auto;
     }
     .wa-msg-member {
         background: #dcf8c6;
-        border-left: 4px solid #10b981;
+        border-left: 5px solid #10b981;
         margin-right: auto;
     }
     </style>
@@ -359,7 +359,7 @@ chats_used_today, is_pro_user = get_user_chat_count(active_user, users_db, usage
 
 user_record = users_db.get(active_user, {})
 is_owner = (active_user == OWNER_EMAIL)
-can_post_msg = is_owner or (is_pro_user and user_record.get("post_allowed", False) if isinstance(user_record, dict) else False)
+has_post_permission = is_owner or (is_pro_user and user_record.get("post_allowed", False) if isinstance(user_record, dict) else False)
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -373,7 +373,11 @@ with st.sidebar:
         st.session_state.current_tab = "Dashboard"
         st.rerun()
 
-    if st.button("👑 VIP Pro Lounge", key="btn_sb_vip"):
+    if st.button("🔒 VIP Secret Room", key="btn_sb_secret"):
+        st.session_state.current_tab = "SecretRoom"
+        st.rerun()
+
+    if st.button("👑 VIP Pro Tools", key="btn_sb_vip"):
         st.session_state.current_tab = "VIP Tools"
         st.rerun()
 
@@ -474,102 +478,116 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: VIP LOUNGE (COMMUNITY FEED + TOOLS) ---
-elif st.session_state.current_tab == "VIP Tools":
+# --- TAB: VIP SECRET ROOM (PAID USERS ONLY) ---
+elif st.session_state.current_tab == "SecretRoom":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 👑 VIP Community Feed & AI Tools")
+    st.markdown("### 🔒 VIP Secret Room (Private Channel)")
 
+    # 1. FREE USERS CANNOT VIEW
     if not is_pro_user:
-        st.warning("🔒 **Yeh exclusive area hai!** Sirf Pro members is community feed ko dekh sakte hain.")
-        if st.button("💎 Unlock VIP Community Lounge", use_container_width=True):
+        st.error("🚫 **Access Denied!** Yeh private chat room sirf Paid/Pro members ke liye hai. Free users iski chats nahi dekh sakte.")
+        st.markdown("""
+            Agar aapko VIP chats dekhni hain toh apna account Pro mein upgrade karein:
+        """)
+        if st.button("💎 Upgrade to Pro & Unlock Secret Room", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        vip_tab1, vip_tab2 = st.tabs(["📢 VIP Community Channel (All Members)", "⚡ VIP AI Writers"])
+        # 2. PAID USERS CAN VIEW ALL CHATS
+        st.caption("✅ Paid Member Verified: Aap yahan sabhi private messages dekh sakte hain.")
 
-        with vip_tab1:
-            st.markdown("#### 📢 VIP Announcement & Discussion Feed")
-            st.caption("Yeh messages sabhi Pro members ko visible hain. Sirf Owner aur authorized members hi post kar sakte hain.")
+        st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
+        if not secret_chat_db:
+            st.markdown("<p style='text-align:center; color:#666; font-size:13px;'>Abhi koi messages nahi hain.</p>", unsafe_allow_html=True)
+        for msg in secret_chat_db:
+            s_name = msg.get("sender_name", "Member")
+            text = msg.get("text", "")
+            t_str = msg.get("time", "")
+            is_adm = msg.get("is_owner", False)
 
-            st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
-            if not community_chat_db:
-                st.markdown("<p style='text-align:center; color:#666; font-size:13px;'>Abhi koi messages nahi hain.</p>", unsafe_allow_html=True)
-            for m_item in community_chat_db:
-                sender_name = m_item.get("sender_name", "Member")
-                text = m_item.get("text", "")
-                t_str = m_item.get("time", "")
-                is_admin_sender = m_item.get("is_owner", False)
+            b_class = "wa-msg-owner" if is_adm else "wa-msg-member"
+            b_label = "👑 Owner (Jatin Soni)" if is_adm else f"👤 {s_name} (Authorized)"
 
-                bubble_class = "wa-msg-owner" if is_admin_sender else "wa-msg-member"
-                badge_title = "👑 Owner (Jatin Soni)" if is_admin_sender else f"👤 {sender_name}"
+            st.markdown(f"""
+                <div class="wa-msg-bubble {b_class}">
+                    <b>{b_label}</b><br>
+                    {text}<br>
+                    <span style="font-size:10px; color:#64748b; float:right;">{t_str}</span>
+                </div>
+            """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-                st.markdown(f"""
-                    <div class="wa-msg-bubble {bubble_class}">
-                        <b>{badge_title}</b><br>
-                        {text}<br>
-                        <span style="font-size:10px; color:#64748b; float:right;">{t_str}</span>
-                    </div>
-                """, unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+        # 3. ONLY OWNER OR PERMITTED MEMBERS CAN POST
+        if has_post_permission:
+            with st.form("form_secret_chat_msg", clear_on_submit=True):
+                s_input = st.text_input("Write a message to the secret room:", placeholder="Type message here...")
+                if st.form_submit_button("Send Message 🚀", use_container_width=True):
+                    if s_input.strip():
+                        now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b, %I:%M %p")
+                        secret_chat_db.append({
+                            "sender_email": active_user,
+                            "sender_name": "Jatin Soni" if is_owner else user_handle,
+                            "is_owner": is_owner,
+                            "text": s_input.strip(),
+                            "time": now_time
+                        })
+                        save_json(SECRET_CHAT_FILE, secret_chat_db)
+                        st.rerun()
+        else:
+            st.info("👀 **Read-Only Mode:** Aap sabhi messages padh sakte hain. Lekin message bhejne ka haq sirf Owner ya permission wale verified members ko hai. Permission lene ke liye Owner ko WhatsApp karein:")
+            wa_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, maine Pro liya hai ({active_user}). Please mujhe VIP Secret Room mein message post karne ki permission dedo.')}"
+            st.markdown(f'<a href="{wa_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:13px;">📲 WhatsApp Permission Request</a>', unsafe_allow_html=True)
 
-            if can_post_msg:
-                with st.form("form_broadcast_msg", clear_on_submit=True):
-                    dm_input = st.text_input("Write message to community:", placeholder="Type your message...")
-                    if st.form_submit_button("Post Message 🚀", use_container_width=True):
-                        if dm_input.strip():
-                            now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b, %I:%M %p")
-                            community_chat_db.append({
-                                "sender_email": active_user,
-                                "sender_name": "Jatin Soni" if is_owner else user_handle,
-                                "is_owner": is_owner,
-                                "text": dm_input.strip(),
-                                "time": now_time
-                            })
-                            save_json(BROADCAST_CHAT_FILE, community_chat_db)
-                            st.rerun()
-            else:
-                st.info("🔒 **View Only Mode:** Sabhi messages aapko visible hain. Post karne ki permission sirf Owner ya authorized members ke paas hai. Agar message send karne ki permission chahiye toh Owner ko WhatsApp karein:")
-                wa_req_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, mujhe VIP Community mein post permission enable kardo ({active_user}).')}"
-                st.markdown(f'<a href="{wa_req_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:13px;">📲 Request Post Permission</a>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        with vip_tab2:
-            tool_choice = st.selectbox("Kaunsa tool use karna hai?", [
-                "🎬 Viral Instagram Reels Script & Hooks",
-                "📦 E-commerce Product Description Generator",
-                "✍️ Viral Bio & Captions Writer"
-            ])
+# --- TAB: VIP PRO TOOLS ---
+elif st.session_state.current_tab == "VIP Tools":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 👑 VIP AI Writing Tools")
 
-            if "Reels" in tool_choice:
-                st.markdown("#### 🎬 Instagram Reels Script Generator")
-                topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
-                if st.button("Generate Viral Script 🚀"):
-                    if topic:
-                        with st.spinner("AI Script likh raha hai..."):
-                            p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
-                            out = generate_ai_response([{"role": "user", "content": p}])
-                            st.success("Aapki Viral Reel Script taiyaar hai:")
-                            st.markdown(out)
+    if not is_pro_user:
+        st.warning("🔒 **Yeh exclusive area hai!** Sirf Pro members iska use kar sakte hain.")
+        if st.button("💎 Upgrade to Pro", use_container_width=True):
+            st.session_state.current_tab = "Billing"
+            st.rerun()
+    else:
+        tool_choice = st.selectbox("Kaunsa tool use karna hai?", [
+            "🎬 Viral Instagram Reels Script & Hooks",
+            "📦 E-commerce Product Description Generator",
+            "✍️ Viral Bio & Captions Writer"
+        ])
 
-            elif "E-commerce" in tool_choice:
-                st.markdown("#### 📦 E-Commerce Description Generator")
-                item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery, soft fabric")
-                if st.button("Generate Professional Listing 🚀"):
-                    if item_name:
-                        with st.spinner("Listing likh raha hai..."):
-                            p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
-                            out = generate_ai_response([{"role": "user", "content": p}])
-                            st.success("Listing ready hai:")
-                            st.markdown(out)
+        if "Reels" in tool_choice:
+            st.markdown("#### 🎬 Instagram Reels Script Generator")
+            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
+            if st.button("Generate Viral Script 🚀"):
+                if topic:
+                    with st.spinner("AI Script likh raha hai..."):
+                        p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.success("Aapki Viral Reel Script taiyaar hai:")
+                        st.markdown(out)
 
-            elif "Bio" in tool_choice:
-                st.markdown("#### ✍️ Viral Bio & Caption Generator")
-                niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
-                if st.button("Generate Bios 🚀"):
-                    if niche:
-                        with st.spinner("Bios ban rahe hain..."):
-                            p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
-                            out = generate_ai_response([{"role": "user", "content": p}])
-                            st.markdown(out)
+        elif "E-commerce" in tool_choice:
+            st.markdown("#### 📦 E-Commerce Description Generator")
+            item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery, soft fabric")
+            if st.button("Generate Professional Listing 🚀"):
+                if item_name:
+                    with st.spinner("Listing likh raha hai..."):
+                        p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.success("Listing ready hai:")
+                        st.markdown(out)
+
+        elif "Bio" in tool_choice:
+            st.markdown("#### ✍️ Viral Bio & Caption Generator")
+            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
+            if st.button("Generate Bios 🚀"):
+                if niche:
+                    with st.spinner("Bios ban rahe hain..."):
+                        p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.markdown(out)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -625,7 +643,7 @@ elif st.session_state.current_tab == "Shop":
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + VIP Community Lounge + ₹100 Store Discount pane ke liye Pro activate karein:")
+    st.write("Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein:")
 
     final_price = 49.00
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
@@ -636,7 +654,7 @@ elif st.session_state.current_tab == "Billing":
         st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
-            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Community unlocked hain.")
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Secret Room unlocked hain.")
         else:
             with st.form("pro_utr_form"):
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
@@ -650,9 +668,9 @@ elif st.session_state.current_tab == "Billing":
 # --- TAB: ADMIN (/admin 2009) ---
 elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 👑 Owner Verification & Permission Panel")
+    st.markdown("### 👑 Owner Verification & Control Panel")
 
-    tab_adm_pay, tab_adm_feed = st.tabs(["💳 Approve Payments", "📢 Manage VIP Feed & Permissions"])
+    tab_adm_pay, tab_adm_feed = st.tabs(["💳 Approve Payments", "🔒 Manage Secret Room Permissions"])
 
     with tab_adm_pay:
         st.markdown("#### Pending UTR Requests")
@@ -666,12 +684,12 @@ elif st.session_state.current_tab == "AdminPanel":
                 save_json(USERS_FILE, users_db)
                 del payments_db[u_email]
                 save_json(PAYMENTS_FILE, payments_db)
-                st.success(f"{u_email} ko Pro Plan access mil gaya!")
+                st.success(f"{u_email} ko Pro access mil gaya!")
                 st.rerun()
 
     with tab_adm_feed:
-        st.markdown("#### ⚙️ Member Post Permissions")
-        st.caption("Yahan se control karein ki kaunsa paid member community feed mein message bhej sakta hai:")
+        st.markdown("#### ⚙️ Member Post Permissions for Secret Room")
+        st.caption("Yahan se decide karein ki kaunsa paid member Secret Room mein message type karke bhej sakta hai:")
 
         registered_users = [u for u in users_db.keys() if u not in ["guest@soniai.com", OWNER_EMAIL]]
         if not registered_users:
@@ -687,21 +705,21 @@ elif st.session_state.current_tab == "AdminPanel":
                     st.write(f"👤 **{mem_email}** ({mem_plan.upper()}) — Status: `{'CAN POST' if has_perm else 'READ ONLY'}`")
                 with c_m2:
                     if has_perm:
-                        if st.button(f"🚫 Revoke Post Access", key=f"rev_{mem_email}"):
+                        if st.button(f"🚫 Revoke Permission", key=f"rev_{mem_email}"):
                             users_db[mem_email]["post_allowed"] = False
                             save_json(USERS_FILE, users_db)
                             st.rerun()
                     else:
-                        if st.button(f"✅ Allow Post Access", key=f"alw_{mem_email}"):
+                        if st.button(f"✅ Give Post Permission", key=f"alw_{mem_email}"):
                             users_db[mem_email]["post_allowed"] = True
                             save_json(USERS_FILE, users_db)
                             st.rerun()
 
         st.markdown("---")
-        st.markdown("#### 🗑️ Clear Community Messages")
-        if st.button("Clear All Feed Messages"):
-            save_json(BROADCAST_CHAT_FILE, [])
-            st.success("Feed clear ho gayi!")
+        st.markdown("#### 🗑️ Clear Secret Room Chat")
+        if st.button("Clear All Secret Room Messages"):
+            save_json(SECRET_CHAT_FILE, [])
+            st.success("Secret room clear ho gaya!")
             st.rerun()
 
     st.markdown("---")
