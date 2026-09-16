@@ -26,11 +26,8 @@ FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
 PREMIUM_PRICE = 49.00
 
-CUSTOM_REPLIES = {
-    "what is skb": "Santosh Kulcha Bhandar",
-    "skb kya hai": "Santosh Kulcha Bhandar",
-    "skb": "Santosh Kulcha Bhandar"
-}
+# Exact matches only for SKB
+EXACT_SKB_QUERIES = ["what is skb", "skb kya hai", "skb"]
 
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
@@ -266,7 +263,9 @@ CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class
 SYSTEM_PROMPT = f"""
 You are Soni AI, created by Jatin Soni.
 Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
-Rules: Direct, helpful, smart Hinglish/English answers without internal reasoning, analysis steps, or thinking tags.
+Rules: 
+1. Always reply in the exact same language/dialect that the user uses (e.g., if user writes in Hindi/Hinglish, reply in Hindi/Hinglish; if in English, reply in English; if in Punjabi, reply in Punjabi).
+2. Give direct, helpful, smart answers without internal reasoning, analysis steps, or thinking tags.
 """
 
 def clean_model_output(text: str) -> str:
@@ -459,17 +458,10 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "user", "content": clean_in})
 
             input_clean_norm = re.sub(r'[^\w\s]', '', clean_in.lower()).strip()
-            matched_custom = None
-            for trigger_k, trigger_v in CUSTOM_REPLIES.items():
-                norm_trig = re.sub(r'[^\w\s]', '', trigger_k.lower()).strip()
-                if norm_trig in input_clean_norm or input_clean_norm in norm_trig:
-                    matched_custom = trigger_v
-                    break
-
             creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
 
-            if matched_custom:
-                bot_ans = matched_custom
+            if input_clean_norm in EXACT_SKB_QUERIES:
+                bot_ans = "Santosh Kulcha Bhandar"
             elif any(trig in input_clean_norm for trig in creator_triggers):
                 bot_ans = CREATOR_REPLY
             else:
@@ -560,7 +552,7 @@ elif st.session_state.current_tab == "VIP Tools":
             if st.button("Generate Viral Script 🚀"):
                 if topic:
                     with st.spinner("AI Script likh raha hai..."):
-                        p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
+                        p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA."
                         out = generate_ai_response([{"role": "user", "content": p}])
                         st.success("Aapki Viral Reel Script taiyaar hai:")
                         st.markdown(out)
@@ -571,7 +563,7 @@ elif st.session_state.current_tab == "VIP Tools":
             if st.button("Generate Professional Listing 🚀"):
                 if item_name:
                     with st.spinner("Listing likh raha hai..."):
-                        p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
+                        p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}'."
                         out = generate_ai_response([{"role": "user", "content": p}])
                         st.success("Listing ready hai:")
                         st.markdown(out)
@@ -636,7 +628,7 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING (WITH COUPON SYSTEM) ---
+# --- TAB: BILLING ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
