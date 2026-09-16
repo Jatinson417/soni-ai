@@ -70,6 +70,7 @@ save_json(USERS_FILE, users_db)
 usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
+matches_db = load_json(CRICKET_FILE, {})
 
 def get_user_chat_count(email, users_dict, usage_dict):
     clean_email = email.strip().lower()
@@ -108,7 +109,6 @@ if "current_tab" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- CRICKET ENGINE INITIALIZATION WITH AUTO-MIGRATION ---
 def reset_cricket_match():
     return {
         "team_1": "Team A",
@@ -120,26 +120,28 @@ def reset_cricket_match():
         "runs": 0,
         "wickets": 0,
         "balls_bowled": 0,
-        "batsman_1": "Player 1", "batsman_1_runs": 0,
-        "batsman_2": "Player 2", "batsman_2_runs": 0,
-        "bowler": "Bowler 1", "bowler_wickets": 0,
+        "batsman_1": "S. Sharma", "batsman_1_runs": 0, "batsman_1_balls": 0,
+        "batsman_2": "V. Kohli", "batsman_2_runs": 0, "batsman_2_balls": 0,
+        "bowler": "V. Kevin", "bowler_wickets": 0, "bowler_runs": 0, "bowler_balls": 0,
+        "partnership_runs": 0, "partnership_balls": 0,
+        "striker": 1,
         "target": 0,
-        "status": "Ongoing", # Ongoing, Innings Break, Finished
+        "status": "Ongoing",
         "winner": "",
-        "awaiting_wicket": False
+        "awaiting_wicket": False,
+        "first_inn_summary": ""
     }
 
-# Fix KeyError: If session has old match structure, reset it cleanly
 if "match_state" not in st.session_state or not isinstance(st.session_state.match_state, dict) or "status" not in st.session_state.match_state:
     st.session_state.match_state = reset_cricket_match()
 
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
     html, body, [data-testid="stAppViewContainer"], .stApp {
-        background: linear-gradient(120deg, #ffd9d6 0%, #ecd9fc 35%, #cfe4ff 70%, #d4f4ff 100%) !important;
+        background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 40%, #fae8ff 70%, #f1f5f9 100%) !important;
         background-attachment: fixed !important;
         font-family: 'Inter', sans-serif !important;
         color: #1e293b !important;
@@ -148,7 +150,7 @@ st.markdown(
     [data-testid="stHeader"] { background: transparent !important; }
 
     [data-testid="stSidebar"] {
-        background: #f1f3f7 !important;
+        background: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
         padding-top: 15px !important;
         padding-left: 14px !important;
@@ -159,7 +161,7 @@ st.markdown(
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 700;
         color: #1e293b;
         margin-bottom: 24px;
@@ -167,7 +169,7 @@ st.markdown(
     }
 
     div[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-        background: #ffffff !important;
+        background: #f8fafc !important;
         border: 1px solid #e2e8f0 !important;
         text-align: left !important;
         justify-content: flex-start !important;
@@ -176,8 +178,7 @@ st.markdown(
         font-size: 14px !important;
         font-weight: 500 !important;
         color: #334155 !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 8px !important;
         width: 100% !important;
     }
 
@@ -186,78 +187,137 @@ st.markdown(
         justify-content: flex-end;
         align-items: center;
         gap: 10px;
-        margin-bottom: 20px;
+        margin-bottom: 14px;
     }
     .top-action-btn {
         background: #ffffff !important;
         color: #334155 !important;
         border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 8px 16px;
-        font-size: 13px;
+        border-radius: 10px;
+        padding: 6px 14px;
+        font-size: 12px;
         font-weight: 600;
         text-decoration: none !important;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
     .welcome-card {
-        background: rgba(255, 255, 255, 0.9) !important;
-        border: 1px solid #ffffff !important;
-        border-radius: 16px;
-        padding: 22px 26px;
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 18px;
+        padding: 20px 24px;
         margin-bottom: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     }
 
-    .scoreboard-box {
-        background: linear-gradient(135deg, #0f172a, #1e293b);
-        color: #ffffff;
-        border-radius: 16px;
-        padding: 20px;
-        text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    }
-
-    .score-runs {
-        font-size: 48px;
-        font-weight: 900;
-        color: #38bdf8;
-        line-height: 1;
-        margin: 10px 0;
-    }
-
-    .winner-box {
-        background: linear-gradient(135deg, #f59e0b, #fbbf24);
-        color: #000;
+    /* REALISTIC STADIUM SCOREBOARD */
+    .stadium-board {
+        position: relative;
+        background: radial-gradient(circle at center, #27344f 0%, #151d2f 65%, #0b101c 100%);
+        border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 20px;
-        padding: 30px;
-        text-align: center;
+        padding: 24px 28px;
+        color: #f8fafc;
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.35);
         margin-bottom: 20px;
-        box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
+        overflow: hidden;
+    }
+    .stadium-board::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=1200&auto=format&fit=crop&q=80') center/cover no-repeat;
+        opacity: 0.15;
+        pointer-events: none;
     }
 
-    .shop-product-card {
-        background: rgba(255, 255, 255, 0.92);
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 14px;
+    .stadium-header-text {
         text-align: center;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        font-size: 14px;
+        font-weight: 600;
+        color: #93c5fd;
+        letter-spacing: 0.5px;
+    }
+    .stadium-batting-text {
+        text-align: center;
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-top: 2px;
     }
 
-    .pro-badge {
-        background: linear-gradient(135deg, #f59e0b, #ef4444);
-        color: white;
-        font-weight: 700;
+    .badge-score-pill {
+        display: inline-block;
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        border: 1.5px solid rgba(255, 255, 255, 0.25);
+        border-radius: 30px;
+        padding: 8px 32px;
+        box-shadow: inset 0 2px 4px rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.4);
+        margin: 10px auto;
+    }
+    .badge-score-runs {
+        font-size: 34px;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 1px;
+    }
+    .badge-overs-text {
         font-size: 11px;
-        padding: 3px 8px;
-        border-radius: 8px;
-        margin-left: 8px;
+        color: #cbd5e1;
+        font-weight: 500;
+    }
+
+    .score-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255,255,255,0.12);
+        font-size: 13px;
+    }
+    .score-row-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+    }
+
+    /* TELECAST BUTTONS */
+    div.telecast-btn button {
+        background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
+        padding: 10px !important;
+    }
+    div.telecast-btn-run button {
+        background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+    div.telecast-btn-boundary button {
+        background: linear-gradient(180deg, #fef08a 0%, #eab308 100%) !important;
+        color: #713f12 !important;
+    }
+    div.telecast-btn-six button {
+        background: linear-gradient(180deg, #e9d5ff 0%, #a855f7 100%) !important;
+        color: #3b0764 !important;
+    }
+    div.telecast-btn-out button {
+        background: linear-gradient(180deg, #fecaca 0%, #ef4444 100%) !important;
+        color: #ffffff !important;
+    }
+
+    .saved-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
     </style>
     """,
@@ -305,20 +365,20 @@ def generate_ai_response(messages_list):
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
     st.markdown("""
-        <div style="max-width:440px; margin:50px auto; background:rgba(255,255,255,0.85); border-radius:20px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.06); text-align:center;">
+        <div style="max-width:440px; margin:50px auto; background:rgba(255,255,255,0.92); border-radius:20px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.06); text-align:center;">
             <h2 style="margin-bottom:4px;">✨ Soni AI</h2>
-            <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Choose how you want to continue</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Sign in to save matches and access Pro features</p>
         </div>
     """, unsafe_allow_html=True)
 
     c_pad1, c_box, c_pad2 = st.columns([1, 1.3, 1])
     with c_box:
-        if st.button("🚀 Continue as Guest (Without Login)", use_container_width=True):
+        if st.button("🚀 Continue as Guest (Matches Won't Auto-Save)", use_container_width=True):
             st.session_state.user = "guest@soniai.com"
             st.query_params["user"] = "guest@soniai.com"
             st.rerun()
 
-        st.markdown("<div style='text-align:center; margin:15px 0; color:#94a3b8; font-size:12px;'>── OR USE ACCOUNT ──</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; margin:15px 0; color:#94a3b8; font-size:12px;'>── OR LOG IN TO SAVE STATS ──</div>", unsafe_allow_html=True)
         auth_t1, auth_t2 = st.tabs(["🔑 Log In", "📝 Sign Up"])
         with auth_t1:
             with st.form("form_quick_login"):
@@ -385,7 +445,7 @@ with st.sidebar:
         <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:50px;">
             <div style="font-size:22px;">👤</div>
             <div style="line-height:1.2;">
-                <div style="font-size:13px; font-weight:700;">{user_handle} <span class="pro-badge">{'PRO' if is_pro_user else 'FREE'}</span></div>
+                <div style="font-size:13px; font-weight:700;">{user_handle} <span style="background:#2563eb; color:white; font-size:10px; padding:2px 6px; border-radius:6px;">{'PRO' if is_pro_user else 'FREE'}</span></div>
                 <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited VIP' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} msgs'}</div>
             </div>
         </div>
@@ -460,7 +520,7 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: PRO CRICKET SCORER (SAFE KEY GUARDS) ---
+# --- TAB: PRO CRICKET SCORER (PHOTO MATCH DESIGN + AUTO-STORE) ---
 elif st.session_state.current_tab == "Cricket Scorer":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🏏 Soni Pro Cricket Live Scorer")
@@ -468,15 +528,33 @@ elif st.session_state.current_tab == "Cricket Scorer":
     if not is_pro_user:
         st.warning("🔒 **Yeh Feature Sirf Pro Plan Members ke liye Unlock Hai!**")
         st.markdown("""
-        * 🏆 **Tournament & Box Cricket Scoring:** Live scorecard with Target chases.
-        * 🎯 **Smart Wickets & Auto-Innings:** Catch/LBW detection aur auto 2nd-innings switch.
-        * 📲 **WhatsApp Poster Share:** Ek click mein group par scorecard.
+        * 🏆 **Stadium Broadcast Scoreboard:** Live TV graphics, partnership & bowlers econ stats.
+        * 🎯 **Permanent Scorecard Storage:** Match khatam hote hi scorecard user account mein hamesha ke liye store ho jayega.
+        * 📲 **WhatsApp Match Updates:** Direct scorecard export button.
         """)
         if st.button("💎 Unlock Pro Cricket Scorer (Upgrade to Pro)", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
         ms = st.session_state.match_state
+
+        def save_finished_match():
+            if active_user != "guest@soniai.com":
+                if active_user not in matches_db:
+                    matches_db[active_user] = []
+                
+                match_record = {
+                    "id": f"M-{int(datetime.now().timestamp())}",
+                    "date": datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y, %I:%M %p"),
+                    "team_1": ms.get("team_1"),
+                    "team_2": ms.get("team_2"),
+                    "winner": ms.get("winner"),
+                    "first_inn": ms.get("first_inn_summary"),
+                    "second_inn": f"{ms.get('batting_team')}: {ms.get('runs')}/{ms.get('wickets')} in {ms.get('balls_bowled')//6}.{ms.get('balls_bowled')%6} ov",
+                    "target": ms.get("target")
+                }
+                matches_db[active_user].insert(0, match_record)
+                save_json(CRICKET_FILE, matches_db)
 
         def check_match_status():
             status = ms.get("status", "Ongoing")
@@ -493,126 +571,249 @@ elif st.session_state.current_tab == "Cricket Scorer":
                 if balls >= t_overs * 6 or wkts >= 10:
                     ms["status"] = "Innings Break"
                     ms["target"] = r + 1
+                    ms["first_inn_summary"] = f"{ms.get('batting_team')}: {r}/{wkts} in {balls//6}.{balls%6} ov"
             elif inn == 2:
                 if r >= tgt:
                     ms["status"] = "Finished"
-                    ms["winner"] = ms.get("batting_team", "Team 2")
+                    ms["winner"] = ms.get("batting_team")
+                    save_finished_match()
                 elif balls >= t_overs * 6 or wkts >= 10:
                     ms["status"] = "Finished"
                     if r == tgt - 1:
                         ms["winner"] = "Tie"
                     else:
-                        ms["winner"] = ms.get("bowling_team", "Team 1")
+                        ms["winner"] = ms.get("bowling_team")
+                    save_finished_match()
 
         current_status = ms.get("status", "Ongoing")
 
-        # SHOW WINNER TROPHY IF FINISHED
+        # WINNER CUP ANNOUNCEMENT
         if current_status == "Finished":
             win_team = ms.get("winner", "")
-            if win_team == "Tie":
-                win_text = "Match Tied! 🤝"
-            else:
-                win_text = f"🏆 {win_team} Won the Match! 🎉"
-            
+            win_text = "Match Tied! 🤝" if win_team == "Tie" else f"🏆 {win_team} Won the Match! 🎉"
             st.markdown(f"""
-                <div class="winner-box">
-                    <h1 style="font-size:50px; margin:0;">🏆</h1>
-                    <h2 style="margin-top:10px; font-weight:800;">{win_text}</h2>
+                <div style="background: linear-gradient(135deg, #f59e0b, #fbbf24); border-radius:18px; padding:24px; text-align:center; color:#000; margin-bottom:16px;">
+                    <h1 style="font-size:45px; margin:0;">🏆</h1>
+                    <h2 style="font-weight:800; margin:6px 0;">{win_text}</h2>
+                    <div style="font-size:13px; font-weight:600;">Match scorecard has been permanently saved to your profile!</div>
                 </div>
             """, unsafe_allow_html=True)
-        
-        # SHOW INNINGS BREAK
+
         elif current_status == "Innings Break":
-            st.info(f"**Innings Break!** {ms.get('batting_team')} scored {ms.get('runs')}/{ms.get('wickets')}.")
+            st.info(f"**Innings Break!** {ms.get('first_inn_summary')}")
             st.success(f"🎯 **Target for {ms.get('bowling_team')}: {ms.get('target')} Runs in {ms.get('total_overs')} Overs.**")
             if st.button("▶️ Start 2nd Innings", use_container_width=True):
                 ms["batting_team"], ms["bowling_team"] = ms.get("bowling_team"), ms.get("batting_team")
                 ms["runs"] = 0
                 ms["wickets"] = 0
                 ms["balls_bowled"] = 0
+                ms["partnership_runs"] = 0
+                ms["partnership_balls"] = 0
+                ms["batsman_1_runs"] = 0
+                ms["batsman_1_balls"] = 0
+                ms["batsman_2_runs"] = 0
+                ms["batsman_2_balls"] = 0
+                ms["bowler_wickets"] = 0
+                ms["bowler_runs"] = 0
+                ms["bowler_balls"] = 0
                 ms["innings"] = 2
                 ms["status"] = "Ongoing"
                 st.rerun()
 
-        # SCOREBOARD DISPLAY
+        # EXACT PHOTO BROADCAST SCOREBOARD
         balls = ms.get("balls_bowled", 0)
-        overs_formatted = f"{balls // 6}.{balls % 6}"
-        crr = (ms.get("runs", 0) / max(1, balls)) * 6 if balls > 0 else 0
+        overs_str = f"{balls // 6}.{balls % 6}"
+        crr = (ms.get("runs", 0) / max(1, balls)) * 6 if balls > 0 else 0.0
 
-        target_html = f"<div style='margin-top:10px; color:#fcd34d; font-size:16px; font-weight:700;'>Target: {ms.get('target', 0)}</div>" if ms.get("innings", 1) == 2 else ""
+        b1_sym = "✔ " if ms.get("striker", 1) == 1 else ""
+        b2_sym = "✔ " if ms.get("striker", 1) == 2 else ""
+
+        b1_runs = ms.get("batsman_1_runs", 0)
+        b1_b = ms.get("batsman_1_balls", 0)
+        b2_runs = ms.get("batsman_2_runs", 0)
+        b2_b = ms.get("batsman_2_balls", 0)
+
+        bw_runs = ms.get("bowler_runs", 0)
+        bw_wkts = ms.get("bowler_wickets", 0)
+        bw_balls = ms.get("bowler_balls", 0)
+        bw_overs = f"{bw_balls // 6}.{bw_balls % 6}"
+
+        p_runs = ms.get("partnership_runs", 0)
+        p_balls = ms.get("partnership_balls", 0)
 
         st.markdown(f"""
-            <div class="scoreboard-box">
-                <div style="font-size:18px; font-weight:700; color:#94a3b8;">{ms.get('team_1', 'Team A')} vs {ms.get('team_2', 'Team B')} - Inning {ms.get('innings', 1)}</div>
-                <div style="font-size:22px; font-weight:800; color:#fff; margin-top:8px;">🏏 Batting: {ms.get('batting_team', 'Team A')}</div>
-                <div class="score-runs">{ms.get('runs', 0)} / {ms.get('wickets', 0)}</div>
-                <div style="font-size:15px; font-weight:600;">Overs: {overs_formatted} / {ms.get('total_overs', 5)} | CRR: {crr:.2f}</div>
-                {target_html}
-                <div style="margin-top:14px; font-size:14px; color:#cbd5e1;">
-                    🏏 <b>{ms.get('batsman_1', 'P1')}</b> ({ms.get('batsman_1_runs', 0)}*) | <b>{ms.get('batsman_2', 'P2')}</b> ({ms.get('batsman_2_runs', 0)}*) <br>
-                    ⚾ <b>{ms.get('bowler', 'Bowler')}</b> ({ms.get('bowler_wickets', 0)} Wickets)
+        <div class="stadium-board">
+            <div class="stadium-header-text">{ms.get('team_1', 'Team A')} vs {ms.get('team_2', 'Team B')}</div>
+            <div class="stadium-batting-text">🏏 Batting: {ms.get('batting_team', 'Team A')} {f'(Target: {ms.get("target")})' if ms.get("innings")==2 else ''}</div>
+            
+            <div style="text-align: center;">
+                <div class="badge-score-pill">
+                    <div class="badge-score-runs">{ms.get('runs', 0)} / {ms.get('wickets', 0)}</div>
+                    <div class="badge-overs-text">Overs: {overs_str} / {ms.get('total_overs', 5)} | CRR: {crr:.2f}</div>
                 </div>
             </div>
+
+            <div class="score-grid">
+                <div>
+                    <div class="score-row-item">
+                        <span><b>{b1_sym}{ms.get('batsman_1', 'Player 1')}</b></span>
+                        <span>{b1_runs} ({b1_b})</span>
+                    </div>
+                    <div class="score-row-item">
+                        <span><b>{b2_sym}{ms.get('batsman_2', 'Player 2')}</b></span>
+                        <span>{b2_runs} ({b2_b})</span>
+                    </div>
+                    <div class="score-row-item" style="color: #94a3b8; font-size:12px; margin-top:4px;">
+                        <span>⚾ Bowler: <b>{ms.get('bowler', 'Bowler')}</b></span>
+                        <span>{bw_wkts}/{bw_runs} ({bw_overs})</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="score-row-item">
+                        <span>🤝 Partnership:</span>
+                        <span><b>{p_runs} ({p_balls})</b></span>
+                    </div>
+                    <div class="score-row-item">
+                        <span>Innings:</span>
+                        <span><b>#{ms.get('innings', 1)}</b></span>
+                    </div>
+                    <div class="score-row-item">
+                        <span>Extras:</span>
+                        <span><b>0</b></span>
+                    </div>
+                </div>
+            </div>
+        </div>
         """, unsafe_allow_html=True)
 
-        # SCORING BUTTONS
+        # SCORING CONTROLS (MATCHING PHOTO'S BUTTONS)
         if current_status == "Ongoing":
             if ms.get("awaiting_wicket", False):
-                st.warning("⚠️ **Wicket Kese Aaya? (Select Wicket Type)**")
+                st.warning("⚠️ **Select Wicket Type:**")
                 cw1, cw2, cw3, cw4, cw5 = st.columns(5)
-                wicket_types = ["🎯 Bowled", "🧤 Catch", "🦵 LBW", "🏃 Run Out", "⚡ Stumped"]
+                w_types = ["🎯 Bowled", "🧤 Catch", "🦵 LBW", "🏃 Run Out", "⚡ Stumped"]
                 cols = [cw1, cw2, cw3, cw4, cw5]
-                
-                for i, w_type in enumerate(wicket_types):
+                for i, w_type in enumerate(w_types):
                     if cols[i].button(w_type, use_container_width=True):
                         ms["wickets"] = ms.get("wickets", 0) + 1
                         if "Run Out" not in w_type:
                             ms["bowler_wickets"] = ms.get("bowler_wickets", 0) + 1
                         ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
+                        ms["bowler_balls"] = ms.get("bowler_balls", 0) + 1
+                        ms["partnership_balls"] = ms.get("partnership_balls", 0) + 1
                         ms["awaiting_wicket"] = False
+                        
+                        # Reset out batsman
+                        if ms.get("striker", 1) == 1:
+                            ms["batsman_1"] = f"Player {ms.get('wickets')+2}"
+                            ms["batsman_1_runs"] = 0
+                            ms["batsman_1_balls"] = 0
+                        else:
+                            ms["batsman_2"] = f"Player {ms.get('wickets')+2}"
+                            ms["batsman_2_runs"] = 0
+                            ms["batsman_2_balls"] = 0
+                            
                         check_match_status()
                         st.rerun()
             else:
                 col_b1, col_b2, col_b3, col_b4, col_b5, col_b6 = st.columns(6)
                 with col_b1:
+                    st.markdown('<div class="telecast-btn telecast-btn-run">', unsafe_allow_html=True)
                     if st.button("➕ 1 Run", use_container_width=True):
-                        ms["runs"] = ms.get("runs", 0) + 1
-                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 1
-                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
+                        ms["runs"] += 1
+                        ms["bowler_runs"] += 1
+                        ms["partnership_runs"] += 1
+                        ms["partnership_balls"] += 1
+                        ms["balls_bowled"] += 1
+                        ms["bowler_balls"] += 1
+                        if ms.get("striker", 1) == 1:
+                            ms["batsman_1_runs"] += 1
+                            ms["batsman_1_balls"] += 1
+                            ms["striker"] = 2
+                        else:
+                            ms["batsman_2_runs"] += 1
+                            ms["batsman_2_balls"] += 1
+                            ms["striker"] = 1
                         check_match_status()
                         st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
                 with col_b2:
+                    st.markdown('<div class="telecast-btn telecast-btn-run">', unsafe_allow_html=True)
                     if st.button("➕ 2 Runs", use_container_width=True):
-                        ms["runs"] = ms.get("runs", 0) + 2
-                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 2
-                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
+                        ms["runs"] += 2
+                        ms["bowler_runs"] += 2
+                        ms["partnership_runs"] += 2
+                        ms["partnership_balls"] += 1
+                        ms["balls_bowled"] += 1
+                        ms["bowler_balls"] += 1
+                        if ms.get("striker", 1) == 1:
+                            ms["batsman_1_runs"] += 2
+                            ms["batsman_1_balls"] += 1
+                        else:
+                            ms["batsman_2_runs"] += 2
+                            ms["batsman_2_balls"] += 1
                         check_match_status()
                         st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
                 with col_b3:
-                    if st.button("🔥 FOUR (4)", use_container_width=True):
-                        ms["runs"] = ms.get("runs", 0) + 4
-                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 4
-                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
+                    st.markdown('<div class="telecast-btn telecast-btn-boundary">', unsafe_allow_html=True)
+                    if st.button("FOUR (4)", use_container_width=True):
+                        ms["runs"] += 4
+                        ms["bowler_runs"] += 4
+                        ms["partnership_runs"] += 4
+                        ms["partnership_balls"] += 1
+                        ms["balls_bowled"] += 1
+                        ms["bowler_balls"] += 1
+                        if ms.get("striker", 1) == 1:
+                            ms["batsman_1_runs"] += 4
+                            ms["batsman_1_balls"] += 1
+                        else:
+                            ms["batsman_2_runs"] += 4
+                            ms["batsman_2_balls"] += 1
                         check_match_status()
                         st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
                 with col_b4:
-                    if st.button("🚀 SIX (6)", use_container_width=True):
-                        ms["runs"] = ms.get("runs", 0) + 6
-                        ms["batsman_1_runs"] = ms.get("batsman_1_runs", 0) + 6
-                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
+                    st.markdown('<div class="telecast-btn telecast-btn-six">', unsafe_allow_html=True)
+                    if st.button("SIX (6)", use_container_width=True):
+                        ms["runs"] += 6
+                        ms["bowler_runs"] += 6
+                        ms["partnership_runs"] += 6
+                        ms["partnership_balls"] += 1
+                        ms["balls_bowled"] += 1
+                        ms["bowler_balls"] += 1
+                        if ms.get("striker", 1) == 1:
+                            ms["batsman_1_runs"] += 6
+                            ms["batsman_1_balls"] += 1
+                        else:
+                            ms["batsman_2_runs"] += 6
+                            ms["batsman_2_balls"] += 1
                         check_match_status()
                         st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
                 with col_b5:
+                    st.markdown('<div class="telecast-btn telecast-btn-out">', unsafe_allow_html=True)
                     if st.button("🔴 OUT (W)", use_container_width=True):
                         ms["awaiting_wicket"] = True
                         st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
                 with col_b6:
+                    st.markdown('<div class="telecast-btn telecast-btn-run">', unsafe_allow_html=True)
                     if st.button("⚪ Dot Ball", use_container_width=True):
-                        ms["balls_bowled"] = ms.get("balls_bowled", 0) + 1
+                        ms["balls_bowled"] += 1
+                        ms["bowler_balls"] += 1
+                        ms["partnership_balls"] += 1
+                        if ms.get("striker", 1) == 1:
+                            ms["batsman_1_balls"] += 1
+                        else:
+                            ms["batsman_2_balls"] += 1
                         check_match_status()
                         st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("---")
+        
+        # EDIT TEAMS & WHATSAPP
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.markdown("#### ⚙️ Edit Teams & Players")
@@ -620,9 +821,9 @@ elif st.session_state.current_tab == "Cricket Scorer":
                 team1 = st.text_input("Team 1 Name", value=ms.get("team_1", "Team A"))
                 team2 = st.text_input("Team 2 Name", value=ms.get("team_2", "Team B"))
                 t_overs = st.number_input("Total Match Overs", min_value=1, max_value=50, value=ms.get("total_overs", 5))
-                b1 = st.text_input("Striker Batsman", value=ms.get("batsman_1", "Player 1"))
-                b2 = st.text_input("Non-Striker Batsman", value=ms.get("batsman_2", "Player 2"))
-                bw = st.text_input("Current Bowler", value=ms.get("bowler", "Bowler 1"))
+                b1 = st.text_input("Striker Batsman", value=ms.get("batsman_1", "S. Sharma"))
+                b2 = st.text_input("Non-Striker Batsman", value=ms.get("batsman_2", "V. Kohli"))
+                bw = st.text_input("Current Bowler", value=ms.get("bowler", "V. Kevin"))
                 if st.form_submit_button("Update Details 🔄", use_container_width=True):
                     ms["team_1"], ms["team_2"], ms["total_overs"] = team1, team2, t_overs
                     if ms.get("balls_bowled", 0) == 0 and ms.get("innings", 1) == 1:
@@ -637,21 +838,49 @@ elif st.session_state.current_tab == "Cricket Scorer":
             win_str = f"\n🏆 *{ms.get('winner')} Won The Match!*" if current_status == "Finished" else ""
             
             wa_score_text = (
-                f"🏏 *LIVE MATCH UPDATE*\n"
+                f"🏏 *LIVE CRICKET TELECAST*\n"
                 f"⚔️ *{ms.get('team_1')} vs {ms.get('team_2')}*\n\n"
                 f"Batting: *{ms.get('batting_team')}*\n"
-                f"📊 *Score:* {ms.get('runs', 0)}/{ms.get('wickets', 0)} in {overs_formatted} ov\n"
+                f"📊 *Score:* {ms.get('runs', 0)}/{ms.get('wickets', 0)} in {overs_str} ov\n"
                 f"📈 *Run Rate:* {crr:.2f}\n"
                 f"{target_str}"
                 f"{win_str}\n\n"
-                f"⚡ *Powered by Soni AI*"
+                f"⚡ *Scored via Soni AI*"
             )
             share_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(wa_score_text)}"
             st.markdown(f'<a href="{share_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#25D366; color:white; border-radius:12px; text-decoration:none; font-weight:bold; margin-top:20px;">📲 Share on WhatsApp</a>', unsafe_allow_html=True)
             
-            if st.button("🔄 Reset / New Match", use_container_width=True):
+            if st.button("🔄 Start New Match (Reset Board)", use_container_width=True):
                 st.session_state.match_state = reset_cricket_match()
                 st.rerun()
+
+        # PERMANENT SCORECARD HISTORY SECTION
+        st.markdown("---")
+        st.markdown("### 📋 Saved Matches & Permanent Scorecards")
+        
+        user_matches = matches_db.get(active_user, [])
+        if active_user == "guest@soniai.com":
+            st.info("💡 You are currently browsing as a Guest. Log in or Sign up to permanently preserve your match records!")
+        elif not user_matches:
+            st.write("Abhi tak koi match finish nahi hua hai. Complete a match to view its archived scorecard here.")
+        else:
+            with st.expander(f"📁 View Saved Match History ({len(user_matches)} Matches)", expanded=True):
+                for m in user_matches:
+                    st.markdown(f"""
+                    <div class="saved-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:700; font-size:15px;">⚔️ {m['team_1']} vs {m['team_2']}</span>
+                            <span style="font-size:12px; color:#64748b;">📅 {m['date']}</span>
+                        </div>
+                        <div style="margin-top:6px; font-size:13px; color:#334155;">
+                            <b>1st Inn:</b> {m['first_inn']} <br>
+                            <b>2nd Inn:</b> {m['second_inn']}
+                        </div>
+                        <div style="margin-top:8px; font-weight:700; color:#2563eb; font-size:14px;">
+                            🏆 Winner: {m['winner']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -723,8 +952,8 @@ elif st.session_state.current_tab == "Shop":
         final_p = max(1, prod["price"] - 100) if is_pro_user else prod["price"]
         with cols[i % 3]:
             st.markdown(f"""
-            <div class="shop-product-card">
-                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:12px;">
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:14px; padding:12px; text-align:center; margin-bottom:12px;">
+                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
                 <div style="font-weight:700; margin-top:8px;">{prod['name']}</div>
                 <div style="color:#2563eb; font-weight:800; font-size:16px;">
                     {f'<s style="color:#94a3b8; font-size:13px;">₹{prod["price"]}</s> ₹{final_p} (VIP Price)' if is_pro_user else f'₹{final_p}'}
