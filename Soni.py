@@ -15,6 +15,7 @@ USAGE_FILE = "user_usage_database.json"
 PAYMENTS_FILE = "pending_payments_database.json"
 PRODUCTS_FILE = "products_database.json"
 ORDERS_FILE = "orders_database.json"
+DM_CHATS_FILE = "private_chats_database.json"
 
 UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
@@ -22,7 +23,6 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 
-# Custom Replies Dictionary
 CUSTOM_REPLIES = {
     "what is skb": "Santosh Kulcha Bhandar",
     "skb kya hai": "Santosh Kulcha Bhandar",
@@ -64,9 +64,9 @@ def load_products():
 
 users_db = load_json(USERS_FILE, {})
 DEFAULT_PERSISTENT_USERS = {
-    "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01"},
-    "jatinson8489@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01"},
-    "jatinsoni32459@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01"}
+    "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "dm_allowed": True},
+    "jatinson8489@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "dm_allowed": True},
+    "jatinsoni32459@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "dm_allowed": True}
 }
 for u_k, u_v in DEFAULT_PERSISTENT_USERS.items():
     if u_k not in users_db:
@@ -76,6 +76,7 @@ save_json(USERS_FILE, users_db)
 usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
+dm_chats_db = load_json(DM_CHATS_FILE, {})
 
 def get_user_chat_count(email, users_dict, usage_dict):
     clean_email = email.strip().lower()
@@ -212,6 +213,38 @@ st.markdown(
         border-radius: 8px;
         margin-left: 8px;
     }
+
+    .wa-chat-container {
+        background: #e5ddd5;
+        border-radius: 16px;
+        padding: 16px;
+        max-height: 420px;
+        overflow-y: auto;
+        margin-bottom: 14px;
+        border: 1px solid #d1d7db;
+    }
+    .wa-msg-user {
+        background: #dcf8c6;
+        color: #111;
+        padding: 8px 14px;
+        border-radius: 10px 10px 0px 10px;
+        margin-left: auto;
+        margin-bottom: 8px;
+        max-width: 75%;
+        font-size: 13px;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    }
+    .wa-msg-owner {
+        background: #ffffff;
+        color: #111;
+        padding: 8px 14px;
+        border-radius: 10px 10px 10px 0px;
+        margin-right: auto;
+        margin-bottom: 8px;
+        max-width: 75%;
+        font-size: 13px;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -318,7 +351,7 @@ if not st.session_state.user:
                 reg_pass = st.text_input("Password", type="password").strip()
                 if st.form_submit_button("Create Account", use_container_width=True):
                     if reg_email and reg_pass:
-                        users_db[reg_email] = {"password": reg_pass, "plan": "free", "date": datetime.now().strftime("%Y-%m-%d")}
+                        users_db[reg_email] = {"password": reg_pass, "plan": "free", "date": datetime.now().strftime("%Y-%m-%d"), "dm_allowed": False}
                         save_json(USERS_FILE, users_db)
                         st.session_state.user = reg_email
                         st.query_params["user"] = reg_email
@@ -328,6 +361,10 @@ if not st.session_state.user:
 active_user = st.session_state.get("user", "guest@soniai.com").strip().lower()
 user_handle = active_user.split("@")[0]
 chats_used_today, is_pro_user = get_user_chat_count(active_user, users_db, usage_db)
+
+# Check DM Permission
+user_record = users_db.get(active_user, {})
+is_dm_allowed = user_record.get("dm_allowed", False) if isinstance(user_record, dict) else False
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -419,7 +456,6 @@ if st.session_state.current_tab == "Dashboard":
 
             st.session_state.messages.append({"role": "user", "content": clean_in})
 
-            # Check Custom Replies first
             input_clean_norm = re.sub(r'[^\w\s]', '', clean_in.lower()).strip()
             matched_custom = None
             for trigger_k, trigger_v in CUSTOM_REPLIES.items():
@@ -443,54 +479,89 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: VIP PRO TOOLS ---
+# --- TAB: VIP PRO TOOLS & PRIVATE OWNER CHAT ---
 elif st.session_state.current_tab == "VIP Tools":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 👑 Exclusive VIP AI Tools")
+    st.markdown("### 👑 Exclusive VIP Tools & Private Chat")
 
     if not is_pro_user:
-        st.warning("🔒 **Yeh feature locked hai!** Sirf Pro Plan members ise use kar sakte hain.")
-        if st.button("💎 Unlock VIP Tools (Upgrade to Pro)", use_container_width=True):
+        st.warning("🔒 **Yeh section locked hai!** Sirf Pro members Owner se private chat aur VIP tools use kar sakte hain.")
+        if st.button("💎 Unlock VIP Tools & Private Chat", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        tool_choice = st.selectbox("Kaunsa tool use karna hai?", [
-            "🎬 Viral Instagram Reels Script & Hooks",
-            "📦 E-commerce Product Description Generator",
-            "✍️ Viral Bio & Captions Writer"
-        ])
+        vip_tab1, vip_tab2 = st.tabs(["💬 Private Chat with Owner (Jatin)", "⚡ VIP AI Writers"])
 
-        if "Reels" in tool_choice:
-            st.markdown("#### 🎬 Instagram Reels Script Generator")
-            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
-            if st.button("Generate Viral Script 🚀"):
-                if topic:
-                    with st.spinner("AI Script likh raha hai..."):
-                        p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
-                        out = generate_ai_response([{"role": "user", "content": p}])
-                        st.success("Aapki Viral Reel Script taiyaar hai:")
-                        st.markdown(out)
+        with vip_tab1:
+            st.markdown("#### 💬 WhatsApp Style Private Direct Chat")
+            if not is_dm_allowed:
+                st.info("⏳ **Private Chat Permission Pending:** Owner ne abhi is account ko direct private chat allow nahi kiya hai. Owner se permission mangne ke liye WhatsApp par message karein:")
+                wa_request_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hello Jatin, maine Pro le liya hai ({active_user}). Please mujhe private chat allow karo.')}"
+                st.markdown(f'<a href="{wa_request_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 Request Permission on WhatsApp</a>', unsafe_allow_html=True)
+            else:
+                user_thread = dm_chats_db.get(active_user, [])
+                st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
+                if not user_thread:
+                    st.markdown("<p style='text-align:center; color:#555; font-size:12px;'>Koi message nahi hai. Niche se direct Owner (Jatin) ko message bhejein!</p>", unsafe_allow_html=True)
+                for msg_item in user_thread:
+                    sender = msg_item.get("sender")
+                    text = msg_item.get("text")
+                    time_val = msg_item.get("time", "")
+                    if sender == "user":
+                        st.markdown(f'<div class="wa-msg-user">{text}<br><span style="font-size:10px; color:#555; float:right;">{time_val}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="wa-msg-owner"><b>👑 Jatin Soni (Owner):</b><br>{text}<br><span style="font-size:10px; color:#777; float:right;">{time_val}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
-        elif "E-commerce" in tool_choice:
-            st.markdown("#### 📦 E-Commerce Description Generator")
-            item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery, soft fabric")
-            if st.button("Generate Professional Listing 🚀"):
-                if item_name:
-                    with st.spinner("Listing likh raha hai..."):
-                        p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
-                        out = generate_ai_response([{"role": "user", "content": p}])
-                        st.success("Listing ready hai:")
-                        st.markdown(out)
+                with st.form("form_send_private_msg", clear_on_submit=True):
+                    dm_input = st.text_input("Apna message type karein...", placeholder="Owner ko message bhejein")
+                    if st.form_submit_button("Send 🚀", use_container_width=True):
+                        if dm_input.strip():
+                            now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+                            if active_user not in dm_chats_db:
+                                dm_chats_db[active_user] = []
+                            dm_chats_db[active_user].append({"sender": "user", "text": dm_input.strip(), "time": now_time})
+                            save_json(DM_CHATS_FILE, dm_chats_db)
+                            st.rerun()
 
-        elif "Bio" in tool_choice:
-            st.markdown("#### ✍️ Viral Bio & Caption Generator")
-            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
-            if st.button("Generate Bios 🚀"):
-                if niche:
-                    with st.spinner("Bios ban rahe hain..."):
-                        p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
-                        out = generate_ai_response([{"role": "user", "content": p}])
-                        st.markdown(out)
+        with vip_tab2:
+            tool_choice = st.selectbox("Kaunsa tool use karna hai?", [
+                "🎬 Viral Instagram Reels Script & Hooks",
+                "📦 E-commerce Product Description Generator",
+                "✍️ Viral Bio & Captions Writer"
+            ])
+
+            if "Reels" in tool_choice:
+                st.markdown("#### 🎬 Instagram Reels Script Generator")
+                topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
+                if st.button("Generate Viral Script 🚀"):
+                    if topic:
+                        with st.spinner("AI Script likh raha hai..."):
+                            p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
+                            out = generate_ai_response([{"role": "user", "content": p}])
+                            st.success("Aapki Viral Reel Script taiyaar hai:")
+                            st.markdown(out)
+
+            elif "E-commerce" in tool_choice:
+                st.markdown("#### 📦 E-Commerce Description Generator")
+                item_name = st.text_input("Product Name & Features", placeholder="Ex: Cotton Kurti with Embroidery, soft fabric")
+                if st.button("Generate Professional Listing 🚀"):
+                    if item_name:
+                        with st.spinner("Listing likh raha hai..."):
+                            p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
+                            out = generate_ai_response([{"role": "user", "content": p}])
+                            st.success("Listing ready hai:")
+                            st.markdown(out)
+
+            elif "Bio" in tool_choice:
+                st.markdown("#### ✍️ Viral Bio & Caption Generator")
+                niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
+                if st.button("Generate Bios 🚀"):
+                    if niche:
+                        with st.spinner("Bios ban rahe hain..."):
+                            p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
+                            out = generate_ai_response([{"role": "user", "content": p}])
+                            st.markdown(out)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -546,7 +617,7 @@ elif st.session_state.current_tab == "Shop":
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + VIP Tools + ₹100 Store Discount pane ke liye Pro activate karein:")
+    st.write("Unlimited Chats + VIP Tools + Private Owner Chat + ₹100 Store Discount pane ke liye Pro activate karein:")
 
     final_price = 49.00
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
@@ -571,17 +642,83 @@ elif st.session_state.current_tab == "Billing":
 # --- TAB: ADMIN (/admin 2009) ---
 elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 👑 Owner Verification Panel")
-    for u_email, p_info in list(payments_db.items()):
-        st.write(f"👤 **{u_email}** | Amount: ₹{p_info.get('amount')} | UTR: `{p_info.get('utr')}`")
-        if st.button(f"Approve {u_email}", key=f"appr_{u_email}"):
-            if u_email not in users_db: users_db[u_email] = {}
-            users_db[u_email]["plan"] = "pro"
-            save_json(USERS_FILE, users_db)
-            del payments_db[u_email]
-            save_json(PAYMENTS_FILE, payments_db)
-            st.rerun()
-    if st.button("Back to Dashboard"):
+    st.markdown("### 👑 Owner Verification & Control Panel")
+
+    tab_adm_pay, tab_adm_dm = st.tabs(["💳 Approve Payments", "💬 Manage Private Chats & Permissions"])
+
+    with tab_adm_pay:
+        st.markdown("#### Pending UTR Requests")
+        if not payments_db:
+            st.info("Koi pending payment request nahi hai.")
+        for u_email, p_info in list(payments_db.items()):
+            st.write(f"👤 **{u_email}** | Amount: ₹{p_info.get('amount')} | UTR: `{p_info.get('utr')}`")
+            if st.button(f"Approve {u_email}", key=f"appr_{u_email}"):
+                if u_email not in users_db: users_db[u_email] = {}
+                users_db[u_email]["plan"] = "pro"
+                users_db[u_email]["dm_allowed"] = True
+                save_json(USERS_FILE, users_db)
+                del payments_db[u_email]
+                save_json(PAYMENTS_FILE, payments_db)
+                st.success(f"{u_email} ko Pro aur Private Chat access mil gaya!")
+                st.rerun()
+
+    with tab_adm_dm:
+        st.markdown("#### User Private Messages & Chat Permissions")
+        
+        # User Selector
+        all_registered_users = [u for u in users_db.keys() if u != "guest@soniai.com"]
+        if not all_registered_users:
+            st.info("Abhi tak koi registered user nahi hai.")
+        else:
+            sel_chat_user = st.selectbox("Select User to View / Reply:", all_registered_users)
+            
+            user_meta = users_db.get(sel_chat_user, {})
+            dm_status = user_meta.get("dm_allowed", False)
+            user_plan = user_meta.get("plan", "free")
+
+            col_p1, col_p2 = st.columns([5, 5])
+            with col_p1:
+                st.write(f"**Plan:** `{user_plan.upper()}` | **Chat Access:** `{'ENABLED' if dm_status else 'DISABLED'}`")
+            with col_p2:
+                if dm_status:
+                    if st.button("🚫 Revoke Chat Permission", key=f"rev_{sel_chat_user}"):
+                        users_db[sel_chat_user]["dm_allowed"] = False
+                        save_json(USERS_FILE, users_db)
+                        st.rerun()
+                else:
+                    if st.button("✅ Allow Private Chat", key=f"all_{sel_chat_user}"):
+                        users_db[sel_chat_user]["dm_allowed"] = True
+                        save_json(USERS_FILE, users_db)
+                        st.rerun()
+
+            # Chat thread display
+            thread = dm_chats_db.get(sel_chat_user, [])
+            st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
+            if not thread:
+                st.write("Is user ka koi message nahi hai abhi.")
+            for msg_item in thread:
+                sender = msg_item.get("sender")
+                text = msg_item.get("text")
+                t_str = msg_item.get("time", "")
+                if sender == "user":
+                    st.markdown(f'<div class="wa-msg-user"><b>{sel_chat_user.split("@")[0]}:</b><br>{text}<br><span style="font-size:10px; color:#555; float:right;">{t_str}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="wa-msg-owner"><b>👑 You (Owner):</b><br>{text}<br><span style="font-size:10px; color:#777; float:right;">{t_str}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            with st.form(f"owner_reply_form_{sel_chat_user}", clear_on_submit=True):
+                reply_text = st.text_input(f"Reply to {sel_chat_user}:", placeholder="Type your reply as Owner...")
+                if st.form_submit_button("Send Reply 💬", use_container_width=True):
+                    if reply_text.strip():
+                        now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+                        if sel_chat_user not in dm_chats_db:
+                            dm_chats_db[sel_chat_user] = []
+                        dm_chats_db[sel_chat_user].append({"sender": "owner", "text": reply_text.strip(), "time": now_time})
+                        save_json(DM_CHATS_FILE, dm_chats_db)
+                        st.rerun()
+
+    st.markdown("---")
+    if st.button("⬅️ Back to Dashboard"):
         st.session_state.current_tab = "Dashboard"
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
