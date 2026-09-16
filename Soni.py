@@ -268,7 +268,7 @@ FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
 
 @st.cache_resource
 def get_groq_client(api_token):
-    return Groq(api_key=api_token, timeout=25.0)
+    return Groq(api_token=api_token, timeout=25.0)
 
 client = get_groq_client(FINAL_API_KEY)
 
@@ -671,7 +671,7 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING & COUPON CODE (Completely Clean) ---
+# --- TAB: BILLING & COUPON CODE (With Remove Button) ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
@@ -680,20 +680,30 @@ elif st.session_state.current_tab == "Billing":
     if "applied_coupon" not in st.session_state:
         st.session_state.applied_coupon = None
 
-    coupon_input = st.text_input("🎟️ Enter Coupon Code", placeholder="Enter code...").strip().upper()
-    if st.button("Apply Coupon"):
-        if coupon_input in coupons_db:
-            st.session_state.applied_coupon = coupon_input
-            st.success("Coupon applied successfully! 🎉")
-        else:
-            st.error("Invalid coupon code!")
+    col_cp1, col_cp2 = st.columns([7, 3])
+    with col_cp1:
+        coupon_input = st.text_input("🎟️ Enter Coupon Code", placeholder="Enter code...", label_visibility="collapsed").strip().upper()
+    with col_cp2:
+        if st.button("Apply", use_container_width=True):
+            if coupon_input in coupons_db:
+                st.session_state.applied_coupon = coupon_input
+                st.success("Applied!")
+                st.rerun()
+            else:
+                st.error("Invalid!")
+
+    if st.session_state.applied_coupon in coupons_db:
+        disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
+        st.info(f"Active Coupon: **{st.session_state.applied_coupon}** ({disc_pct}% OFF)")
+        if st.button("❌ Remove Coupon"):
+            st.session_state.applied_coupon = None
+            st.rerun()
 
     final_price = PREMIUM_PRICE
     if st.session_state.applied_coupon in coupons_db:
         disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
         final_price = PREMIUM_PRICE - (PREMIUM_PRICE * disc_pct / 100)
         final_price = max(1.00, final_price)
-        st.info(f"Coupon Applied ({disc_pct}% OFF)")
 
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
