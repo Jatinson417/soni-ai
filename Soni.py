@@ -237,8 +237,24 @@ def clean_model_output(text: str) -> str:
     return text.strip()
 
 def generate_ai_response(messages_list):
-    active_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
-    for model_name in active_models:
+    try:
+        model_list = client.models.list()
+        blocked_keywords = ["whisper", "guard", "distill", "r1", "safeguard", "preview", "orpheus", "canopylabs", "vision", "embed"]
+        active_chat_models = [
+            m.id for m in model_list.data 
+            if not any(b in m.id.lower() for b in blocked_keywords)
+        ]
+        
+        preferred_order = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        final_models = [m for m in preferred_order if m in active_chat_models]
+        for m in active_chat_models:
+            if m not in final_models:
+                final_models.append(m)
+    except Exception as list_err:
+        final_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+
+    last_error = None
+    for model_name in final_models:
         try:
             resp = client.chat.completions.create(
                 messages=messages_list,
@@ -249,9 +265,11 @@ def generate_ai_response(messages_list):
             raw = resp.choices[0].message.content
             if raw:
                 return clean_model_output(raw)
-        except Exception:
+        except Exception as e:
+            last_error = e
             continue
-    return "Server par load zyada hai, kripya thodi der baad dobara try karein."
+
+    return f"Error: {last_error}" if last_error else "Service temporarily unavailable. Please try again."
 
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
