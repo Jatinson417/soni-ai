@@ -199,15 +199,15 @@ st.markdown(
 
     div[data-testid="stSidebar"] div[data-testid="stButton"] > button {
         background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
+        border: 1px solid #cbd5e1 !important;
         text-align: left !important;
         justify-content: flex-start !important;
         border-radius: 12px !important;
         padding: 10px 16px !important;
         font-size: 14px !important;
-        font-weight: 500 !important;
-        color: #334155 !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
         margin-bottom: 12px !important;
         width: 100% !important;
     }
@@ -221,8 +221,8 @@ st.markdown(
     }
     .top-action-btn {
         background: #ffffff !important;
-        color: #334155 !important;
-        border: 1px solid #e2e8f0;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1;
         border-radius: 12px;
         padding: 8px 16px;
         font-size: 13px;
@@ -231,20 +231,20 @@ st.markdown(
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     .welcome-card {
-        background: rgba(255, 255, 255, 0.9) !important;
+        background: rgba(255, 255, 255, 0.95) !important;
         border: 1px solid #ffffff !important;
         border-radius: 16px;
         padding: 22px 26px;
         margin-bottom: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
     }
 
     .shop-product-card {
-        background: rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.95);
         border: 1px solid #e2e8f0;
         border-radius: 16px;
         padding: 14px;
@@ -359,8 +359,8 @@ def generate_ai_response(messages_list):
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
     st.markdown("""
-        <div style="max-width:440px; margin:50px auto; background:rgba(255,255,255,0.85); border-radius:20px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.06); text-align:center;">
-            <h2 style="margin-bottom:4px;">✨ Soni AI</h2>
+        <div style="max-width:440px; margin:50px auto; background:rgba(255,255,255,0.95); border-radius:20px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.06); text-align:center;">
+            <h2 style="margin-bottom:4px; color:#1e293b;">✨ Soni AI</h2>
             <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Choose how you want to continue</p>
         </div>
     """, unsafe_allow_html=True)
@@ -451,11 +451,11 @@ with st.sidebar:
         st.rerun()
 
     st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:30px;">
+        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #cbd5e1; margin-top:30px;">
             <div style="font-size:22px;">👤</div>
             <div style="line-height:1.2;">
-                <div style="font-size:13px; font-weight:700;">{user_handle} <span class="pro-badge">{'PRO' if is_pro_user else 'FREE'}</span></div>
-                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited VIP' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} msgs'}</div>
+                <div style="font-size:13px; font-weight:700; color:#1e293b;">{user_handle} <span class="pro-badge">{'PRO' if is_pro_user else 'FREE'}</span></div>
+                <div style="font-size:11px; color:#475569;">Plan: {'Unlimited VIP' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} msgs'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -481,7 +481,7 @@ with col_btns:
 if st.session_state.current_tab == "Dashboard":
     st.markdown(f"""
         <div class="welcome-card">
-            <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
+            <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700; color:#1e293b;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
             <div style="font-size:13px; font-weight:600; color:#475569;">
                 Status: <span style="color:#2563eb;">{'Unlimited Chats Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
             </div>
@@ -492,7 +492,7 @@ if st.session_state.current_tab == "Dashboard":
         role_title = "User" if msg["role"] == "user" else "Soni AI"
         icon = "👤" if msg["role"] == "user" else "🤖"
         st.markdown(f"""
-            <div style="background: rgba(255,255,255,0.9); border-radius: 14px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); font-size: 15px;">
+            <div style="background: rgba(255,255,255,0.95); border-radius: 14px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); font-size: 15px;">
                 <b>{icon} {role_title}</b>
                 <div style="margin-top: 6px; color: #334155; line-height: 1.5;">{msg['content']}</div>
             </div>
@@ -677,7 +677,7 @@ elif st.session_state.current_tab == "Shop":
             st.markdown(f"""
             <div class="shop-product-card">
                 <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:12px;">
-                <div style="font-weight:700; margin-top:8px;">{prod['name']}</div>
+                <div style="font-weight:700; margin-top:8px; color:#1e293b;">{prod['name']}</div>
                 <div style="color:#2563eb; font-weight:800; font-size:16px;">
                     {f'<s style="color:#94a3b8; font-size:13px;">₹{prod["price"]}</s> ₹{final_p} (VIP Price)' if is_pro_user else f'₹{final_p}'}
                 </div>
@@ -745,7 +745,7 @@ elif st.session_state.current_tab == "Billing":
     col_qr, col_pay_form = st.columns([4, 6])
     with col_qr:
         st.image(qr_img_url, caption=f"Scan & Pay ₹{final_price:.2f}", width=220)
-        st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
+        st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI ID:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
             st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Room unlocked hain.")
