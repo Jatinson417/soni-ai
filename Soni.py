@@ -22,6 +22,13 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 
+# Custom Replies Dictionary
+CUSTOM_REPLIES = {
+    "what is skb": "Santosh Kulcha Bhandar",
+    "skb kya hai": "Santosh Kulcha Bhandar",
+    "skb": "Santosh Kulcha Bhandar"
+}
+
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
     qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_url)}"
@@ -250,7 +257,7 @@ def generate_ai_response(messages_list):
         for m in active_chat_models:
             if m not in final_models:
                 final_models.append(m)
-    except Exception as list_err:
+    except Exception:
         final_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 
     last_error = None
@@ -412,9 +419,20 @@ if st.session_state.current_tab == "Dashboard":
 
             st.session_state.messages.append({"role": "user", "content": clean_in})
 
-            input_lower = clean_in.lower()
+            # Check Custom Replies first
+            input_clean_norm = re.sub(r'[^\w\s]', '', clean_in.lower()).strip()
+            matched_custom = None
+            for trigger_k, trigger_v in CUSTOM_REPLIES.items():
+                norm_trig = re.sub(r'[^\w\s]', '', trigger_k.lower()).strip()
+                if norm_trig in input_clean_norm or input_clean_norm in norm_trig:
+                    matched_custom = trigger_v
+                    break
+
             creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
-            if any(trig in input_lower for trig in creator_triggers):
+
+            if matched_custom:
+                bot_ans = matched_custom
+            elif any(trig in input_clean_norm for trig in creator_triggers):
                 bot_ans = CREATOR_REPLY
             else:
                 messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}] + [
