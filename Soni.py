@@ -110,20 +110,20 @@ if "messages" not in st.session_state:
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     html, body, [data-testid="stAppViewContainer"], .stApp {
-        background: linear-gradient(135deg, #0b1120 0%, #0f172a 40%, #1e1b4b 100%) !important;
+        background: linear-gradient(120deg, #ffd9d6 0%, #ecd9fc 35%, #cfe4ff 70%, #d4f4ff 100%) !important;
         background-attachment: fixed !important;
         font-family: 'Inter', sans-serif !important;
-        color: #f8fafc !important;
+        color: #1e293b !important;
     }
 
     [data-testid="stHeader"] { background: transparent !important; }
 
     [data-testid="stSidebar"] {
-        background: #0f172a !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background: #f1f3f7 !important;
+        border-right: 1px solid #e2e8f0 !important;
         padding-top: 15px !important;
         padding-left: 14px !important;
         padding-right: 14px !important;
@@ -133,24 +133,25 @@ st.markdown(
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 20px;
+        font-size: 22px;
         font-weight: 700;
-        color: #ffffff;
+        color: #1e293b;
         margin-bottom: 24px;
         padding-left: 6px;
     }
 
     div[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
         text-align: left !important;
         justify-content: flex-start !important;
         border-radius: 12px !important;
         padding: 10px 16px !important;
         font-size: 14px !important;
         font-weight: 500 !important;
-        color: #cbd5e1 !important;
-        margin-bottom: 8px !important;
+        color: #334155 !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+        margin-bottom: 12px !important;
         width: 100% !important;
     }
 
@@ -159,26 +160,50 @@ st.markdown(
         justify-content: flex-end;
         align-items: center;
         gap: 10px;
-        margin-bottom: 14px;
+        margin-bottom: 20px;
     }
     .top-action-btn {
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: #cbd5e1 !important;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 10px;
-        padding: 6px 14px;
-        font-size: 12px;
+        background: #ffffff !important;
+        color: #334155 !important;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 8px 16px;
+        font-size: 13px;
         font-weight: 600;
         text-decoration: none !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
 
     .welcome-card {
-        background: rgba(15, 23, 42, 0.85) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 18px;
-        padding: 20px 24px;
+        background: rgba(255, 255, 255, 0.9) !important;
+        border: 1px solid #ffffff !important;
+        border-radius: 16px;
+        padding: 22px 26px;
         margin-bottom: 16px;
-        backdrop-filter: blur(12px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .shop-product-card {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 14px;
+        text-align: center;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
+
+    .pro-badge {
+        background: linear-gradient(135deg, #f59e0b, #ef4444);
+        color: white;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        margin-left: 8px;
     }
     </style>
     """,
@@ -197,7 +222,7 @@ CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class
 SYSTEM_PROMPT = f"""
 You are Soni AI, created by Jatin Soni.
 Creator: Jatin Soni (16 yrs, 12th class, Rori, Sirsa, Haryana).
-Rules: Direct, helpful, smart Hinglish/English answers without internal reasoning or thinking tags.
+Rules: Direct, helpful, smart Hinglish/English answers without internal reasoning, analysis steps, or thinking tags.
 """
 
 def clean_model_output(text: str) -> str:
@@ -226,15 +251,15 @@ def generate_ai_response(messages_list):
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
     st.markdown("""
-        <div style="max-width:440px; margin:50px auto; background:#131c31; border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:30px; text-align:center;">
-            <h2 style="margin-bottom:4px; color:#fff;">✨ Soni AI</h2>
-            <p style="color:#94a3b8; font-size:14px; margin-bottom:20px;">Choose how you want to continue</p>
+        <div style="max-width:440px; margin:50px auto; background:rgba(255,255,255,0.85); border-radius:20px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.06); text-align:center;">
+            <h2 style="margin-bottom:4px;">✨ Soni AI</h2>
+            <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Choose how you want to continue</p>
         </div>
     """, unsafe_allow_html=True)
 
     c_pad1, c_box, c_pad2 = st.columns([1, 1.3, 1])
     with c_box:
-        if st.button("🚀 Continue as Guest", use_container_width=True):
+        if st.button("🚀 Continue as Guest (Without Login)", use_container_width=True):
             st.session_state.user = "guest@soniai.com"
             st.query_params["user"] = "guest@soniai.com"
             st.rerun()
@@ -274,7 +299,7 @@ active_user = st.session_state.get("user", "guest@soniai.com").strip().lower()
 user_handle = active_user.split("@")[0]
 chats_used_today, is_pro_user = get_user_chat_count(active_user, users_db, usage_db)
 
-# --- SIDEBAR (NO CRICKET SCORER) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.markdown("""
         <div class="brand-title">
@@ -299,11 +324,11 @@ with st.sidebar:
         st.rerun()
 
     st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid rgba(255,255,255,0.08); margin-top:50px;">
+        <div style="display:flex; align-items:center; gap:10px; padding:12px 6px; border-top:1px solid #e2e8f0; margin-top:50px;">
             <div style="font-size:22px;">👤</div>
             <div style="line-height:1.2;">
-                <div style="font-size:13px; font-weight:700; color:#fff;">{user_handle} <span style="background:#2563eb; color:white; font-size:10px; padding:2px 6px; border-radius:6px;">{'PRO' if is_pro_user else 'FREE'}</span></div>
-                <div style="font-size:11px; color:#94a3b8;">Plan: {'Unlimited VIP' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} msgs'}</div>
+                <div style="font-size:13px; font-weight:700;">{user_handle} <span class="pro-badge">{'PRO' if is_pro_user else 'FREE'}</span></div>
+                <div style="font-size:11px; color:#64748b;">Plan: {'Unlimited VIP' if is_pro_user else f'{chats_used_today}/{FREE_DAILY_LIMIT} msgs'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -316,7 +341,7 @@ with st.sidebar:
 # --- TOP ACTION BAR ---
 col_head, col_btns = st.columns([4, 6])
 with col_head:
-    st.markdown(f"<h2 style='margin:0; font-weight:700; color:#ffffff;'>{st.session_state.current_tab}</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='margin:0; font-weight:700; color:#1e293b;'>{st.session_state.current_tab}</h2>", unsafe_allow_html=True)
 with col_btns:
     st.markdown("""
         <div class="top-action-bar">
@@ -329,9 +354,9 @@ with col_btns:
 if st.session_state.current_tab == "Dashboard":
     st.markdown(f"""
         <div class="welcome-card">
-            <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700; color:#fff;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
-            <div style="font-size:13px; font-weight:600; color:#cbd5e1;">
-                Status: <span style="color:#38bdf8;">{'Unlimited Chats Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
+            <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
+            <div style="font-size:13px; font-weight:600; color:#475569;">
+                Status: <span style="color:#2563eb;">{'Unlimited Chats Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -340,9 +365,9 @@ if st.session_state.current_tab == "Dashboard":
         role_title = "User" if msg["role"] == "user" else "Soni AI"
         icon = "👤" if msg["role"] == "user" else "🤖"
         st.markdown(f"""
-            <div style="background: #131c31; border:1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 18px; margin-bottom: 10px;">
-                <b style="color:#38bdf8;">{icon} {role_title}</b>
-                <div style="margin-top: 4px; color: #f1f5f9;">{msg['content']}</div>
+            <div style="background: rgba(255,255,255,0.9); border-radius: 14px; padding: 12px 18px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <b>{icon} {role_title}</b>
+                <div style="margin-top: 4px; color: #334155;">{msg['content']}</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -396,7 +421,7 @@ elif st.session_state.current_tab == "VIP Tools":
 
         if "Reels" in tool_choice:
             st.markdown("#### 🎬 Instagram Reels Script Generator")
-            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Online business ideas / Study motivation")
+            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
             if st.button("Generate Viral Script 🚀"):
                 if topic:
                     with st.spinner("AI Script likh raha hai..."):
@@ -418,7 +443,7 @@ elif st.session_state.current_tab == "VIP Tools":
 
         elif "Bio" in tool_choice:
             st.markdown("#### ✍️ Viral Bio & Caption Generator")
-            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Fitness trainer / Tech creator")
+            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
             if st.button("Generate Bios 🚀"):
                 if niche:
                     with st.spinner("Bios ban rahe hain..."):
@@ -445,11 +470,11 @@ elif st.session_state.current_tab == "Shop":
         final_p = max(1, prod["price"] - 100) if is_pro_user else prod["price"]
         with cols[i % 3]:
             st.markdown(f"""
-            <div style="background:#131c31; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px; text-align:center; margin-bottom:12px;">
-                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
-                <div style="font-weight:700; margin-top:8px; color:#fff;">{prod['name']}</div>
-                <div style="color:#38bdf8; font-weight:800; font-size:16px;">
-                    {f'<s style="color:#64748b; font-size:13px;">₹{prod["price"]}</s> ₹{final_p} (VIP Price)' if is_pro_user else f'₹{final_p}'}
+            <div class="shop-product-card">
+                <img src="{prod['img']}" style="width:100%; height:180px; object-fit:cover; border-radius:12px;">
+                <div style="font-weight:700; margin-top:8px;">{prod['name']}</div>
+                <div style="color:#2563eb; font-weight:800; font-size:16px;">
+                    {f'<s style="color:#94a3b8; font-size:13px;">₹{prod["price"]}</s> ₹{final_p} (VIP Price)' if is_pro_user else f'₹{final_p}'}
                 </div>
             </div>
             """, unsafe_allow_html=True)
