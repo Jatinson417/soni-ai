@@ -26,7 +26,6 @@ FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
 PREMIUM_PRICE = 99.00
 
-# Strict Exact Match for SKB
 EXACT_CUSTOM_REPLIES = {
     "what is skb": "Santosh Kulcha Bhandar",
     "skb kya hai": "Santosh Kulcha Bhandar",
@@ -519,12 +518,8 @@ if st.session_state.current_tab == "Dashboard":
 
             input_clean_norm = re.sub(r'[^\w\s]', '', clean_in.lower()).strip()
             
-            # 1. Exact Match for SKB Only
             matched_custom = EXACT_CUSTOM_REPLIES.get(input_clean_norm)
-
-            # 2. World Time Check
             time_reply = get_country_time(clean_in)
-
             creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
 
             if matched_custom:
@@ -756,12 +751,15 @@ elif st.session_state.current_tab == "Billing":
             st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Room unlocked hain.")
         else:
             with st.form("pro_utr_form"):
+                st.markdown("#### 📝 Submit Payment UTR")
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
                 if st.form_submit_button("Submit For Verification 📩", use_container_width=True):
                     if len(utr) >= 8 and utr.isdigit():
                         payments_db[active_user] = {"utr": utr, "amount": final_price, "status": "pending"}
                         save_json(PAYMENTS_FILE, payments_db)
                         st.success("UTR submit ho gaya! Admin verify karke Pro mode on kar dega.")
+                    else:
+                        st.error("Kripya valid 12-digit UTR number daalein!")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: ADMIN (/admin 2009) ---
