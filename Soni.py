@@ -4,8 +4,6 @@ import urllib.parse
 import json
 import os
 import re
-import requests
-import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -17,6 +15,7 @@ USAGE_FILE = "user_usage_database.json"
 PAYMENTS_FILE = "pending_payments_database.json"
 PRODUCTS_FILE = "products_database.json"
 ORDERS_FILE = "orders_database.json"
+CRICKET_FILE = "cricket_matches_database.json"
 
 UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
@@ -109,6 +108,23 @@ if "current_tab" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Match scoring in-memory session
+if "match_state" not in st.session_state:
+    st.session_state.match_state = {
+        "team_a": "Team A",
+        "team_b": "Team B",
+        "total_overs": 5,
+        "runs": 0,
+        "wickets": 0,
+        "overs_bowled": 0.0,
+        "batsman_1": "Player 1",
+        "batsman_1_runs": 0,
+        "batsman_2": "Player 2",
+        "batsman_2_runs": 0,
+        "bowler": "Bowler 1",
+        "bowler_wickets": 0
+    }
+
 st.markdown(
     """
     <style>
@@ -188,6 +204,24 @@ st.markdown(
         box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
 
+    .scoreboard-box {
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        color: #ffffff;
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+
+    .score-runs {
+        font-size: 42px;
+        font-weight: 800;
+        color: #38bdf8;
+        line-height: 1;
+        margin: 10px 0;
+    }
+
     .shop-product-card {
         background: rgba(255, 255, 255, 0.92);
         border: 1px solid #e2e8f0;
@@ -249,24 +283,6 @@ def generate_ai_response(messages_list):
             return clean_model_output(resp.choices[0].message.content)
         except Exception as e:
             return f"Error: {e}"
-
-# --- DIRECT REAL AI VIDEO FUNCTION ---
-def generate_real_ai_video(prompt_text: str):
-    clean_p = urllib.parse.quote(prompt_text.strip())
-    # Free Real AI Video render CDN endpoints
-    video_endpoints = [
-        f"https://pollinations.ai/p/{clean_p}?width=480&height=480&model=video&seed={int(time.time())}",
-        f"https://image.pollinations.ai/prompt/{clean_p}?model=turbo-video&nologo=true",
-        f"https://api.airforce/v1/video?prompt={clean_p}"
-    ]
-    for v_url in video_endpoints:
-        try:
-            r = requests.get(v_url, timeout=35)
-            if r.status_code == 200 and len(r.content) > 10000:
-                return r.content, v_url
-        except Exception:
-            continue
-    return None, None
 
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
@@ -331,8 +347,8 @@ with st.sidebar:
         st.session_state.current_tab = "Dashboard"
         st.rerun()
 
-    if st.button("🎬 AI Video & Photo Studio", key="btn_sb_media"):
-        st.session_state.current_tab = "Media Studio"
+    if st.button("🏏 Pro Cricket Scorer", key="btn_sb_cricket"):
+        st.session_state.current_tab = "Cricket Scorer"
         st.rerun()
 
     if st.button("👑 VIP Pro Tools", key="btn_sb_vip"):
@@ -380,7 +396,7 @@ if st.session_state.current_tab == "Dashboard":
         <div class="welcome-card">
             <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
             <div style="font-size:13px; font-weight:600; color:#475569;">
-                Status: <span style="color:#2563eb;">{'Unlimited Chats + AI Video Generator Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
+                Status: <span style="color:#2563eb;">{'Unlimited Chats + Pro Cricket Scorer Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -426,57 +442,111 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: AI VIDEO & PHOTO STUDIO ---
-elif st.session_state.current_tab == "Media Studio":
+# --- TAB: PRO CRICKET SCORER (PAID FEATURE) ---
+elif st.session_state.current_tab == "Cricket Scorer":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 🎬 Real AI Video & Photo Studio")
-    st.write("Paid/Pro members ke liye direct live MP4 Video generator.")
+    st.markdown("### 🏏 Soni Pro Cricket Live Scorer & Match Manager")
+    st.write("Gali, turf aur tournament matches ka live digital scoreboard, run rate aur 1-click WhatsApp match poster.")
 
     if not is_pro_user:
         st.warning("🔒 **Yeh Feature Sirf Pro Plan Members ke liye Unlock Hai!**")
-        if st.button("💎 Unlock Real Video Generator (Upgrade to Pro)", use_container_width=True):
+        st.markdown("""
+        * 📊 **Live Ball-by-Ball Scorecard:** Runs, Wickets aur Over rate instant calculation.
+        * 🏆 **AI Man of the Match & Commentary:** AI match ka post-match analysis banata hai.
+        * 📲 **WhatsApp Match Summary Card:** Ek click par poora match score WhatsApp group par share karein.
+        """)
+        if st.button("💎 Unlock Pro Cricket Scorer (Upgrade to Pro)", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        media_tab1, media_tab2 = st.tabs(["🎥 Direct MP4 Video Generator", "🖼️ Ultra-HD Image Generator"])
-        
-        with media_tab1:
-            st.markdown("#### 🎬 Real AI Video (.MP4) Generator")
-            st.caption("Prompt likhein aur direct play hone wali video generate karein (NO TEXT PROMPTS, REAL VIDEO):")
-            vid_prompt = st.text_input("Video scene likhein", placeholder="Ex: Running lion in jungle 4k cinematic slow motion")
-            
-            if st.button("Generate Real MP4 Video Now 🚀", use_container_width=True):
-                if vid_prompt.strip():
-                    with st.spinner("AI Video frames bana raha hai (15-25 seconds lagte hain)..."):
-                        vid_bytes, direct_url = generate_real_ai_video(vid_prompt)
-                        if vid_bytes:
-                            st.success("🎉 Video successfully generate ho gayi!")
-                            st.video(vid_bytes)
-                            st.download_button(
-                                label="⬇️ Download MP4 Video",
-                                data=vid_bytes,
-                                file_name="soni_ai_video.mp4",
-                                mime="video/mp4",
-                                use_container_width=True
-                            )
-                        else:
-                            clean_p = urllib.parse.quote(vid_prompt.strip())
-                            alt_video_url = f"https://image.pollinations.ai/prompt/{clean_p}?model=video&nologo=true"
-                            st.info("Video server par ready hai! Neeche diye gaye button par click karke direct dekhein aur save karein:")
-                            st.markdown(f'<a href="{alt_video_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#2563eb; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">▶️ Watch / Download Video Direct</a>', unsafe_allow_html=True)
-                else:
-                    st.error("Kripya scene ka naam likhein!")
+        ms = st.session_state.match_state
 
-        with media_tab2:
-            st.markdown("#### 🖼️ Ultra-HD Image Generator")
-            img_prompt = st.text_input("Photo kaisi chahiye?", placeholder="Ex: Futuristic sports car driving in neon rain, 8k")
-            if st.button("Generate Image 🚀", use_container_width=True):
-                if img_prompt.strip():
-                    with st.spinner("Photo ban rahi hai..."):
-                        encoded_prompt = urllib.parse.quote(img_prompt.strip() + ", 8k photorealistic")
-                        generated_image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
-                        st.image(generated_image_url, caption=img_prompt, use_container_width=True)
-                        st.markdown(f'<a href="{generated_image_url}" target="_blank" download="image.jpg" style="display:block; text-align:center; padding:10px; background:#10b981; color:white; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">⬇️ Download Full Resolution Image</a>', unsafe_allow_html=True)
+        st.markdown(f"""
+            <div class="scoreboard-box">
+                <div style="font-size:18px; font-weight:700; color:#94a3b8;">{ms['team_a']} vs {ms['team_b']} ({ms['total_overs']} Overs Match)</div>
+                <div class="score-runs">{ms['runs']} / {ms['wickets']}</div>
+                <div style="font-size:15px; font-weight:600;">Overs: {ms['overs_bowled']:.1f} / {ms['total_overs']} | Current Run Rate: {(ms['runs'] / max(0.1, ms['overs_bowled'])):.2f}</div>
+                <div style="margin-top:12px; font-size:13px; color:#cbd5e1;">
+                    🏏 Batting: <b>{ms['batsman_1']}</b> ({ms['batsman_1_runs']}*) | <b>{ms['batsman_2']}</b> ({ms['batsman_2_runs']}*) <br>
+                    ⚾ Bowling: <b>{ms['bowler']}</b> ({ms['bowler_wickets']} Wickets)
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        col_b1, col_b2, col_b3, col_b4, col_b5, col_b6 = st.columns(6)
+        with col_b1:
+            if st.button("➕ 1 Run", use_container_width=True):
+                ms["runs"] += 1
+                ms["batsman_1_runs"] += 1
+                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
+                st.rerun()
+        with col_b2:
+            if st.button("➕ 2 Runs", use_container_width=True):
+                ms["runs"] += 2
+                ms["batsman_1_runs"] += 2
+                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
+                st.rerun()
+        with col_b3:
+            if st.button("🔥 FOUR (4)", use_container_width=True):
+                ms["runs"] += 4
+                ms["batsman_1_runs"] += 4
+                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
+                st.rerun()
+        with col_b4:
+            if st.button("🚀 SIX (6)", use_container_width=True):
+                ms["runs"] += 6
+                ms["batsman_1_runs"] += 6
+                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
+                st.rerun()
+        with col_b5:
+            if st.button("🔴 OUT (W)", use_container_width=True):
+                ms["wickets"] += 1
+                ms["bowler_wickets"] += 1
+                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
+                st.rerun()
+        with col_b6:
+            if st.button("⚪ Dot Ball", use_container_width=True):
+                ms["overs_bowled"] = round(ms["overs_bowled"] + 0.1, 1)
+                st.rerun()
+
+        st.markdown("---")
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.markdown("#### ⚙️ Edit Teams & Players")
+            with st.form("form_edit_match"):
+                ms["team_a"] = st.text_input("Batting Team Name", value=ms["team_a"])
+                ms["team_b"] = st.text_input("Bowling Team Name", value=ms["team_b"])
+                ms["total_overs"] = st.number_input("Total Match Overs", min_value=1, max_value=50, value=ms["total_overs"])
+                ms["batsman_1"] = st.text_input("Striker Batsman", value=ms["batsman_1"])
+                ms["batsman_2"] = st.text_input("Non-Striker Batsman", value=ms["batsman_2"])
+                ms["bowler"] = st.text_input("Current Bowler", value=ms["bowler"])
+                if st.form_submit_button("Update Match Info 🔄", use_container_width=True):
+                    st.success("Details updated!")
+                    st.rerun()
+
+        with col_m2:
+            st.markdown("#### 📲 Share Scorecard On WhatsApp")
+            wa_score_text = (
+                f"🏏 *LIVE MATCH SCORECARD*\n"
+                f"⚔️ *{ms['team_a']} vs {ms['team_b']}*\n\n"
+                f"📊 *Score:* {ms['runs']}/{ms['wickets']} in {ms['overs_bowled']:.1f} ov\n"
+                f"📈 *Run Rate:* {(ms['runs'] / max(0.1, ms['overs_bowled'])):.2f}\n\n"
+                f"👤 *{ms['batsman_1']}:* {ms['batsman_1_runs']} runs*\n"
+                f"👤 *{ms['batsman_2']}:* {ms['batsman_2_runs']} runs*\n"
+                f"⚾ *{ms['bowler']}:* {ms['bowler_wickets']} Wickets\n\n"
+                f"⚡ *Scored via Soni AI Cricket Manager*"
+            )
+            share_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(wa_score_text)}"
+            st.markdown(f'<a href="{share_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#25D366; color:white; border-radius:12px; text-decoration:none; font-weight:bold; margin-top:20px;">📲 WhatsApp Group Par Score Share Karein</a>', unsafe_allow_html=True)
+            
+            if st.button("🔄 Reset Match (Start New Match)", use_container_width=True):
+                st.session_state.match_state = {
+                    "team_a": "Team A", "team_b": "Team B", "total_overs": 5, "runs": 0,
+                    "wickets": 0, "overs_bowled": 0.0, "batsman_1": "Player 1", "batsman_1_runs": 0,
+                    "batsman_2": "Player 2", "batsman_2_runs": 0, "bowler": "Bowler 1", "bowler_wickets": 0
+                }
+                st.rerun()
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: VIP PRO TOOLS ---
@@ -498,7 +568,7 @@ elif st.session_state.current_tab == "VIP Tools":
 
         if "Reels" in tool_choice:
             st.markdown("#### 🎬 Instagram Reels Script Generator")
-            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket batting tips / Online business ideas")
+            topic = st.text_input("Reel ka topic kya hai?", placeholder="Ex: Cricket bowling tips / Online business ideas")
             if st.button("Generate Viral Script 🚀"):
                 if topic:
                     with st.spinner("AI Script likh raha hai..."):
@@ -520,7 +590,7 @@ elif st.session_state.current_tab == "VIP Tools":
 
         elif "Bio" in tool_choice:
             st.markdown("#### ✍️ Viral Bio & Caption Generator")
-            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Fitness trainer / Gamer")
+            niche = st.text_input("Aapka page/account kiske baare mein hai?", placeholder="Ex: Cricket / Fitness trainer")
             if st.button("Generate Bios 🚀"):
                 if niche:
                     with st.spinner("Bios ban rahe hain..."):
@@ -582,7 +652,7 @@ elif st.session_state.current_tab == "Shop":
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + Direct MP4 AI Video Generator + ₹100 Store Discount pane ke liye Pro activate karein:")
+    st.write("Unlimited Chats + Pro Cricket Live Scorer + VIP Tools + ₹100 Store Discount pane ke liye Pro activate karein:")
 
     final_price = 49.00
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
@@ -593,7 +663,7 @@ elif st.session_state.current_tab == "Billing":
         st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
-            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats, Real Video Generator & VIP Tools unlocked hain.")
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats, Pro Cricket Scorer & VIP Tools unlocked hain.")
         else:
             with st.form("pro_utr_form"):
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
