@@ -22,6 +22,13 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 
+CANDIDATE_MODELS = [
+    "llama-3.2-3b-preview",
+    "llama-3.2-11b-vision-preview",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it"
+]
+
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
     qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_url)}"
@@ -66,7 +73,6 @@ for u_k, u_v in DEFAULT_PERSISTENT_USERS.items():
         users_db[u_k] = u_v
 save_json(USERS_FILE, users_db)
 
-chats_db = load_json(CHATS_FILE, {})
 usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
@@ -236,13 +242,11 @@ def clean_model_output(text: str) -> str:
     return text.strip()
 
 def get_available_groq_models():
-    """Live query to Groq API to fetch active model list dynamically"""
     try:
         models_data = client.models.list()
         chat_models = []
         for m in models_data.data:
             m_id = m.id.lower()
-            # Ignore audio/whisper models
             if "whisper" not in m_id and "tts" not in m_id:
                 chat_models.append(m.id)
         return chat_models
@@ -250,12 +254,9 @@ def get_available_groq_models():
         return []
 
 def generate_ai_response(messages_list):
-    """Auto-detects live models from Groq to completely eliminate 400/404 errors"""
     live_models = get_available_groq_models()
-    
-    # Priority fallbacks if live list is empty
     if not live_models:
-        live_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        live_models = ["llama-3.2-3b-preview", "llama-3.1-8b-instant"]
 
     last_error = ""
     for model_name in live_models:
@@ -334,16 +335,16 @@ with st.sidebar:
         st.session_state.current_tab = "Dashboard"
         st.rerun()
 
+    if st.button("🎨 AI Media Studio (Pic & Video)", key="btn_sb_media"):
+        st.session_state.current_tab = "Media Studio"
+        st.rerun()
+
     if st.button("👑 VIP Pro Tools", key="btn_sb_vip"):
         st.session_state.current_tab = "VIP Tools"
         st.rerun()
 
     if st.button("🛍️ Soni Shop", key="btn_sb_shop"):
         st.session_state.current_tab = "Shop"
-        st.rerun()
-
-    if st.button("🕒 Chat History", key="btn_sb_hist"):
-        st.session_state.current_tab = "History"
         st.rerun()
 
     if st.button("💳 Billing / Upgrade", key="btn_sb_bill"):
@@ -383,7 +384,7 @@ if st.session_state.current_tab == "Dashboard":
         <div class="welcome-card">
             <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
             <div style="font-size:13px; font-weight:600; color:#475569;">
-                Status: <span style="color:#2563eb;">{'Unlimited Chats + VIP Tools Unlocked 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
+                Status: <span style="color:#2563eb;">{'Unlimited Chats + AI Media Studio Unlocked 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -416,7 +417,6 @@ if st.session_state.current_tab == "Dashboard":
 
             st.session_state.messages.append({"role": "user", "content": clean_in})
 
-            # Check creator queries
             input_lower = clean_in.lower()
             creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
             if any(trig in input_lower for trig in creator_triggers):
@@ -430,19 +430,75 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
+# --- TAB: AI MEDIA STUDIO (PIC & VIDEO) [NEW PRO FEATURE] ---
+elif st.session_state.current_tab == "Media Studio":
+    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
+    st.markdown("### 🎨 AI Media Studio (Generate Pictures & Videos)")
+    st.write("Paid/Pro members ke liye exclusive photo generation aur cinematic video production tools.")
+
+    if not is_pro_user:
+        st.warning("🔒 **Yeh Feature Sirf Pro Plan Members ke liye Unlock Hai!**")
+        st.markdown("""
+        * 🖼️ **Ultra-HD AI Image Creator:** Kisi bhi cheez ki photo banayein text prompt se.
+        * 🎥 **Cinematic AI Video Scene Creator:** Runway, Sora aur Pika ke liye camera-movement prompt aur scene studio.
+        """)
+        if st.button("💎 Unlock AI Picture & Video Studio (Upgrade to Pro)", use_container_width=True):
+            st.session_state.current_tab = "Billing"
+            st.rerun()
+    else:
+        media_tab1, media_tab2 = st.tabs(["🖼️ AI Image Generator", "🎥 AI Video Creation Studio"])
+        
+        with media_tab1:
+            st.markdown("#### 🖼️ Prompt daalein aur Ultra-HD Image banayein")
+            img_prompt = st.text_input("Photo kaisi chahiye? (Prompt likhein)", placeholder="Ex: Futuristic Indian sports bike in neon city, 8k wallpaper, photorealistic")
+            style_opt = st.selectbox("Image Style", ["Photorealistic / Natural", "Anime / Manga", "Cinematic 3D", "Cyberpunk Neon", "Oil Painting Art"])
+            
+            if st.button("Generate HD Image 🚀", use_container_width=True):
+                if img_prompt.strip():
+                    with st.spinner("AI aapki photo paint kar raha hai..."):
+                        full_prompt = f"{img_prompt.strip()}, {style_opt}, high detail, 8k resolution"
+                        encoded_prompt = urllib.parse.quote(full_prompt)
+                        # Pollinations AI Instant Image Generator Engine
+                        generated_image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
+                        
+                        st.success("Aapki AI Image ready hai! 🎉")
+                        st.image(generated_image_url, caption=f"Prompt: {img_prompt}", use_container_width=True)
+                        st.markdown(f'<a href="{generated_image_url}" target="_blank" download="ai_image.jpg" style="display:block; text-align:center; padding:10px; background:#2563eb; color:white; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">⬇️ Download Full Resolution Image</a>', unsafe_allow_html=True)
+                else:
+                    st.error("Kripya image ke liye koi prompt likhein!")
+
+        with media_tab2:
+            st.markdown("#### 🎥 AI Cinematic Video Prompter & Storyboard")
+            vid_idea = st.text_input("Aapko kis topic ya scene par video banani hai?", placeholder="Ex: A tiger hunting in a snow forest at sunset")
+            vid_camera = st.selectbox("Camera Movement", ["Drone Aerial Zoom-in", "Slow Motion Close-up", "FPV Hyperlapse", "Orbit 360 Rotation"])
+            
+            if st.button("Generate Video Blueprint & Prompt 🚀", use_container_width=True):
+                if vid_idea.strip():
+                    with st.spinner("AI Video Scenes aur Motion Prompt create kar raha hai..."):
+                        p = f"""Create an ultra-detailed cinematic AI Video Prompt for video generators like Runway Gen-2 / Pika / Sora.
+                        Concept: '{vid_idea}'
+                        Camera Movement: '{vid_camera}'
+                        Include:
+                        1. Positive Prompt (Photorealistic details, lighting, FPS, angle)
+                        2. Negative Prompt (Blur, artifacts, watermark)
+                        3. 5-second Scene Timeline breakdown
+                        Respond in clear formatted Hinglish/English."""
+                        
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.success("Video Prompt & Scene Direction taiyaar hai:")
+                        st.markdown(out)
+                else:
+                    st.error("Kripya video concept likhein!")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # --- TAB: VIP PRO TOOLS ---
 elif st.session_state.current_tab == "VIP Tools":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👑 Exclusive VIP AI Tools")
-    st.write("Yeh high-value tools specially paid members ke liye hain jo content aur marketing me madad karte hain:")
 
     if not is_pro_user:
         st.warning("🔒 **Yeh feature locked hai!** Sirf Pro Plan members ise use kar sakte hain.")
-        st.markdown("""
-        * 🎬 **Viral Reels Hook & Script Generator**
-        * 📦 **E-Commerce High Converting Product Description Generator**
-        * ✍️ **1-Click Viral Instagram Bio & Captions**
-        """)
         if st.button("💎 Unlock VIP Tools (Upgrade to Pro)", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
@@ -492,7 +548,7 @@ elif st.session_state.current_tab == "Shop":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🛍️ Soni Store")
     if is_pro_user:
-        st.success("💎 **VIP Member Active:** Aapko har product par flat ₹100 ka instant VIP discount mil raha hai!")
+        st.success("💎 **VIP Member Active:** Har product par flat ₹100 instant VIP discount active hai!")
     else:
         st.info("💡 **Pro Tip:** Pro members ko har item par flat ₹100 direct discount milta hai.")
 
@@ -539,7 +595,7 @@ elif st.session_state.current_tab == "Shop":
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + VIP Tools + Store Discount pane ke liye Pro mode activate karein:")
+    st.write("Unlimited Chats + AI Media Studio (Pic/Video) + ₹100 Store Discount pane ke liye Pro activate karein:")
 
     final_price = 49.00 if st.session_state.applied_coupon == "SONI" else 99.00
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
@@ -550,7 +606,7 @@ elif st.session_state.current_tab == "Billing":
         st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
-            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Tools unlocked hain.")
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats, Media Studio & VIP Tools unlocked hain.")
         else:
             with st.form("pro_utr_form"):
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
@@ -559,13 +615,6 @@ elif st.session_state.current_tab == "Billing":
                         payments_db[active_user] = {"utr": utr, "amount": final_price, "status": "pending"}
                         save_json(PAYMENTS_FILE, payments_db)
                         st.success("UTR submit ho gaya! Admin verify karke Pro mode on kar dega.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- TAB: HISTORY ---
-elif st.session_state.current_tab == "History":
-    st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 🕒 Saved History")
-    st.info("Aapki current chat dashboard par active hai.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: ADMIN (/admin 2009) ---
