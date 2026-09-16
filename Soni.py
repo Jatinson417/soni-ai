@@ -199,10 +199,9 @@ elif tab == "Billing":
     if "applied_coupon" not in st.session_state:
         st.session_state.applied_coupon = None
 
-    st.markdown("🎟️ **Use coupon code SONI for discount**")
     col_cp1, col_cp2 = st.columns([7, 3])
     with col_cp1:
-        coupon_input = st.text_input("Enter coupon code (e.g. SONI)...", placeholder="Enter code (e.g. SONI)...", label_visibility="collapsed").strip().upper()
+        coupon_input = st.text_input("Enter coupon code...", placeholder="Enter coupon code...", label_visibility="collapsed").strip().upper()
     with col_cp2:
         if st.button("Apply Coupon", use_container_width=True):
             if coupon_input in coupons_db:
@@ -254,7 +253,7 @@ elif tab == "AdminPanel":
         if st.button(f"Approve {u_mail}", key=f"app_{u_mail}"):
             if u_mail in users_db:
                 users_db[u_mail]["plan"] = "pro"
-                save_json(users_db, USERS_FILE) # fixed sequence check
+                save_json(USERS_FILE, users_db)
             del payments_db[u_mail]
             save_json(PAYMENTS_FILE, payments_db)
             st.success(f"{u_mail} approved as Pro!")
