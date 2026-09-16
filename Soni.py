@@ -26,44 +26,6 @@ FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
 PREMIUM_PRICE = 99.00
 
-EXACT_CUSTOM_REPLIES = {
-    "what is skb": "Santosh Kulcha Bhandar",
-    "skb kya hai": "Santosh Kulcha Bhandar",
-    "skb": "Santosh Kulcha Bhandar"
-}
-
-TIMEZONE_MAP = {
-    "india": ("Asia/Kolkata", "India 🇮🇳"),
-    "bharat": ("Asia/Kolkata", "India 🇮🇳"),
-    "dubai": ("Asia/Dubai", "Dubai (UAE) 🇦🇪"),
-    "uae": ("Asia/Dubai", "UAE 🇦🇪"),
-    "usa": ("America/New_York", "USA (New York) 🇺🇸"),
-    "america": ("America/New_York", "USA (New York) 🇺🇸"),
-    "new york": ("America/New_York", "New York 🇺🇸"),
-    "london": ("Europe/London", "London (UK) 🇬🇧"),
-    "uk": ("Europe/London", "UK 🇬🇧"),
-    "canada": ("America/Toronto", "Canada (Toronto) 🇨🇦"),
-    "australia": ("Australia/Sydney", "Australia (Sydney) 🇦🇺"),
-    "japan": ("Asia/Tokyo", "Japan 🇯🇵"),
-    "tokyo": ("Asia/Tokyo", "Tokyo 🇯🇵"),
-    "germany": ("Europe/Berlin", "Germany 🇩🇪"),
-    "singapore": ("Asia/Singapore", "Singapore 🇸🇬"),
-    "pakistan": ("Asia/Karachi", "Pakistan 🇵🇰"),
-    "saudi": ("Asia/Riyadh", "Saudi Arabia 🇸🇦"),
-}
-
-def get_country_time(text: str):
-    text_low = text.lower()
-    time_keywords = ["time", "samay", "baje", "waqt", "ghadi", "clock", "kitne baje"]
-    if any(k in text_low for k in time_keywords):
-        for place, (tz_name, label) in TIMEZONE_MAP.items():
-            if place in text_low:
-                now = datetime.now(ZoneInfo(tz_name))
-                return f"Abhi **{label}** mein live time **{now.strftime('%I:%M %p')}** ho raha hai ({now.strftime('%d %b %Y')})."
-        now_india = datetime.now(ZoneInfo("Asia/Kolkata"))
-        return f"Abhi **India 🇮🇳** mein time **{now_india.strftime('%I:%M %p')}** ho raha hai."
-    return None
-
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
     qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_url)}"
@@ -85,18 +47,6 @@ def save_json(filepath, data):
     except:
         pass
 
-def load_products():
-    default_items = [
-        {"id": 1, "name": "Women's Stylish Short Kurti", "price": 299, "img": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400"},
-        {"id": 2, "name": "Adjustable Aluminum Laptop Stand", "price": 449, "img": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400"},
-        {"id": 3, "name": "Premium Handbag For Women", "price": 399, "img": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400"}
-    ]
-    prods = load_json(PRODUCTS_FILE, None)
-    if not prods:
-        save_json(PRODUCTS_FILE, default_items)
-        return default_items
-    return prods
-
 users_db = load_json(USERS_FILE, {})
 DEFAULT_USERS = {
     "sonijatin177@gmail.com": {"password": "admin", "plan": "pro"},
@@ -110,9 +60,7 @@ save_json(USERS_FILE, users_db)
 
 usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
-orders_db = load_json(ORDERS_FILE, [])
-secret_chat_db = load_json(SECRET_CHAT_FILE, [])
-coupons_db = load_json(COUPONS_FILE, {"SONI": {"discount_percent": 50}})
+coupons_db = load_json(COUPONS_FILE, {"SONI": {"discount_percent": 50}, "FRIEND": {"discount_percent": 90}})
 
 url_user = st.query_params.get("user")
 if url_user and url_user.strip().lower() in users_db:
@@ -137,16 +85,6 @@ def get_user_chat_count(email, users_dict, usage_dict):
     if user_usage.get("date") != today_str:
         return 0, False
     return user_usage.get("count", 0), False
-
-def increment_user_chat_count(email, usage_dict):
-    clean_email = email.strip().lower()
-    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
-    user_usage = usage_dict.get(clean_email, {})
-    if user_usage.get("date") != today_str:
-        usage_dict[clean_email] = {"date": today_str, "count": 1}
-    else:
-        usage_dict[clean_email]["count"] = user_usage.get("count", 0) + 1
-    save_json(USAGE_FILE, usage_dict)
 
 st.markdown(
     """
@@ -185,9 +123,6 @@ st.markdown(
 
 HARDCODED_KEY = "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".strip()
 client = Groq(api_key=HARDCODED_KEY, timeout=25.0)
-
-CREATOR_REPLY = "Mujhe Jatin Soni ne banaya hai! Woh 16 saal ke hain, 12th class mein padhte hain aur Haryana ke Sirsa district ke Rori gaon ke rehne wale hain."
-SYSTEM_PROMPT = "You are Soni AI, created by Jatin Soni. Direct, helpful, smart Hinglish/English answers."
 
 def generate_ai_response(messages_list):
     try:
@@ -239,7 +174,6 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     if st.button("🚪 Logout"): st.session_state.user = None; st.query_params.clear(); st.rerun()
 
-# Tabs
 tab = st.session_state.current_tab
 st.markdown(f"<h2 style='font-weight:700;'>{tab}</h2>", unsafe_allow_html=True)
 
@@ -260,12 +194,41 @@ if tab == "Dashboard":
 
 elif tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 💳 Upgrade to Soni AI Pro (₹99)")
+    st.markdown("### 💳 Upgrade to Soni AI Pro")
     
-    qr_url, _ = generate_upi_qr(PREMIUM_PRICE, f"Pro - {active_user}")
+    if "applied_coupon" not in st.session_state:
+        st.session_state.applied_coupon = None
+
+    col_cp1, col_cp2 = st.columns([7, 3])
+    with col_cp1:
+        coupon_input = st.text_input("🎟️ Enter Coupon Code", placeholder="Enter code (e.g. SONI)...", label_visibility="collapsed").strip().upper()
+    with col_cp2:
+        if st.button("Apply Coupon", use_container_width=True):
+            if coupon_input in coupons_db:
+                st.session_state.applied_coupon = coupon_input
+                st.success("Coupon Applied!")
+                st.rerun()
+            else:
+                st.error("Invalid Coupon!")
+
+    if st.session_state.applied_coupon in coupons_db:
+        disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
+        st.info(f"Active Coupon: **{st.session_state.applied_coupon}** ({disc_pct}% OFF)")
+        if st.button("❌ Remove Coupon"):
+            st.session_state.applied_coupon = None
+            st.rerun()
+
+    final_price = PREMIUM_PRICE
+    if st.session_state.applied_coupon in coupons_db:
+        disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
+        final_price = PREMIUM_PRICE - (PREMIUM_PRICE * disc_pct / 100)
+        final_price = max(1.00, final_price)
+
+    qr_url, _ = generate_upi_qr(final_price, f"Pro - {active_user}")
+    
     col_q, col_f = st.columns([4, 6])
     with col_q:
-        st.image(qr_url, width=220, caption="Scan & Pay ₹99 via GPay/PhonePe/Paytm")
+        st.image(qr_url, width=220, caption=f"Scan & Pay ₹{final_price:.2f} via GPay/PhonePe/Paytm")
         st.markdown(f"**UPI ID:** `{UPI_ID}`")
     with col_f:
         with st.form("utr_form_direct"):
@@ -273,7 +236,7 @@ elif tab == "Billing":
             utr_input = st.text_input("12-digit UTR / UPI Reference ID*", placeholder="Ex: 421098492019").strip()
             if st.form_submit_button("Submit UTR for Verification 📩", use_container_width=True):
                 if len(utr_input) >= 8 and utr_input.isdigit():
-                    payments_db[active_user] = {"utr": utr_input, "amount": PREMIUM_PRICE, "status": "pending"}
+                    payments_db[active_user] = {"utr": utr_input, "amount": final_price, "status": "pending"}
                     save_json(PAYMENTS_FILE, payments_db)
                     st.success("✅ UTR successfully submit ho gaya! Admin verify karke aapko Pro access dega.")
                 else:
