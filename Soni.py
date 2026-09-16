@@ -81,7 +81,6 @@ payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
 secret_chat_db = load_json(SECRET_CHAT_FILE, [])
 
-# Default Coupons: SONI (50% off), FRIEND (90% off)
 default_coupons = {
     "SONI": {"discount_percent": 50},
     "FRIEND": {"discount_percent": 90}
@@ -269,7 +268,7 @@ FINAL_API_KEY = secret_key if secret_key else HARDCODED_KEY
 
 @st.cache_resource
 def get_groq_client(api_token):
-    return Groq(api_token=api_token, timeout=25.0)
+    return Groq(api_key=api_token, timeout=25.0)
 
 client = get_groq_client(FINAL_API_KEY)
 
@@ -672,7 +671,7 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING & COUPON CODE (99 Price & SONI/FRIEND Coupons) ---
+# --- TAB: BILLING & COUPON CODE ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
