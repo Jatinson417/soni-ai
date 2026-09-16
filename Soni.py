@@ -562,14 +562,14 @@ elif st.session_state.current_tab == "SecretRoom":
 elif st.session_state.current_tab == "Referral":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 👥 Refer & Earn Free Pro Access")
-    st.write("Apne dosto ko Soni AI invite karein aur free rewards payein!")
+    st.write("Apne dosto ko Soni AI invite karein aur special discount paayein!")
 
     ref_link = f"https://soniai.streamlit.app/?user={active_user}"
     st.markdown(f"**Aapka Personal Referral Link:**")
     st.code(ref_link)
 
-    st.markdown("#### 🎁 Friend Invite Perk:")
-    st.info("Jab aapka dost 'FRIEND' coupon use karke Pro upgrade karega, toh use 90% off milega!")
+    st.markdown("#### 🎁 Exclusive Friend Perk:")
+    st.info("⚠️ **Note:** Yeh special discount sabhi ke liye nahi hai! Sirf aapke invited dosto ke paas 'FRIEND' coupon code (90% off) use karne ka special access hoga.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: VIP PRO TOOLS ---
@@ -671,7 +671,7 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING & COUPON CODE ---
+# --- TAB: BILLING & COUPON CODE (₹99 Standard Price & Secret Coupons) ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
@@ -680,20 +680,26 @@ elif st.session_state.current_tab == "Billing":
     if "applied_coupon" not in st.session_state:
         st.session_state.applied_coupon = None
 
-    coupon_input = st.text_input("🎟️ Enter Coupon Code ('SONI' for 50% off, 'FRIEND' for 90% off)", placeholder="Ex: SONI or FRIEND").strip().upper()
+    st.markdown("""
+        <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px;">
+            ⚠️ <b>Note:</b> Special coupon codes (jaise 'SONI' 50% off ya 'FRIEND' 90% off) sabhi ke liye public nahi hain. Agar aapke paas secret code hai toh niche enter karein.
+        </div>
+    """, unsafe_allow_html=True)
+
+    coupon_input = st.text_input("🎟️ Enter Secret Coupon Code", placeholder="Ex: SONI or FRIEND").strip().upper()
     if st.button("Apply Coupon"):
         if coupon_input in coupons_db:
             st.session_state.applied_coupon = coupon_input
-            st.success(f"Coupon '{coupon_input}' applied successfully! 🎉")
+            st.success(f"Secret Coupon '{coupon_input}' applied successfully! 🎉")
         else:
-            st.error("Invalid coupon code!")
+            st.error("Invalid coupon code! Yeh code sabhi ke liye available nahi hai.")
 
     final_price = PREMIUM_PRICE
     if st.session_state.applied_coupon in coupons_db:
         disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
         final_price = PREMIUM_PRICE - (PREMIUM_PRICE * disc_pct / 100)
         final_price = max(1.00, final_price)
-        st.info(f"Coupon Applied: **{st.session_state.applied_coupon}** ({disc_pct}% OFF)")
+        st.info(f"Secret Coupon Applied: **{st.session_state.applied_coupon}** ({disc_pct}% OFF)")
 
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
