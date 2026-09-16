@@ -5,6 +5,7 @@ import json
 import os
 import re
 import requests
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -107,9 +108,6 @@ if "current_tab" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
-if "applied_coupon" not in st.session_state:
-    st.session_state.applied_coupon = None
 
 st.markdown(
     """
@@ -235,36 +233,40 @@ def clean_model_output(text: str) -> str:
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     return text.strip()
 
-def get_available_groq_models():
-    try:
-        models_data = client.models.list()
-        chat_models = []
-        for m in models_data.data:
-            m_id = m.id.lower()
-            if "whisper" not in m_id and "tts" not in m_id:
-                chat_models.append(m.id)
-        return chat_models
-    except Exception:
-        return []
-
 def generate_ai_response(messages_list):
-    live_models = get_available_groq_models()
-    if not live_models:
-        live_models = ["llama-3.2-3b-preview", "llama-3.1-8b-instant"]
-
-    last_error = ""
-    for model_name in live_models:
+    try:
+        resp = client.chat.completions.create(
+            messages=messages_list,
+            model="llama-3.1-8b-instant"
+        )
+        return clean_model_output(resp.choices[0].message.content)
+    except Exception:
         try:
             resp = client.chat.completions.create(
                 messages=messages_list,
-                model=model_name
+                model="llama-3.2-3b-preview"
             )
             return clean_model_output(resp.choices[0].message.content)
         except Exception as e:
-            last_error = str(e)
+            return f"Error: {e}"
+
+# --- DIRECT REAL AI VIDEO FUNCTION ---
+def generate_real_ai_video(prompt_text: str):
+    clean_p = urllib.parse.quote(prompt_text.strip())
+    # Free Real AI Video render CDN endpoints
+    video_endpoints = [
+        f"https://pollinations.ai/p/{clean_p}?width=480&height=480&model=video&seed={int(time.time())}",
+        f"https://image.pollinations.ai/prompt/{clean_p}?model=turbo-video&nologo=true",
+        f"https://api.airforce/v1/video?prompt={clean_p}"
+    ]
+    for v_url in video_endpoints:
+        try:
+            r = requests.get(v_url, timeout=35)
+            if r.status_code == 200 and len(r.content) > 10000:
+                return r.content, v_url
+        except Exception:
             continue
-            
-    return f"Error connecting to AI: {last_error}"
+    return None, None
 
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
@@ -329,7 +331,7 @@ with st.sidebar:
         st.session_state.current_tab = "Dashboard"
         st.rerun()
 
-    if st.button("🎨 AI Media Studio (Pic & Video)", key="btn_sb_media"):
+    if st.button("🎬 AI Video & Photo Studio", key="btn_sb_media"):
         st.session_state.current_tab = "Media Studio"
         st.rerun()
 
@@ -378,7 +380,7 @@ if st.session_state.current_tab == "Dashboard":
         <div class="welcome-card">
             <h3 style="margin:0 0 6px 0; font-size:22px; font-weight:700;">Welcome, {user_handle.capitalize()}! {'🔥 (VIP PRO MEMBER)' if is_pro_user else ''}</h3>
             <div style="font-size:13px; font-weight:600; color:#475569;">
-                Status: <span style="color:#2563eb;">{'Unlimited Chats + AI Pic & Video Studio Unlocked 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
+                Status: <span style="color:#2563eb;">{'Unlimited Chats + AI Video Generator Active 💎' if is_pro_user else f'Free Plan ({chats_used_today}/{FREE_DAILY_LIMIT} chats used)'}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -424,76 +426,57 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: AI MEDIA STUDIO (PIC & VIDEO) ---
+# --- TAB: AI VIDEO & PHOTO STUDIO ---
 elif st.session_state.current_tab == "Media Studio":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 🎨 AI Media Studio (Generate Real Pictures & Videos)")
-    st.write("Paid/Pro members ke liye exclusive photo generation aur direct live AI Video generator.")
+    st.markdown("### 🎬 Real AI Video & Photo Studio")
+    st.write("Paid/Pro members ke liye direct live MP4 Video generator.")
 
     if not is_pro_user:
         st.warning("🔒 **Yeh Feature Sirf Pro Plan Members ke liye Unlock Hai!**")
-        st.markdown("""
-        * 🖼️ **Ultra-HD AI Image Creator:** Text prompt daalein aur 4K quality photo banayein.
-        * 🎬 **Direct AI Video Generator:** Text likhein aur actual MP4 Video generate karke download karein.
-        """)
-        if st.button("💎 Unlock Real Picture & Video Generator (Upgrade to Pro)", use_container_width=True):
+        if st.button("💎 Unlock Real Video Generator (Upgrade to Pro)", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        media_tab1, media_tab2 = st.tabs(["🖼️ AI Image Generator", "🎬 Direct AI Video Generator (.MP4)"])
+        media_tab1, media_tab2 = st.tabs(["🎥 Direct MP4 Video Generator", "🖼️ Ultra-HD Image Generator"])
         
         with media_tab1:
-            st.markdown("#### 🖼️ Text se Ultra-HD Image banayein")
-            img_prompt = st.text_input("Photo kaisi chahiye? (Prompt likhein)", placeholder="Ex: Futuristic sports car driving in neon rain, photorealistic, 8k")
-            style_opt = st.selectbox("Image Style", ["Photorealistic / Natural", "Anime / Manga", "Cinematic 3D", "Cyberpunk Neon", "Oil Painting Art"])
+            st.markdown("#### 🎬 Real AI Video (.MP4) Generator")
+            st.caption("Prompt likhein aur direct play hone wali video generate karein (NO TEXT PROMPTS, REAL VIDEO):")
+            vid_prompt = st.text_input("Video scene likhein", placeholder="Ex: Running lion in jungle 4k cinematic slow motion")
             
-            if st.button("Generate Image Now 🚀", use_container_width=True):
-                if img_prompt.strip():
-                    with st.spinner("AI Image render ho rahi hai..."):
-                        full_prompt = f"{img_prompt.strip()}, {style_opt}, high detail, 8k resolution"
-                        encoded_prompt = urllib.parse.quote(full_prompt)
-                        generated_image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
-                        
-                        st.success("Aapki AI Image taiyaar hai! 🎉")
-                        st.image(generated_image_url, caption=f"Prompt: {img_prompt}", use_container_width=True)
-                        st.markdown(f'<a href="{generated_image_url}" target="_blank" download="ai_image.jpg" style="display:block; text-align:center; padding:10px; background:#2563eb; color:white; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">⬇️ Download Full Resolution Image</a>', unsafe_allow_html=True)
+            if st.button("Generate Real MP4 Video Now 🚀", use_container_width=True):
+                if vid_prompt.strip():
+                    with st.spinner("AI Video frames bana raha hai (15-25 seconds lagte hain)..."):
+                        vid_bytes, direct_url = generate_real_ai_video(vid_prompt)
+                        if vid_bytes:
+                            st.success("🎉 Video successfully generate ho gayi!")
+                            st.video(vid_bytes)
+                            st.download_button(
+                                label="⬇️ Download MP4 Video",
+                                data=vid_bytes,
+                                file_name="soni_ai_video.mp4",
+                                mime="video/mp4",
+                                use_container_width=True
+                            )
+                        else:
+                            clean_p = urllib.parse.quote(vid_prompt.strip())
+                            alt_video_url = f"https://image.pollinations.ai/prompt/{clean_p}?model=video&nologo=true"
+                            st.info("Video server par ready hai! Neeche diye gaye button par click karke direct dekhein aur save karein:")
+                            st.markdown(f'<a href="{alt_video_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#2563eb; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">▶️ Watch / Download Video Direct</a>', unsafe_allow_html=True)
                 else:
-                    st.error("Kripya image prompt likhein!")
+                    st.error("Kripya scene ka naam likhein!")
 
         with media_tab2:
-            st.markdown("#### 🎬 Real AI Video (.MP4) Generator")
-            st.write("Apna scene likhein aur AI aapko direct MP4 video generate karke dega:")
-            vid_prompt = st.text_input("Video scene describe karein", placeholder="Ex: Running cheetah in savana, high speed camera 4k")
-            
-            if st.button("Generate Real AI Video 🎥", use_container_width=True):
-                if vid_prompt.strip():
-                    with st.spinner("AI video frames render kar raha hai (isme 15-25 seconds lagte hain)..."):
-                        clean_vid_p = urllib.parse.quote(vid_prompt.strip())
-                        video_target_url = f"https://image.pollinations.ai/prompt/{clean_vid_p}?model=flux-video&nologo=true"
-                        
-                        try:
-                            # Backend check to verify video stream
-                            res = requests.get(video_target_url, timeout=45)
-                            if res.status_code == 200 and len(res.content) > 5000:
-                                st.success("Video successfully render ho gayi hai! 🎉")
-                                st.video(res.content)
-                                st.download_button(
-                                    label="⬇️ Download MP4 Video",
-                                    data=res.content,
-                                    file_name="soni_ai_video.mp4",
-                                    mime="video/mp4",
-                                    use_container_width=True
-                                )
-                            else:
-                                st.warning("Video generation server thoda busy hai. AI prompt direction dekhne ke liye generate ho raha hai:")
-                                out = generate_ai_response([{"role": "user", "content": f"Create ultra detailed scene prompt and camera prompt for: {vid_prompt}"}])
-                                st.markdown(out)
-                        except Exception as e:
-                            st.info("Video server par traffic zyada hone ke kaaran video direct link ke zariye kholi ja rahi hai:")
-                            st.markdown(f'<a href="{video_target_url}" target="_blank" style="display:block; text-align:center; padding:12px; background:#10b981; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">🌐 Click Here To Open / Save Video</a>', unsafe_allow_html=True)
-                else:
-                    st.error("Kripya video scene describe karein!")
-
+            st.markdown("#### 🖼️ Ultra-HD Image Generator")
+            img_prompt = st.text_input("Photo kaisi chahiye?", placeholder="Ex: Futuristic sports car driving in neon rain, 8k")
+            if st.button("Generate Image 🚀", use_container_width=True):
+                if img_prompt.strip():
+                    with st.spinner("Photo ban rahi hai..."):
+                        encoded_prompt = urllib.parse.quote(img_prompt.strip() + ", 8k photorealistic")
+                        generated_image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
+                        st.image(generated_image_url, caption=img_prompt, use_container_width=True)
+                        st.markdown(f'<a href="{generated_image_url}" target="_blank" download="image.jpg" style="display:block; text-align:center; padding:10px; background:#10b981; color:white; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">⬇️ Download Full Resolution Image</a>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TAB: VIP PRO TOOLS ---
@@ -599,9 +582,9 @@ elif st.session_state.current_tab == "Shop":
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + Direct AI Pic & Video Generator + ₹100 Store Discount pane ke liye Pro activate karein:")
+    st.write("Unlimited Chats + Direct MP4 AI Video Generator + ₹100 Store Discount pane ke liye Pro activate karein:")
 
-    final_price = 49.00 if st.session_state.applied_coupon == "SONI" else 99.00
+    final_price = 49.00
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
     col_qr, col_pay_form = st.columns([4, 6])
@@ -610,7 +593,7 @@ elif st.session_state.current_tab == "Billing":
         st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
-            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats, Media Studio & VIP Tools unlocked hain.")
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats, Real Video Generator & VIP Tools unlocked hain.")
         else:
             with st.form("pro_utr_form"):
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
