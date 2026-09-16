@@ -15,13 +15,14 @@ USAGE_FILE = "user_usage_database.json"
 PAYMENTS_FILE = "pending_payments_database.json"
 PRODUCTS_FILE = "products_database.json"
 ORDERS_FILE = "orders_database.json"
-DM_CHATS_FILE = "private_chats_database.json"
+BROADCAST_CHAT_FILE = "vip_community_chat.json"
 
 UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
 MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
+OWNER_EMAIL = "sonijatin177@gmail.com"
 
 CUSTOM_REPLIES = {
     "what is skb": "Santosh Kulcha Bhandar",
@@ -64,9 +65,9 @@ def load_products():
 
 users_db = load_json(USERS_FILE, {})
 DEFAULT_PERSISTENT_USERS = {
-    "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "dm_allowed": True},
-    "jatinson8489@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "dm_allowed": True},
-    "jatinsoni32459@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "dm_allowed": True}
+    "sonijatin177@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "post_allowed": True},
+    "jatinson8489@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "post_allowed": True},
+    "jatinsoni32459@gmail.com": {"password": "admin", "plan": "pro", "date": "2026-01-01", "post_allowed": True}
 }
 for u_k, u_v in DEFAULT_PERSISTENT_USERS.items():
     if u_k not in users_db:
@@ -76,7 +77,21 @@ save_json(USERS_FILE, users_db)
 usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
-dm_chats_db = load_json(DM_CHATS_FILE, {})
+community_chat_db = load_json(BROADCAST_CHAT_FILE, [])
+
+url_user = st.query_params.get("user")
+if url_user and url_user.strip().lower() in users_db:
+    st.session_state.user = url_user.strip().lower()
+elif url_user == "guest@soniai.com":
+    st.session_state.user = "guest@soniai.com"
+elif "user" not in st.session_state:
+    st.session_state.user = None
+
+if "current_tab" not in st.session_state:
+    st.session_state.current_tab = "Dashboard"
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 def get_user_chat_count(email, users_dict, usage_dict):
     clean_email = email.strip().lower()
@@ -99,21 +114,6 @@ def increment_user_chat_count(email, usage_dict):
     else:
         usage_dict[clean_email]["count"] = user_usage.get("count", 0) + 1
     save_json(USAGE_FILE, usage_dict)
-
-query_params = st.query_params
-
-if "user" not in st.session_state:
-    stored_user = query_params.get("user")
-    if stored_user and stored_user.strip().lower() in users_db:
-        st.session_state.user = stored_user.strip().lower()
-    else:
-        st.session_state.user = None
-
-if "current_tab" not in st.session_state:
-    st.session_state.current_tab = "Dashboard"
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
 st.markdown(
     """
@@ -218,32 +218,28 @@ st.markdown(
         background: #e5ddd5;
         border-radius: 16px;
         padding: 16px;
-        max-height: 420px;
+        max-height: 460px;
         overflow-y: auto;
         margin-bottom: 14px;
         border: 1px solid #d1d7db;
     }
-    .wa-msg-user {
-        background: #dcf8c6;
-        color: #111;
-        padding: 8px 14px;
-        border-radius: 10px 10px 0px 10px;
-        margin-left: auto;
-        margin-bottom: 8px;
-        max-width: 75%;
+    .wa-msg-bubble {
+        padding: 10px 14px;
+        border-radius: 12px;
+        margin-bottom: 10px;
         font-size: 13px;
-        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        max-width: 85%;
     }
     .wa-msg-owner {
         background: #ffffff;
-        color: #111;
-        padding: 8px 14px;
-        border-radius: 10px 10px 10px 0px;
+        border-left: 4px solid #f59e0b;
         margin-right: auto;
-        margin-bottom: 8px;
-        max-width: 75%;
-        font-size: 13px;
-        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    }
+    .wa-msg-member {
+        background: #dcf8c6;
+        border-left: 4px solid #10b981;
+        margin-right: auto;
     }
     </style>
     """,
@@ -284,7 +280,6 @@ def generate_ai_response(messages_list):
             m.id for m in model_list.data 
             if not any(b in m.id.lower() for b in blocked_keywords)
         ]
-        
         preferred_order = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
         final_models = [m for m in preferred_order if m in active_chat_models]
         for m in active_chat_models:
@@ -351,7 +346,7 @@ if not st.session_state.user:
                 reg_pass = st.text_input("Password", type="password").strip()
                 if st.form_submit_button("Create Account", use_container_width=True):
                     if reg_email and reg_pass:
-                        users_db[reg_email] = {"password": reg_pass, "plan": "free", "date": datetime.now().strftime("%Y-%m-%d"), "dm_allowed": False}
+                        users_db[reg_email] = {"password": reg_pass, "plan": "free", "date": datetime.now().strftime("%Y-%m-%d"), "post_allowed": False}
                         save_json(USERS_FILE, users_db)
                         st.session_state.user = reg_email
                         st.query_params["user"] = reg_email
@@ -362,9 +357,9 @@ active_user = st.session_state.get("user", "guest@soniai.com").strip().lower()
 user_handle = active_user.split("@")[0]
 chats_used_today, is_pro_user = get_user_chat_count(active_user, users_db, usage_db)
 
-# Check DM Permission
 user_record = users_db.get(active_user, {})
-is_dm_allowed = user_record.get("dm_allowed", False) if isinstance(user_record, dict) else False
+is_owner = (active_user == OWNER_EMAIL)
+can_post_msg = is_owner or (is_pro_user and user_record.get("post_allowed", False) if isinstance(user_record, dict) else False)
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -378,7 +373,7 @@ with st.sidebar:
         st.session_state.current_tab = "Dashboard"
         st.rerun()
 
-    if st.button("👑 VIP Pro Tools", key="btn_sb_vip"):
+    if st.button("👑 VIP Pro Lounge", key="btn_sb_vip"):
         st.session_state.current_tab = "VIP Tools"
         st.rerun()
 
@@ -479,50 +474,63 @@ if st.session_state.current_tab == "Dashboard":
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
 
-# --- TAB: VIP PRO TOOLS & PRIVATE OWNER CHAT ---
+# --- TAB: VIP LOUNGE (COMMUNITY FEED + TOOLS) ---
 elif st.session_state.current_tab == "VIP Tools":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 👑 Exclusive VIP Tools & Private Chat")
+    st.markdown("### 👑 VIP Community Feed & AI Tools")
 
     if not is_pro_user:
-        st.warning("🔒 **Yeh section locked hai!** Sirf Pro members Owner se private chat aur VIP tools use kar sakte hain.")
-        if st.button("💎 Unlock VIP Tools & Private Chat", use_container_width=True):
+        st.warning("🔒 **Yeh exclusive area hai!** Sirf Pro members is community feed ko dekh sakte hain.")
+        if st.button("💎 Unlock VIP Community Lounge", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        vip_tab1, vip_tab2 = st.tabs(["💬 Private Chat with Owner (Jatin)", "⚡ VIP AI Writers"])
+        vip_tab1, vip_tab2 = st.tabs(["📢 VIP Community Channel (All Members)", "⚡ VIP AI Writers"])
 
         with vip_tab1:
-            st.markdown("#### 💬 WhatsApp Style Private Direct Chat")
-            if not is_dm_allowed:
-                st.info("⏳ **Private Chat Permission Pending:** Owner ne abhi is account ko direct private chat allow nahi kiya hai. Owner se permission mangne ke liye WhatsApp par message karein:")
-                wa_request_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hello Jatin, maine Pro le liya hai ({active_user}). Please mujhe private chat allow karo.')}"
-                st.markdown(f'<a href="{wa_request_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📲 Request Permission on WhatsApp</a>', unsafe_allow_html=True)
-            else:
-                user_thread = dm_chats_db.get(active_user, [])
-                st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
-                if not user_thread:
-                    st.markdown("<p style='text-align:center; color:#555; font-size:12px;'>Koi message nahi hai. Niche se direct Owner (Jatin) ko message bhejein!</p>", unsafe_allow_html=True)
-                for msg_item in user_thread:
-                    sender = msg_item.get("sender")
-                    text = msg_item.get("text")
-                    time_val = msg_item.get("time", "")
-                    if sender == "user":
-                        st.markdown(f'<div class="wa-msg-user">{text}<br><span style="font-size:10px; color:#555; float:right;">{time_val}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'<div class="wa-msg-owner"><b>👑 Jatin Soni (Owner):</b><br>{text}<br><span style="font-size:10px; color:#777; float:right;">{time_val}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("#### 📢 VIP Announcement & Discussion Feed")
+            st.caption("Yeh messages sabhi Pro members ko visible hain. Sirf Owner aur authorized members hi post kar sakte hain.")
 
-                with st.form("form_send_private_msg", clear_on_submit=True):
-                    dm_input = st.text_input("Apna message type karein...", placeholder="Owner ko message bhejein")
-                    if st.form_submit_button("Send 🚀", use_container_width=True):
+            st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
+            if not community_chat_db:
+                st.markdown("<p style='text-align:center; color:#666; font-size:13px;'>Abhi koi messages nahi hain.</p>", unsafe_allow_html=True)
+            for m_item in community_chat_db:
+                sender_name = m_item.get("sender_name", "Member")
+                text = m_item.get("text", "")
+                t_str = m_item.get("time", "")
+                is_admin_sender = m_item.get("is_owner", False)
+
+                bubble_class = "wa-msg-owner" if is_admin_sender else "wa-msg-member"
+                badge_title = "👑 Owner (Jatin Soni)" if is_admin_sender else f"👤 {sender_name}"
+
+                st.markdown(f"""
+                    <div class="wa-msg-bubble {bubble_class}">
+                        <b>{badge_title}</b><br>
+                        {text}<br>
+                        <span style="font-size:10px; color:#64748b; float:right;">{t_str}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            if can_post_msg:
+                with st.form("form_broadcast_msg", clear_on_submit=True):
+                    dm_input = st.text_input("Write message to community:", placeholder="Type your message...")
+                    if st.form_submit_button("Post Message 🚀", use_container_width=True):
                         if dm_input.strip():
-                            now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
-                            if active_user not in dm_chats_db:
-                                dm_chats_db[active_user] = []
-                            dm_chats_db[active_user].append({"sender": "user", "text": dm_input.strip(), "time": now_time})
-                            save_json(DM_CHATS_FILE, dm_chats_db)
+                            now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b, %I:%M %p")
+                            community_chat_db.append({
+                                "sender_email": active_user,
+                                "sender_name": "Jatin Soni" if is_owner else user_handle,
+                                "is_owner": is_owner,
+                                "text": dm_input.strip(),
+                                "time": now_time
+                            })
+                            save_json(BROADCAST_CHAT_FILE, community_chat_db)
                             st.rerun()
+            else:
+                st.info("🔒 **View Only Mode:** Sabhi messages aapko visible hain. Post karne ki permission sirf Owner ya authorized members ke paas hai. Agar message send karne ki permission chahiye toh Owner ko WhatsApp karein:")
+                wa_req_url = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text={urllib.parse.quote(f'Hi Jatin, mujhe VIP Community mein post permission enable kardo ({active_user}).')}"
+                st.markdown(f'<a href="{wa_req_url}" target="_blank" style="padding:8px 16px; background:#25D366; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:13px;">📲 Request Post Permission</a>', unsafe_allow_html=True)
 
         with vip_tab2:
             tool_choice = st.selectbox("Kaunsa tool use karna hai?", [
@@ -617,7 +625,7 @@ elif st.session_state.current_tab == "Shop":
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
-    st.write("Unlimited Chats + VIP Tools + Private Owner Chat + ₹100 Store Discount pane ke liye Pro activate karein:")
+    st.write("Unlimited Chats + VIP Community Lounge + ₹100 Store Discount pane ke liye Pro activate karein:")
 
     final_price = 49.00
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
@@ -628,7 +636,7 @@ elif st.session_state.current_tab == "Billing":
         st.markdown(f"**Amount:** `₹{final_price:.2f}` | **UPI:** `{UPI_ID}`")
     with col_pay_form:
         if is_pro_user:
-            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Tools unlocked hain.")
+            st.success("🎉 **Pro Mode Active Hai!** Unlimited Chats & VIP Community unlocked hain.")
         else:
             with st.form("pro_utr_form"):
                 utr = st.text_input("12-digit UTR / UPI Ref ID*", placeholder="Ex: 421098492019").strip()
@@ -642,9 +650,9 @@ elif st.session_state.current_tab == "Billing":
 # --- TAB: ADMIN (/admin 2009) ---
 elif st.session_state.current_tab == "AdminPanel":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
-    st.markdown("### 👑 Owner Verification & Control Panel")
+    st.markdown("### 👑 Owner Verification & Permission Panel")
 
-    tab_adm_pay, tab_adm_dm = st.tabs(["💳 Approve Payments", "💬 Manage Private Chats & Permissions"])
+    tab_adm_pay, tab_adm_feed = st.tabs(["💳 Approve Payments", "📢 Manage VIP Feed & Permissions"])
 
     with tab_adm_pay:
         st.markdown("#### Pending UTR Requests")
@@ -655,67 +663,46 @@ elif st.session_state.current_tab == "AdminPanel":
             if st.button(f"Approve {u_email}", key=f"appr_{u_email}"):
                 if u_email not in users_db: users_db[u_email] = {}
                 users_db[u_email]["plan"] = "pro"
-                users_db[u_email]["dm_allowed"] = True
                 save_json(USERS_FILE, users_db)
                 del payments_db[u_email]
                 save_json(PAYMENTS_FILE, payments_db)
-                st.success(f"{u_email} ko Pro aur Private Chat access mil gaya!")
+                st.success(f"{u_email} ko Pro Plan access mil gaya!")
                 st.rerun()
 
-    with tab_adm_dm:
-        st.markdown("#### User Private Messages & Chat Permissions")
-        
-        # User Selector
-        all_registered_users = [u for u in users_db.keys() if u != "guest@soniai.com"]
-        if not all_registered_users:
-            st.info("Abhi tak koi registered user nahi hai.")
+    with tab_adm_feed:
+        st.markdown("#### ⚙️ Member Post Permissions")
+        st.caption("Yahan se control karein ki kaunsa paid member community feed mein message bhej sakta hai:")
+
+        registered_users = [u for u in users_db.keys() if u not in ["guest@soniai.com", OWNER_EMAIL]]
+        if not registered_users:
+            st.info("Koi registered member nahi hai abhi.")
         else:
-            sel_chat_user = st.selectbox("Select User to View / Reply:", all_registered_users)
-            
-            user_meta = users_db.get(sel_chat_user, {})
-            dm_status = user_meta.get("dm_allowed", False)
-            user_plan = user_meta.get("plan", "free")
+            for mem_email in registered_users:
+                mem_data = users_db.get(mem_email, {})
+                has_perm = mem_data.get("post_allowed", False)
+                mem_plan = mem_data.get("plan", "free")
 
-            col_p1, col_p2 = st.columns([5, 5])
-            with col_p1:
-                st.write(f"**Plan:** `{user_plan.upper()}` | **Chat Access:** `{'ENABLED' if dm_status else 'DISABLED'}`")
-            with col_p2:
-                if dm_status:
-                    if st.button("🚫 Revoke Chat Permission", key=f"rev_{sel_chat_user}"):
-                        users_db[sel_chat_user]["dm_allowed"] = False
-                        save_json(USERS_FILE, users_db)
-                        st.rerun()
-                else:
-                    if st.button("✅ Allow Private Chat", key=f"all_{sel_chat_user}"):
-                        users_db[sel_chat_user]["dm_allowed"] = True
-                        save_json(USERS_FILE, users_db)
-                        st.rerun()
+                c_m1, c_m2 = st.columns([6, 4])
+                with c_m1:
+                    st.write(f"👤 **{mem_email}** ({mem_plan.upper()}) — Status: `{'CAN POST' if has_perm else 'READ ONLY'}`")
+                with c_m2:
+                    if has_perm:
+                        if st.button(f"🚫 Revoke Post Access", key=f"rev_{mem_email}"):
+                            users_db[mem_email]["post_allowed"] = False
+                            save_json(USERS_FILE, users_db)
+                            st.rerun()
+                    else:
+                        if st.button(f"✅ Allow Post Access", key=f"alw_{mem_email}"):
+                            users_db[mem_email]["post_allowed"] = True
+                            save_json(USERS_FILE, users_db)
+                            st.rerun()
 
-            # Chat thread display
-            thread = dm_chats_db.get(sel_chat_user, [])
-            st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
-            if not thread:
-                st.write("Is user ka koi message nahi hai abhi.")
-            for msg_item in thread:
-                sender = msg_item.get("sender")
-                text = msg_item.get("text")
-                t_str = msg_item.get("time", "")
-                if sender == "user":
-                    st.markdown(f'<div class="wa-msg-user"><b>{sel_chat_user.split("@")[0]}:</b><br>{text}<br><span style="font-size:10px; color:#555; float:right;">{t_str}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'<div class="wa-msg-owner"><b>👑 You (Owner):</b><br>{text}<br><span style="font-size:10px; color:#777; float:right;">{t_str}</span></div><div style="clear:both;"></div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            with st.form(f"owner_reply_form_{sel_chat_user}", clear_on_submit=True):
-                reply_text = st.text_input(f"Reply to {sel_chat_user}:", placeholder="Type your reply as Owner...")
-                if st.form_submit_button("Send Reply 💬", use_container_width=True):
-                    if reply_text.strip():
-                        now_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
-                        if sel_chat_user not in dm_chats_db:
-                            dm_chats_db[sel_chat_user] = []
-                        dm_chats_db[sel_chat_user].append({"sender": "owner", "text": reply_text.strip(), "time": now_time})
-                        save_json(DM_CHATS_FILE, dm_chats_db)
-                        st.rerun()
+        st.markdown("---")
+        st.markdown("#### 🗑️ Clear Community Messages")
+        if st.button("Clear All Feed Messages"):
+            save_json(BROADCAST_CHAT_FILE, [])
+            st.success("Feed clear ho gayi!")
+            st.rerun()
 
     st.markdown("---")
     if st.button("⬅️ Back to Dashboard"):
