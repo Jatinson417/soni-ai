@@ -16,6 +16,7 @@ PAYMENTS_FILE = "pending_payments_database.json"
 PRODUCTS_FILE = "products_database.json"
 ORDERS_FILE = "orders_database.json"
 SECRET_CHAT_FILE = "vip_secret_chat_room.json"
+COUPONS_FILE = "coupons_database.json"
 
 UPI_ID = "8307940340@ptyes"
 UPI_NAME = "Jatin Soni"
@@ -23,6 +24,7 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
+PREMIUM_PRICE = 49.00
 
 CUSTOM_REPLIES = {
     "what is skb": "Santosh Kulcha Bhandar",
@@ -78,6 +80,7 @@ usage_db = load_json(USAGE_FILE, {})
 payments_db = load_json(PAYMENTS_FILE, {})
 orders_db = load_json(ORDERS_FILE, [])
 secret_chat_db = load_json(SECRET_CHAT_FILE, [])
+coupons_db = load_json(COUPONS_FILE, {"SONI": {"discount_percent": 50}, "FRIEND": {"discount_percent": 90}})
 
 url_user = st.query_params.get("user")
 if url_user and url_user.strip().lower() in users_db:
@@ -483,17 +486,12 @@ elif st.session_state.current_tab == "SecretRoom":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🔒 VIP Secret Room (Private Channel)")
 
-    # 1. FREE USERS CANNOT VIEW
     if not is_pro_user:
         st.error("🚫 **Access Denied!** Yeh private chat room sirf Paid/Pro members ke liye hai. Free users iski chats nahi dekh sakte.")
-        st.markdown("""
-            Agar aapko VIP chats dekhni hain toh apna account Pro mein upgrade karein:
-        """)
         if st.button("💎 Upgrade to Pro & Unlock Secret Room", use_container_width=True):
             st.session_state.current_tab = "Billing"
             st.rerun()
     else:
-        # 2. PAID USERS CAN VIEW ALL CHATS
         st.caption("✅ Paid Member Verified: Aap yahan sabhi private messages dekh sakte hain.")
 
         st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
@@ -517,7 +515,6 @@ elif st.session_state.current_tab == "SecretRoom":
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 3. ONLY OWNER OR PERMITTED MEMBERS CAN POST
         if has_post_permission:
             with st.form("form_secret_chat_msg", clear_on_submit=True):
                 s_input = st.text_input("Write a message to the secret room:", placeholder="Type message here...")
@@ -591,7 +588,7 @@ elif st.session_state.current_tab == "VIP Tools":
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: SHOP (WITH VIP DISCOUNT) ---
+# --- TAB: SHOP ---
 elif st.session_state.current_tab == "Shop":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 🛍️ Soni Store")
@@ -639,13 +636,40 @@ elif st.session_state.current_tab == "Shop":
                     st.session_state.selected_product = None
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: BILLING ---
+# --- TAB: BILLING (WITH COUPON SYSTEM) ---
 elif st.session_state.current_tab == "Billing":
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
     st.markdown("### 💳 Upgrade to Soni AI Pro")
     st.write("Unlimited Chats + VIP Secret Room + ₹100 Store Discount pane ke liye Pro activate karein:")
 
-    final_price = 49.00
+    if "applied_coupon" not in st.session_state:
+        st.session_state.applied_coupon = None
+
+    col_cp1, col_cp2 = st.columns([7, 3])
+    with col_cp1:
+        coupon_input = st.text_input("Enter coupon code...", placeholder="Enter coupon code...", label_visibility="collapsed").strip().upper()
+    with col_cp2:
+        if st.button("Apply Coupon", use_container_width=True):
+            if coupon_input in coupons_db:
+                st.session_state.applied_coupon = coupon_input
+                st.success("Coupon Applied!")
+                st.rerun()
+            else:
+                st.error("Invalid Coupon!")
+
+    if st.session_state.applied_coupon in coupons_db:
+        disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
+        st.info(f"Active Coupon: **{st.session_state.applied_coupon}** ({disc_pct}% OFF)")
+        if st.button("❌ Remove Coupon"):
+            st.session_state.applied_coupon = None
+            st.rerun()
+
+    final_price = PREMIUM_PRICE
+    if st.session_state.applied_coupon in coupons_db:
+        disc_pct = coupons_db[st.session_state.applied_coupon].get("discount_percent", 0)
+        final_price = PREMIUM_PRICE - (PREMIUM_PRICE * disc_pct / 100)
+        final_price = max(1.00, final_price)
+
     qr_img_url, direct_upi_link = generate_upi_qr(final_price, f"Soni AI Pro - {active_user}")
 
     col_qr, col_pay_form = st.columns([4, 6])
