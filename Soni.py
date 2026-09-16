@@ -22,8 +22,13 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 
-# Active and supported Groq model
-ACTIVE_MODEL = "llama-3.1-8b-instant"
+# Multiple fallback models to avoid 404
+CANDIDATE_MODELS = [
+    "llama-3.2-3b-preview",
+    "llama-3.2-11b-vision-preview",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it"
+]
 
 def generate_upi_qr(amount: float, note: str = "Soni AI Pro Plan"):
     upi_url = f"upi://pay?pa={UPI_ID}&pn={urllib.parse.quote(UPI_NAME)}&am={amount:.2f}&mam={amount:.2f}&cu=INR&tn={urllib.parse.quote(note)}"
@@ -238,6 +243,21 @@ def clean_model_output(text: str) -> str:
     elif "<think>" in text: text = re.sub(r'(?i)<think>.*', '', text, flags=re.DOTALL)
     return text.strip()
 
+def generate_ai_response(messages_list):
+    """Tries multiple active models sequentially to prevent 404 errors."""
+    last_err = ""
+    for model_name in CANDIDATE_MODELS:
+        try:
+            resp = client.chat.completions.create(
+                messages=messages_list,
+                model=model_name
+            )
+            return clean_model_output(resp.choices[0].message.content)
+        except Exception as e:
+            last_err = str(e)
+            continue
+    return f"Error connecting to AI: {last_err}"
+
 # --- LOGIN SCREEN ---
 if not st.session_state.user:
     st.markdown("""
@@ -382,14 +402,17 @@ if st.session_state.current_tab == "Dashboard":
                 increment_user_chat_count(active_user, usage_db)
 
             st.session_state.messages.append({"role": "user", "content": clean_in})
-            try:
-                resp = client.chat.completions.create(
-                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]],
-                    model=ACTIVE_MODEL
-                )
-                bot_ans = clean_model_output(resp.choices[0].message.content)
-            except Exception as e:
-                bot_ans = f"Error: {e}"
+
+            # Check creator queries
+            input_lower = clean_in.lower()
+            creator_triggers = ["kisne banaya", "who made you", "developer", "creator", "owner", "kaun banaya", "maker"]
+            if any(trig in input_lower for trig in creator_triggers):
+                bot_ans = CREATOR_REPLY
+            else:
+                messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}] + [
+                    {"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]
+                ]
+                bot_ans = generate_ai_response(messages_payload)
 
             st.session_state.messages.append({"role": "assistant", "content": bot_ans})
             st.rerun()
@@ -424,9 +447,9 @@ elif st.session_state.current_tab == "VIP Tools":
                 if topic:
                     with st.spinner("AI Script likh raha hai..."):
                         p = f"Write a high converting 30-second viral Instagram Reel script on '{topic}'. Include a strong opening hook, key bullet points, and a CTA in natural Hinglish."
-                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model=ACTIVE_MODEL)
+                        out = generate_ai_response([{"role": "user", "content": p}])
                         st.success("Aapki Viral Reel Script taiyaar hai:")
-                        st.markdown(clean_model_output(r.choices[0].message.content))
+                        st.markdown(out)
 
         elif "E-commerce" in tool_choice:
             st.markdown("#### 📦 E-Commerce Description Generator")
@@ -435,9 +458,9 @@ elif st.session_state.current_tab == "VIP Tools":
                 if item_name:
                     with st.spinner("Listing likh raha hai..."):
                         p = f"Write an attractive Meesho/Amazon product title, 5 bullet points features, and description for: '{item_name}' in Hinglish."
-                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model=ACTIVE_MODEL)
+                        out = generate_ai_response([{"role": "user", "content": p}])
                         st.success("Listing ready hai:")
-                        st.markdown(clean_model_output(r.choices[0].message.content))
+                        st.markdown(out)
 
         elif "Bio" in tool_choice:
             st.markdown("#### ✍️ Viral Bio & Caption Generator")
@@ -446,8 +469,8 @@ elif st.session_state.current_tab == "VIP Tools":
                 if niche:
                     with st.spinner("Bios ban rahe hain..."):
                         p = f"Generate 5 aesthetic, viral Instagram bios with emojis and CTA for niche: '{niche}'."
-                        r = client.chat.completions.create(messages=[{"role": "user", "content": p}], model=ACTIVE_MODEL)
-                        st.markdown(clean_model_output(r.choices[0].message.content))
+                        out = generate_ai_response([{"role": "user", "content": p}])
+                        st.markdown(out)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
