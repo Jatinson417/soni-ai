@@ -126,9 +126,9 @@ client = Groq(api_key=HARDCODED_KEY, timeout=25.0)
 
 def generate_ai_response(messages_list):
     try:
-        # Dynamically fetch available models from Groq to avoid 404 error
         models_response = client.models.list()
-        blacklist = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1"]
+        # Strict blacklist to avoid restricted models like canopylabs/orpheus
+        blacklist = ["whisper", "guard", "distill", "safeguard", "vision", "embed", "tts", "r1", "canopylabs", "orpheus", "preview"]
         active_models = [m.id for m in models_response.data if not any(b in m.id.lower() for b in blacklist)]
         
         # Prioritize standard llama models
@@ -271,4 +271,4 @@ elif tab == "AdminPanel":
     if st.button("⬅️ Back"): st.session_state.current_tab = "Dashboard"; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 else:
-    st.markdown('<div class="welcome_card"><h3>Other sections available soon!</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-card"><h3>Other sections available soon!</h3></div>', unsafe_allow_html=True)
