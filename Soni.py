@@ -24,7 +24,7 @@ MY_WHATSAPP_NUMBER = "918307940340"
 ADMIN_PIN = "2009"
 FREE_DAILY_LIMIT = 50
 OWNER_EMAIL = "sonijatin177@gmail.com"
-PREMIUM_PRICE = 49.00
+PREMIUM_PRICE = 100.00
 
 EXACT_SKB_QUERIES = ["what is skb", "skb kya hai", "skb"]
 
